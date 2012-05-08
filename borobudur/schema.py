@@ -39,8 +39,12 @@ class SchemaRepository(object):
         return self.register(schema)
 
     def add_child(self, schema_namespace, schema_name, options={}):
+        return self.modify(self.get(schema_namespace), schema_name, options)
+
+
+    def modify(self, source, schema_name, options={}):
         #clone because we modifying source children list
-        schema = get(schema_namespace).clone()
+        schema = source.clone()
         schema.schema_name = schema_name
         schema.schema_namespace = source.schema_namespace
 

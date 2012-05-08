@@ -1,51 +1,6 @@
-class Event():
-    def on(self):
-        pass
-    def trigger(self):
-        pass
-    def off(self):
-        pass
-
-class Model(Event):
-    """
-    """
-
-    schema = None
-    storage = None
-
-    def __init__(self):
-        self._attributes = {}
-
-    def save(self):
-        pass
-
-    def load(self, appstruct):
-        self._attributes.update(appstruct)
-
-    def validate(self):
-        self.schema.validate(self._attributes)
-
-    def get(self, name):
-        return self._attributes[name]
-
-    def set(self, attrs):
-        for attr, value in enumerate(attrs):
-            self._attributes[attr] = value
-            self.trigger("change:"+attr, self, value)
-
-    def to_appstruct(self):
-        return self.toJSON()
-
-    def save(self):
-        if self.is_new():
-            storage.insert(self.to_appstruct(), self.schema)
-        else:
-            storage.update(self.to_appstruct(), self.schema)
-
-
-class Collection(object):
-    pass
-
+"""
+unused see Model in borobudur/__init__.py
+"""
 
 class UserModel(Model):
 

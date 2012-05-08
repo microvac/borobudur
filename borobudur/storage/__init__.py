@@ -16,6 +16,10 @@ class Storage(object):
         """
         """
 
+    def get(self, id, schema):
+        """
+        """
+
     def list(self, query, schema):
         """
         returns list
@@ -30,5 +34,6 @@ class Storage(object):
 del Storage.insert
 del Storage.update
 del Storage.delete
+del Storage.get
 del Storage.list
 del Storage.count
