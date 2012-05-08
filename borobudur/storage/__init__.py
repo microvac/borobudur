@@ -82,7 +82,7 @@ class Storage(object):
         - if schema is None, retrieve all available fields
 
         raise StorageException if something wrong
-        returns dictionary
+        returns obj that can be deserialized by colander
         """
 
     def all(self, query=None, config=None, schema=None):
@@ -96,7 +96,7 @@ class Storage(object):
         - if schema is None, retrieve all available fields
 
         raise StorageException if something wrong
-        returns list of obj which can be deserialize by colander
+        returns list of obj that can be deserialized by colander
         """
 
     def count(self, query=None):
