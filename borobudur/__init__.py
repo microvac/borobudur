@@ -77,16 +77,18 @@ class Model(jslib.backbone.Model):
         if self.id is None:
             raise RuntimeError("cannot fetch without id")
 
-        self.set(self.storage.get(self.id. self.schema))
+        self.set(self.storage.one(self.id. self.schema))
 
     def save(self, value=None, options=None):
         if self.storage is None:
             raise RuntimeError("cannot save without storage")
 
+        obj = self.as_dict()
         if self.is_new():
-            self.storage.insert(self.to_appstruct(), self.schema)
+            self.storage.insert(obj, self.schema)
         else:
-            self.storage.update(self.to_appstruct(), self.schema)
+            self.storage.update(obj, self.schema)
+        self.set(obj)
 
     def destroy(self, options=None):
         if self.storage is None:
