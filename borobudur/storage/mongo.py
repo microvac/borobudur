@@ -7,6 +7,8 @@ from pymongo import (
     Connection,
     )
 
+from pymongo.objectid import ObjectId
+
 import colander
 
 class MongoStorageException(StorageException):
@@ -29,29 +31,37 @@ class MongoStorage(Storage):
             return obj
 
         for child in schema.children:
-            if isinstance(child.typ, colander.String):
+            if type(child.typ) == colander.String:
                 deserialized_obj[child.name] = obj[child.name]
-            elif isinstance(child.typ, colander.Int):
+            elif type(child.typ) == colander.Int:
                 deserialized_obj[child.name] = obj[child.name]
-            elif isinstance(child.typ, colander.Float):
+            elif type(child.typ) == colander.Float:
                 deserialized_obj[child.name] = obj[child.name]
-            elif isinstance(child.typ, colander.DateTime):
+            elif type(child.typ) == colander.DateTime:
                 deserialized_obj[child.name] = obj[child.name]
-            elif isinstance(child.typ, colander.Boolean):
+            elif type(child.typ) == colander.Boolean:
                 deserialized_obj[child.name] = obj[child.name]
-            elif isinstance(child.typ, colander.Decimal):
+            elif type(child.typ) == colander.Decimal:
                 deserialized_obj[child.name] = obj[child.name]
-            elif isinstance(child.typ, colander.Mapping):
+            elif type(child.typ) == colander.Mapping:
                 deserialized_obj[child.name] = self.deserialize(obj[child.name], child)
-            elif isinstance(child.typ, colander.Sequence):
+            elif type(child.typ) == colander.Sequence:
                 deserialized_obj[child.name] = []
                 deserialized_obj.append(self.deserialize(obj[child.name], child))
+            else:
+                deserialized_obj[child.name] = None
         return deserialized_obj
+
+    def serialize(self, obj, schema=None):
+        if schema is None:
+            return obj
+        else:
+            serialized_obj = schema.deserialize(obj)
+
 
     def insert(self, obj, schema=None):
         result = self.deserialize(obj, schema)
-        #pymongo
-        pass
+        self.collection.insert(result)
 
     def update(self, obj, schema=None):
         pass
@@ -60,7 +70,7 @@ class MongoStorage(Storage):
         pass
 
     def one(self, id, schema=None):
-        pass
+        return self.serialize(self.collection.find_one({'_id':ObjectId(id)}), schema)
 
     def all(self, query=None, config=None, schema=None):
         pass
