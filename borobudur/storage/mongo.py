@@ -7,9 +7,60 @@ from pymongo import (
     Connection,
     )
 
-from pymongo.objectid import ObjectId
+#from pymongo.objectid import ObjectId
 
 import colander
+
+def null_converter(obj, schema):
+    return obj
+
+def sequence_converter(obj, schema):
+    result = []
+    child_schema = schema.children[0]
+    for child_obj in obj:
+        result.append(serializers[type(child_schema.typ)](child_obj, child_schema))
+    return result
+
+def mapping_serializer(obj, schema):
+    result = {}
+    for child_schema in schema.children:
+        child_obj = obj[child_schema.name]
+        result[child_schema.name] = serializers[type(child_schema.typ)](child_obj, child_schema)
+    return result
+
+def mapping_deserializer(obj, schema):
+    result = {}
+    for child_schema in schema.children:
+        if child_schema.name in obj:
+            child_obj = obj[child_schema.name]
+            result[child_schema.name] = serializers[type(child_schema.typ)](child_obj, child_schema)
+        else:
+            #Todo: consider missing values implementation
+            #result[child_schema.name] = default_values[type(child_schema.typ)]
+            result[child_schema.name] = None
+    return result
+
+serializers = {
+    colander.String: null_converter,
+    colander.Int: null_converter,
+    colander.Float: null_converter,
+    colander.DateTime: null_converter,
+    colander.Boolean: null_converter,
+    #colander.Decimal:
+    colander.Sequence: sequence_converter,
+    colander.Mapping: mapping_serializer
+}
+
+deserializers = {
+    colander.String: null_converter,
+    colander.Int: null_converter,
+    colander.Float: null_converter,
+    colander.DateTime: null_converter,
+    colander.Boolean: null_converter,
+    #colander.Decimal:
+    colander.Sequence: sequence_converter,
+    colander.Mapping: mapping_deserializer
+}
 
 class MongoStorageException(StorageException):
     pass
@@ -25,40 +76,6 @@ class MongoStorage(Storage):
         if self.collection is None:
             raise MongoStorageException("There is no collection named: %s" % collection_name)
 
-    def deserialize(self, obj, schema=None):
-        deserialized_obj = None
-        if schema is None:
-            return obj
-
-        for child in schema.children:
-            if type(child.typ) == colander.String:
-                deserialized_obj[child.name] = obj[child.name]
-            elif type(child.typ) == colander.Int:
-                deserialized_obj[child.name] = obj[child.name]
-            elif type(child.typ) == colander.Float:
-                deserialized_obj[child.name] = obj[child.name]
-            elif type(child.typ) == colander.DateTime:
-                deserialized_obj[child.name] = obj[child.name]
-            elif type(child.typ) == colander.Boolean:
-                deserialized_obj[child.name] = obj[child.name]
-            elif type(child.typ) == colander.Decimal:
-                deserialized_obj[child.name] = obj[child.name]
-            elif type(child.typ) == colander.Mapping:
-                deserialized_obj[child.name] = self.deserialize(obj[child.name], child)
-            elif type(child.typ) == colander.Sequence:
-                deserialized_obj[child.name] = []
-                deserialized_obj.append(self.deserialize(obj[child.name], child))
-            else:
-                deserialized_obj[child.name] = None
-        return deserialized_obj
-
-    def serialize(self, obj, schema=None):
-        if schema is None:
-            return obj
-        else:
-            serialized_obj = schema.deserialize(obj)
-
-
     def insert(self, obj, schema=None):
         result = self.deserialize(obj, schema)
         self.collection.insert(result)
@@ -70,7 +87,8 @@ class MongoStorage(Storage):
         pass
 
     def one(self, id, schema=None):
-        return self.serialize(self.collection.find_one({'_id':ObjectId(id)}), schema)
+        #return self.serialize(self.collection.find_one({'_id':ObjectId(id)}), schema)
+        pass
 
     def all(self, query=None, config=None, schema=None):
         pass
@@ -79,9 +97,8 @@ class MongoStorage(Storage):
         pass
 
 
-connection = Connection('localhost', 27017)
-db = None;
-userStorage = MongoStorage(connection, db, "users")
-portofolioStorage = MongoStorage(connection, db, "users", "portofolios")
-
-config.expose_storage(userStorage, route_name="/app/storage/users")
+#connection = Connection('localhost', 27017)
+#db = None;
+#userStorage = MongoStorage(connection, db, "users")
+#portofolioStorage = MongoStorage(connection, db, "users", "portofolios")
+#config.expose_storage(userStorage, route_name="/app/storage/users")
