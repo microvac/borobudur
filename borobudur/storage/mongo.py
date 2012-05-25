@@ -3,40 +3,42 @@ from borobudur.storage import (
     StorageException,
     )
 
-from pymongo import (
-    Connection,
-    )
-
-#from pymongo.objectid import ObjectId
+from pymongo import Connection
+from bson.son import SON
+from bson.objectid import ObjectId
+from bson.dbref import DBRef
 
 import colander
 
-def null_converter(obj, schema):
+def null_converter(obj, schema=None, func=None):
     return obj
 
-def sequence_converter(obj, schema):
+def sequence_converter(obj, schema, converter):
     result = []
     child_schema = schema.children[0]
     for child_obj in obj:
-        result.append(serializers[type(child_schema.typ)](child_obj, child_schema))
+        result.append(converter(child_obj, child_schema, converter))
     return result
 
-def mapping_serializer(obj, schema):
+def mapping_serializer(obj, schema, serializer_child):
     result = {}
+    if "_id" in obj:
+        result["_id"] = obj["_id"]
     for child_schema in schema.children:
         child_obj = obj[child_schema.name]
-        result[child_schema.name] = serializers[type(child_schema.typ)](child_obj, child_schema)
+        result[child_schema.name] = serializer_child(child_obj, child_schema, serializer_child)
     return result
 
-def mapping_deserializer(obj, schema):
+def mapping_deserializer(obj, schema, deserializer_child):
     result = {}
+    if "_id" in obj:
+        result["_id"] = obj["_id"]
     for child_schema in schema.children:
         if child_schema.name in obj:
             child_obj = obj[child_schema.name]
-            result[child_schema.name] = serializers[type(child_schema.typ)](child_obj, child_schema)
+            result[child_schema.name] = deserializer_child(child_obj, child_schema, deserializer_child)
         else:
             #Todo: consider missing values implementation
-            #result[child_schema.name] = default_values[type(child_schema.typ)]
             result[child_schema.name] = None
     return result
 
@@ -77,21 +79,52 @@ class MongoStorage(Storage):
             raise MongoStorageException("There is no collection named: %s" % collection_name)
 
     def insert(self, obj, schema=None):
-        result = self.deserialize(obj, schema)
+        result = mapping_serializer(obj, schema, self.serialize)
         self.collection.insert(result)
+        return result
+
+    def serialize(self, obj, schema, serializer_child):
+        storage = self.context.registry.get(schema.schema_namespace) if hasattr(schema, "schema_namespace") else None
+        if storage is None:
+            return serializers[type(schema.typ)](obj, schema, serializer_child)
+        else:
+            result = storage.update(obj, schema)
+            ref = DBRef(collection=storage.collection.name, id=result['_id'])
+            return ref
+
+    def deserialize(self, obj, schema, deserializer_child):
+        storage = self.context.registry.get(schema.schema_namespace) if hasattr(schema, "schema_namespace") else None
+        if storage is None:
+            return deserializers[type(schema.typ)](obj, schema, deserializer_child)
+        else:
+            #if context changes collection then the reference cannot be found
+            result = storage.one(obj.id, schema)
+            return result
 
     def update(self, obj, schema=None):
-        pass
+        result = mapping_serializer(obj, schema, self.serialize)
+        #self.collection.update({'_id': obj['_id']}, result)
+        self.collection.save(result) #save = upsert
+        return result
 
     def delete(self, id):
-        pass
+        self.collection.remove({'_id': id})
 
     def one(self, id, schema=None):
-        #return self.serialize(self.collection.find_one({'_id':ObjectId(id)}), schema)
-        pass
+        result = self.collection.find_one({'_id':id})
+        if result is not None:
+            result = mapping_deserializer(result, schema, self.deserialize)
+        return result
 
     def all(self, query=None, config=None, schema=None):
-        pass
+        #build query based on config
+        #return search result after serialized with schema
+        cursor = self.collection.find_one()
+        #result = []
+        #for item in cursor:
+        #    result.append(mapping_deserializer(item, schema, self.deserialize))
+        result = mapping_deserializer(cursor, schema, self.deserialize)
+        return result
 
     def count(self, query=None):
         pass
