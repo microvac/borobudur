@@ -1,20 +1,20 @@
-import jslib.backbone
+from borobudur.jslib import backbone
 import colander
+import prambanan
 
-class Model(jslib.backbone.Model):
+is_server = not prambanan.is_js
+
+class Model(backbone.Model):
     """
     """
     schema = None
     storage = None
 
-    def __init__(self, attributes=None, options=None):
-        if options is not None and "schema" in options:
-            self.schema = options["schema"]
+    def __init__(self, attributes=None, schema=None, storage=None):
+        self.schema = schema
+        self.storage = storage
 
-        if options is not None and "storage" in options:
-            self.storage = options["storage"]
-
-        super(Model, self).__init__(attributes, options)
+        super(Model, self).__init__(attributes)
 
 
     def validate(self, attributes):
@@ -24,7 +24,7 @@ class Model(jslib.backbone.Model):
             return e
         return None
 
-    def set(self, attrs, options=None):
+    def set(self, attrs, silent=False):
         """
         Performs model creation if child attribute schema are colander.Mapping or colander.Sequence
         """
@@ -46,7 +46,7 @@ class Model(jslib.backbone.Model):
 
             copy[key] = child
 
-        super(Model, self).set(copy, options)
+        super(Model, self).set(copy, {"silent":silent})
 
     def create_child_from_schema(self, attributes, schema):
         """
@@ -70,7 +70,7 @@ class Model(jslib.backbone.Model):
                 result[key] = value.toJSON()
         return result
 
-    def fetch(self, options=None):
+    def fetch(self):
         if self.storage is None:
             raise RuntimeError("cannot fetch without storage")
 
@@ -79,7 +79,7 @@ class Model(jslib.backbone.Model):
 
         self.set(self.storage.one(self.id. self.schema))
 
-    def save(self, value=None, options=None):
+    def save(self, value=None):
         if self.storage is None:
             raise RuntimeError("cannot save without storage")
 
@@ -90,7 +90,7 @@ class Model(jslib.backbone.Model):
             self.storage.update(obj, self.schema)
         self.set(obj)
 
-    def destroy(self, options=None):
+    def destroy(self):
         if self.storage is None:
             raise RuntimeError("cannot destroy without storage")
 

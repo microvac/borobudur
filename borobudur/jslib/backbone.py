@@ -60,11 +60,11 @@ class Model(Event):
             if value != self.get(key):
                 changes[key] = value
                 self.attributes[key] = value
-                if "silent" not in options or not options["silent"]:
+                if not options["silent"]:
                     self.trigger("change:"+key, self, value)
 
         if len(changes) > 0:
-            if "silent" not in options or not options["silent"]:
+            if not options["silent"]:
                 self.trigger("change", self, changes)
 
     def clear(self, options=None):

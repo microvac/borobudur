@@ -64,7 +64,7 @@ friend = repository.add_mapping("Friend", {
 model_registry = {}
 class BaseModel(borobudur.Model):
     def create_child_from_schema(self, attributes, schema):
-        return model_registry[schema.schema_namespace](attributes, {"schema": schema})
+        return model_registry[schema.schema_namespace](attributes, schema= schema)
 class PhoneModel(BaseModel): pass
 class FriendModel(BaseModel): pass
 model_registry["Phone"]=PhoneModel
@@ -79,7 +79,7 @@ class TestModelWithSchema(unittest.TestCase):
             "name": "supriadi",
             "rank": 3,
             "phone": {"number": {"8823234"}}
-        }, {"schema": friend})
+        }, schema =  friend)
         self.assertTrue(isinstance(a.get("phone"), PhoneModel))
 
         #model without schema auto created
@@ -120,7 +120,7 @@ class TestModelWithSchema(unittest.TestCase):
             "name": "supriadi",
             "rank": "5000",
             "phone": {"number": 8823234}
-        }, {"schema": friend})
+        }, schema= friend)
 
         self.assertEqual(a.get("rank"), 5000)
         self.assertNotEqual(a.get("rank"), "5000")
