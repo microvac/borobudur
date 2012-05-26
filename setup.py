@@ -19,8 +19,12 @@ setup(name='borobudur',
       zip_safe=False,
       install_requires=[
           # -*- Extra requirements: -*-
+          "prambanan",
+          "pyramid"
       ],
       entry_points="""
       # -*- Entry points: -*-
+      [prambanan.provider]
+      borobudur = borobudur.prambanan_provider:BorobudurPrambananProvider
       """,
       )
