@@ -1,0 +1,11 @@
+{
+   "name": "webassets-dependencies",
+   "version": "0.0.1",
+   "private": true,
+   "dependencies": {
+       "coffee-script": ">=0.1",
+       "uglify-js": ">=0.1",
+       "less": ">=0.1"
+   } 
+}
+

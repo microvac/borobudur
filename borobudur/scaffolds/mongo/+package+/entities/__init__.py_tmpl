@@ -1,0 +1,22 @@
+import borobudur.Model
+from borobudur.schema import (\
+    SchemaNode,SchemaDelete,
+    Mapping,Sequence,
+    String,Integer,Float,Boolean,Date,DateTime,
+    Range,Length,OneOf,All
+)
+from {{project}}.app import app
+
+@app.root_schema("Phone")
+class Phone(Mapping):
+    phone = SchemaNode(String(), validator=Length(100))
+
+@app.root_schema("User")
+class Friend(Mapping):
+    name = SchemaNode(String(), validator=Length(100))
+    age = SchemaNode(Integer(), validator=Range(1, 100))
+    phone = Phone()
+
+@app.child_schema("name_only")
+class NameOnlyFriend(Friend):
+    age=SchemaDelete()
