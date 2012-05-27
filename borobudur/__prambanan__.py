@@ -13,7 +13,7 @@ class BorobudurPrambananProvider(PrambananProvider):
     overridden_types = {}
     validator_types = ["All", "Function", "Range", "Length", "OneOf"]
     for type in validator_types:
-        qname = "colander."+type
+        qname = "colander." + type
         overridden_types[qname] = "Function"
     overridden_types["translationstring.TranslationString"] = "Function"
 
