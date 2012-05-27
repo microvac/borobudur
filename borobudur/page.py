@@ -11,6 +11,9 @@ class Page(object):
     parent_page = None
     loaders = []
 
+    def __init__(self, request):
+        self.dom_query = request.dom_query
+
     def prepare(self, *args):
         print "prepare"
         pass

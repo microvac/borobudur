@@ -1,4 +1,5 @@
 from pyramid.response import Response
+from pyramid.security import authenticated_userid
 from lxml import etree
 from pyquery import PyQuery as DomQuery
 from prambanan.zpt.template import TemplateRegistry
@@ -12,7 +13,7 @@ class Router(object):
     leaf_page=True
     active_pages = []
 
-def apply_load_flow(app, router, load_flow):
+def apply_load_flow(router, load_flow, request):
 
     while router.leaf_page != load_flow.persist_page:
         it = router.leaf_page
@@ -37,11 +38,20 @@ def apply_load_flow(app, router, load_flow):
         current[0] += 1
         if current[0] < len(page_types):
             callbacks["run"]()
+        else:
+            dom_query = request.dom_query
+            if page.title is not None:
+                dom_query("title").html(page.title)
+            if page.keywords is not None:
+                dom_query("meta[name='keywords']").attr("content", page.keywords)
+            if page.description is not None:
+                dom_query("meta[name='description']").attr("content", page.description)
+
 
     def run():
         page_type = page_types[current[0]]
 
-        page = page_type()
+        page = page_type(request)
         page.prepare()
         current[1] = page
         page.load(callbacks)
@@ -57,6 +67,7 @@ def make_callback(app, page_type):
     while current is not None:
         page_types.append(current)
         current = current.parent_page_type
+    page_types = list(reversed(page_types))
 
     def cb(request):
         router = Router()
@@ -64,8 +75,11 @@ def make_callback(app, page_type):
         app.render_base(el)
         el = el[0]
 
+        request.document = el
+        request.dom_query = DomQuery(el)
+
         load_flow = LoadFlow(page_types)
-        apply_load_flow(app, router, load_flow)
+        apply_load_flow(router, load_flow, request)
 
         return Response(etree.tostring(el))
     return cb
