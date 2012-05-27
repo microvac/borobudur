@@ -8,7 +8,7 @@ pylib_dir = resource_filename("borobudur", "pylib/")
 class BorobudurPrambananProvider(PrambananProvider):
     modules = {
         "translationstring": JavascriptModule(join(pylib_dir, "translationstring.js")),
-        "colander": PythonModule(join(pylib_dir, "colander.py"), "colander", ["datetime", "translationstring"]),
+        "colander": PythonModule(join(pylib_dir, "colander.py"), "colander")
     }
     overridden_types = {}
     validator_types = ["All", "Function", "Range", "Length", "OneOf"]
