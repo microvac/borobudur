@@ -18,9 +18,8 @@ class Page(object):
         print "prepare"
         pass
 
-    def load(self, callbacks):
-        print "load"
-        callbacks["success"]()
+    def load(self, load_flow):
+        load_flow.success()
 
     def open(self):
         print "open"

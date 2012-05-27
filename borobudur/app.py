@@ -9,37 +9,35 @@ class LoadFlow(object):
         self.persist_page = True
         self.page_types = page_types
 
-class Router(object):
-    leaf_page=True
-    active_pages = []
+    def apply(self, router, request):
+        self.router = router
+        self.request = request
 
-def apply_load_flow(router, load_flow, request):
+        while router.leaf_page != self.persist_page:
+            it = router.leaf_page
+            router.active_pages.pop()
+            router.leaf_page = it.parent_page
 
-    while router.leaf_page != load_flow.persist_page:
-        it = router.leaf_page
-        router.active_pages.pop()
-        router.leaf_page = it.parent_page
+        if len(self.page_types) <= 0:
+            return
 
-    page_types = load_flow.page_types
+        self.i = 0
+        self.current = None
 
-    if len(page_types) <= 0:
-        return
-
-    current = [0, None]
-
-    callbacks = {}
-
-    def success():
-        page = current[1]
+    def success(self):
+        page = self.page
         page.open()
+
+        router = self.router
+
         router.leaf_page = page
         router.active_pages.append(page)
 
-        current[0] += 1
-        if current[0] < len(page_types):
-            callbacks["run"]()
+        self.i += 1
+        if self.i < len(self.page_types):
+            self.run()
         else:
-            dom_query = request.dom_query
+            dom_query = self.request.dom_query
             if page.title is not None:
                 dom_query("title").html(page.title)
             if page.keywords is not None:
@@ -47,18 +45,17 @@ def apply_load_flow(router, load_flow, request):
             if page.description is not None:
                 dom_query("meta[name='description']").attr("content", page.description)
 
-
-    def run():
-        page_type = page_types[current[0]]
+    def run(self):
+        page_type = self.page_types[self.i]
 
         page = page_type(request)
         page.prepare()
-        current[1] = page
-        page.load(callbacks)
+        self.page = page
+        page.load(self)
 
-    callbacks["success"] = success
-    callbacks["run"] = run
-    callbacks["run"]()
+class Router(object):
+    leaf_page=True
+    active_pages = []
 
 def make_callback(app, page_type):
 
@@ -79,7 +76,7 @@ def make_callback(app, page_type):
         request.dom_query = DomQuery(el)
 
         load_flow = LoadFlow(page_types)
-        apply_load_flow(router, load_flow, request)
+        load_flow.apply(router, request)
 
         return Response(etree.tostring(el))
     return cb
