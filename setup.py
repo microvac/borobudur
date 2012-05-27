@@ -20,7 +20,9 @@ setup(name='borobudur',
       install_requires=[
           # -*- Extra requirements: -*-
           "prambanan",
-          "pyramid"
+          "pyramid",
+          "colander",
+          "webassets",
       ],
       entry_points="""
       # -*- Entry points: -*-

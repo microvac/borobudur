@@ -2,20 +2,21 @@ import unittest
 import borobudur
 import borobudur.schema
 import borobudur.storage
+import borobudur.model
 import colander
 
 class TestModel(unittest.TestCase):
 
     def test_create(self):
-        a = borobudur.Model()
+        a = borobudur.model.Model()
         self.assertIsNot(a, None)
         self.assertIs(a.get("name"), None)
 
-        a = borobudur.Model({"name": "Joko Suprianto"})
+        a = borobudur.model.Model({"name": "Joko Suprianto"})
         self.assertEqual(a.get("name"), "Joko Suprianto")
 
     def test_event(self):
-        a = borobudur.Model()
+        a = borobudur.model.Model()
         counter = [0]
 
         def on_change(model, name):
@@ -36,9 +37,9 @@ class TestModel(unittest.TestCase):
         self.assertEqual(counter[0], 2)
 
     def test_eq(self):
-        a = borobudur.Model({"aaa": "4"})
-        b = borobudur.Model({"aaa": "4"})
-        c = borobudur.Model({"aaa": "5"})
+        a = borobudur.model.Model({"aaa": "4"})
+        b = borobudur.model.Model({"aaa": "4"})
+        c = borobudur.model.Model({"aaa": "5"})
 
         self.assertEqual(a, b)
         self.assertNotEqual(a, c)
@@ -62,7 +63,7 @@ friend = repository.add_mapping("Friend", {
 
 #create model that creating child by finding namespace in model registry
 model_registry = {}
-class BaseModel(borobudur.Model):
+class BaseModel(borobudur.model.Model):
     def create_child_from_schema(self, attributes, schema):
         return model_registry[schema.schema_namespace](attributes, schema= schema)
 class PhoneModel(BaseModel): pass
