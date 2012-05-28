@@ -22,7 +22,7 @@ class StorageContext(object):
         return wrapper
 
     def get(self, name):
-        return self.registry[name]
+        return self.registry.get(name)
 
 
 
