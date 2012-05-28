@@ -15,7 +15,7 @@ def make_pyramid_view(app, page_type):
     def pyramid_view(request):
         router = Router()
         el = etree.Element("div")
-        app.render_base(el)
+        app.base_template.render(el)
         el = el[0]
 
         request.document = el
@@ -82,13 +82,12 @@ class Router(object):
     leaf_page=True
     active_pages = []
 
-class App(object):
-    def __init__(self, package_name, base_template, parts=None):
-        self.package_name = package_name
+class Borobudur(object):
+    def __init__(self, base_template_type, base_template_config, parts=None):
         self.parts=parts
 
         self.templates = TemplateRegistry()
-        self.base_template = self.templates.register_py(package_name, base_template)
+        self.base_template = self.get_template(base_template_type, base_template_config)
 
         self.pages = []
 
@@ -102,11 +101,9 @@ class App(object):
             return self.register_page(page, 0, routes)
         return decorate
 
-    def render_base(self, el, **vars):
-        self.base_template.render(el, **vars)
-
-    def make_view(self, pages):
-        pass
+    def get_template(self, template_type, template_config):
+        package, name = template_config
+        return self.templates.register_py(package, name)
 
     def get_leaf_pages(self, app_root):
         sorted_pages = sorted(self.pages, key=lambda i: i[1])
