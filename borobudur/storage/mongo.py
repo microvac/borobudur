@@ -115,6 +115,7 @@ class MongoStorage(Storage):
             raise MongoStorageException("Error in updating: \n%s" % traceback.format_exc())
         return result
 
+    #Todo: cascade delete
     def delete(self, id):
         if self.collection.find_one({'_id': id}) is None:
             raise ValueError("Error in deleting - There is no such id as: %s" % id.__str__())
@@ -124,6 +125,7 @@ class MongoStorage(Storage):
             raise MongoStorageException("Error in deleting: \n%s" % traceback.format_exc())
         return True
 
+    #Todo: prevent circular referencing and add lazy loading?
     def one(self, id, schema=None):
         try:
             result = self.collection.find_one({'_id':id})
