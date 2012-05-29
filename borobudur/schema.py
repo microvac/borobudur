@@ -1,5 +1,26 @@
 import colander
+from colander import null
+from bson.dbref import DBRef
+from bson.objectid import ObjectId
 import operator
+
+class Ref(object):
+    def serialize(self, node, appstruct):
+        if appstruct is None:
+            return null
+        if not isinstance(appstruct, DBRef):
+            raise Invalid(node, 'input is not DBRef')
+        return dict(collection=appstruct.collection, id=str(appstruct.id))
+
+    def deserialize(self, node, cstruct):
+        if cstruct is null:
+            return None
+        if not isinstance(cstruct, dict):
+            raise Invalid(node, 'input is not a dict')
+        elif ((cstruct.get("collection") is None) or (cstruct.get("id") is None)):
+            raise Invalid(node, 'input is not a correct reference')
+        result = DBRef(collection=cstruct.get("collection"), id=ObjectId(cstruct.get("id")))
+        return result
 
 class SchemaRepository(object):
 

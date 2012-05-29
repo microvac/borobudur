@@ -1,5 +1,4 @@
-from borobudur.storage.mongo import MongoStorage
-from borobudur.storage.context import StorageContext
+from borobudur.storage.mongo import MongoStorage, StorageContext
 
 storage_context = StorageContext('localhost', 27017)
 
