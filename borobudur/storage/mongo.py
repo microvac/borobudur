@@ -2,15 +2,41 @@ from borobudur.storage import (
     Storage,
     StorageException,
     )
+import borobudur.schema as schema
 
 from pymongo import (
     ASCENDING,
     DESCENDING,
-    )
+    Connection)
 from bson.dbref import DBRef
 
 import colander
 import traceback
+
+
+class StorageContext(object):
+
+    def __init__(self, host, port):
+        self.connection = Connection(host=host, port=port)
+        self.registry = {}
+
+    def register(self, name, db, collection):
+        def wrapper(storage):
+            storage.context = self
+            self.registry[name] = storage(self.connection, db, collection)
+            return storage
+        return wrapper
+
+    def unregister(self, name):
+        def wrapper(storage):
+            del storage.context
+            del storage.connection
+            self.registry.pop(name)
+            return storage
+        return wrapper
+
+    def get(self, name):
+        return self.registry.get(name)
 
 def null_converter(obj, schema=None, func=None):
     return obj
@@ -22,23 +48,23 @@ def sequence_converter(obj, schema, converter):
         result.append(converter(child_obj, child_schema, converter))
     return result
 
-def mapping_serializer(obj, schema, serializer_child):
+def mapping_serializer(obj, schema, serialize_child):
     result = {}
     if "_id" in obj:
         result["_id"] = obj["_id"]
     for child_schema in schema.children:
         child_obj = obj[child_schema.name]
-        result[child_schema.name] = serializer_child(child_obj, child_schema, serializer_child)
+        result[child_schema.name] = serialize_child(child_obj, child_schema, serialize_child)
     return result
 
-def mapping_deserializer(obj, schema, deserializer_child):
+def mapping_deserializer(obj, schema, deserialize_child):
     result = {}
     if "_id" in obj:
         result["_id"] = obj["_id"]
     for child_schema in schema.children:
         if child_schema.name in obj:
             child_obj = obj[child_schema.name]
-            result[child_schema.name] = deserializer_child(child_obj, child_schema, deserializer_child)
+            result[child_schema.name] = deserialize_child(child_obj, child_schema, deserialize_child)
         else:
             #Todo: consider missing values implementation
             result[child_schema.name] = None
@@ -52,7 +78,8 @@ serializers = {
     colander.Boolean: null_converter,
     #colander.Decimal:
     colander.Sequence: sequence_converter,
-    colander.Mapping: mapping_serializer
+    colander.Mapping: mapping_serializer,
+    schema.Ref: null_converter,
 }
 
 deserializers = {
@@ -63,7 +90,8 @@ deserializers = {
     colander.Boolean: null_converter,
     #colander.Decimal:
     colander.Sequence: sequence_converter,
-    colander.Mapping: mapping_deserializer
+    colander.Mapping: mapping_deserializer,
+    schema.Ref: null_converter,
 }
 
 class MongoStorageException(StorageException):
@@ -88,19 +116,19 @@ class MongoStorage(Storage):
             raise MongoStorageException("Error in inserting: \n%s" % traceback.format_exc())
         return result
 
-    def serialize(self, obj, schema, serializer_child):
+    def serialize(self, obj, schema, serialize_child):
         storage = self.context.registry.get(schema.schema_namespace) if hasattr(schema, "schema_namespace") else None
         if storage is None:
-            return serializers[type(schema.typ)](obj, schema, serializer_child)
+            return serializers[type(schema.typ)](obj, schema, serialize_child)
         else:
             result = storage.update(obj, schema)
             ref = DBRef(collection=storage.collection.name, id=result['_id'])
             return ref
 
-    def deserialize(self, obj, schema, deserializer_child):
+    def deserialize(self, obj, schema, deserialize_child):
         storage = self.context.registry.get(schema.schema_namespace) if hasattr(schema, "schema_namespace") else None
         if storage is None:
-            return deserializers[type(schema.typ)](obj, schema, deserializer_child)
+            return deserializers[type(schema.typ)](obj, schema, deserialize_child)
         else:
             #if context changes collection then the reference cannot be found
             result = storage.one(obj.id, schema)

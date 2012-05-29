@@ -1,12 +1,12 @@
 import unittest
 import borobudur.schema
 import borobudur.storage
-import borobudur.storage.context
 import borobudur.storage.mongo as mongo
+from borobudur.storage.mongo import StorageContext
 import colander
 from pprint import pprint
 
-storage_context = borobudur.storage.context.StorageContext('localhost', 27017)
+storage_context = StorageContext('localhost', 27017)
 
 @storage_context.register("User", "test", "user")
 class UserStorage(mongo.MongoStorage):
@@ -38,6 +38,14 @@ user = repository.add_mapping("User", {
     "projects": projects
 })
 
+lazy_projects = borobudur.schema.anonymous_sequence(colander.SchemaNode(borobudur.schema.Ref()))
+user_lazy_projects = repository.modify(user, "lazy", {
+    "alter" : {
+        "projects": lazy_projects,
+    }
+})
+
+
 class TestMongoStorage(unittest.TestCase):
 
     def setUp(self):
@@ -61,7 +69,7 @@ class TestMongoStorage(unittest.TestCase):
         user_storage = storage_context.get("User")
         obj = user_storage.insert(self.user, user)
         #result = user_storage.one(obj['_id'], user)
-        #pprint(obj)
+        pprint(obj)
         self.assertIsNotNone(obj['_id'])
 
     def test_update(self):
@@ -80,6 +88,12 @@ class TestMongoStorage(unittest.TestCase):
         self.assertIsNotNone(user_storage.one(test["_id"], user))
         user_storage.delete(test["_id"])
         self.assertIsNone(user_storage.one(test["_id"], user))
+
+    def test_lazy_loading(self):
+        user_storage = storage_context.get("User")
+        test = user_storage.insert(self.user, user)
+        result = user_storage.one(test["_id"], user_lazy_projects)
+        self.assertEqual(test, result)
 
     def test_all_and_count(self):
         storage_context.connection.drop_database("test")
