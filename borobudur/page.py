@@ -1,4 +1,4 @@
-from pyquery import PyQuery as DomQuery
+import borobudur
 
 class BaseLoader(object):
     pass
@@ -90,7 +90,12 @@ class Page(object):
         view = view_type(el, model)
         view.render()
         self.views.append((id, view))
-        pass
+
+    def get_view(self, id):
+        for view_id, view in self.views:
+            if id == view_id:
+                return view
+        return None
 
     def destroy(self):
         reversed_views = reversed(self.views)

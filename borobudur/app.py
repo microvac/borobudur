@@ -1,46 +1,45 @@
-from pyramid.response import Response
-from lxml import etree
-from pyquery import PyQuery as DomQuery
-from prambanan.zpt.template import TemplateRegistry
-
-def make_pyramid_view(app, page_type):
-
-    page_types = []
-    current = page_type
-    while current is not None:
-        page_types.append(current)
-        current = current.parent_page_type
-    page_types = list(reversed(page_types))
-
-    def pyramid_view(request):
-        router = Router()
-        el = etree.Element("div")
-        app.base_template.render(el)
-        el = el[0]
-
-        request.document = el
-        request.dom_query = DomQuery(el)
-
-        load_flow = LoadFlow(page_types)
-        load_flow.apply(router, request)
-
-        return Response(etree.tostring(el))
-    return pyramid_view
+import borobudur
+from prambanan.cmd import get_available_modules, walk_import, walk_imports
+from prambanan.compiler import RUNTIME_MODULES
 
 class LoadFlow(object):
-    def __init__(self, page_types):
+    """
+    prambanan:type page_types list class borobudur.page.Page
+    """
+    def __init__(self, request, page_id):
         self.persist_page = True
-        self.page_types = page_types
-
-    def apply(self, router, request):
-        self.router = router
         self.request = request
 
-        while router.leaf_page != self.persist_page:
-            it = router.leaf_page
+        page_types = []
+
+        current = self.load_page(page_id)
+        while current is not None:
+            page_types.append(current)
+            current = current.parent_page_type
+
+        self.page_types = list(reversed(page_types))
+
+
+    def load_page(self, page_id):
+        splitted_page_id = page_id.split(":")
+        module_name = splitted_page_id[0]
+        class_name = splitted_page_id[1]
+
+        module = __import__(module_name)
+        splitted = module_name.split(".")
+        for i in range(1, len(splitted)):
+            module = getattr(module, splitted[i])
+
+        return getattr(module, class_name)
+
+
+    def apply(self):
+        app_state = self.request.app_state
+        while app_state.leaf_page != self.persist_page:
+            it = app_state.leaf_page
             it.destroy()
-            router.active_pages.pop()
-            router.leaf_page = it.parent_page
+            app_state.active_pages.pop()
+            app_state.leaf_page = it.parent_page
 
         if len(self.page_types) <= 0:
             return
@@ -54,9 +53,9 @@ class LoadFlow(object):
         page = self.current
         page.open()
 
-        router = self.router
-        router.leaf_page = page
-        router.active_pages.append(page)
+        app_state = self.request.app_state
+        app_state.leaf_page = page
+        app_state.active_pages.append(page)
 
         self.i += 1
         if self.i < len(self.page_types):
@@ -71,6 +70,8 @@ class LoadFlow(object):
                 dom_query("meta[name='description']").attr("content", page.description)
 
     def next(self):
+        """
+        """
         page_type = self.page_types[self.i]
         page = page_type(self.request)
         page.prepare()
@@ -78,42 +79,115 @@ class LoadFlow(object):
 
         page.load(self)
 
-class Router(object):
+class AppPart(object):
+
+    def __init__(self, name):
+        self.name = name
+        self.pages = []
+        self.module_names = []
+
+    def add_page(self, route, page_id):
+        self.pages.append((route, page_id))
+        module = page_id.split(":")[0]
+        if not module in self.module_names:
+            self.module_names.append(module)
+
+    def get_pyramid_views(self, app):
+        results = []
+        for route, page_id in self.pages:
+            name = app.name+"."+self.name+"."+page_id.replace(":", ".")
+            results.append((route, name, self.make_pyramid_view(app, page_id)))
+        return results
+
+    def make_pyramid_view(self, app, page_id):
+
+        def callback(request):
+            load_flow = LoadFlow(request, page_id)
+            load_flow.apply()
+
+        return borobudur.wrap_pyramid_view(callback, app, self)
+
+
+class AppState(object):
     leaf_page=True
     active_pages = []
 
-class Borobudur(object):
-    def __init__(self, base_template_type, base_template_config, parts=None):
-        self.parts=parts
+class BaseApp(object):
+    def __init__(self, name, entry_module, templates, base_template, parts_config, storages_config):
+        self.name = name
+        self.parts=[]
+        self.entry_module = entry_module
 
-        self.templates = TemplateRegistry()
-        self.base_template = self.get_template(base_template_type, base_template_config)
+        for part_name, part_config  in parts_config:
+            part = AppPart(part_name)
+            for route, page_id in part_config["pages"]:
+                part.add_page(route, page_id)
+            self.parts.append(part)
 
-        self.pages = []
+        self.templates = templates
+        self.base_template = base_template
 
-    def register_page(self, page, order, routes):
-        for route in routes:
-            self.pages.append((page, order, route))
-        return page
+        self.setup()
 
-    def page(self, *routes):
-        def decorate(page):
-            return self.register_page(page, 0, routes)
-        return decorate
+    def setup(self):
+        pass
 
     def get_template(self, template_type, template_config):
-        package, name = template_config
-        return self.templates.register_py(package, name)
+        return self.templates[template_type].get(template_config)
 
-    def get_leaf_pages(self, app_root):
-        sorted_pages = sorted(self.pages, key=lambda i: i[1])
-        return [(app_root+route, make_pyramid_view(self, page)) for page, order, route in sorted_pages]
+    def get_pyramid_views(self):
+        results = []
+        for part in self.parts:
+            for item in part.get_pyramid_views(self):
+                results.append(item)
+        return results
 
-    def bootstrap(self, app_root):
-        i = 0
-        for route, leaf in self.get_leaf_pages(app_root):
-            i += 1
-            name = "borobudur_page"+str(i)
-            self.config.add_route(name, route)
-            self.config.add_view(leaf, route_name=name)
+class ServerApp(BaseApp):
+    def setup(self):
+        from prambanan.compiler.manager import PrambananManager
+        from webassets import Environment
+        from .asset import PrambananModuleBundle
 
+        self.prambanan_manager = PrambananManager([], "load.conf")
+
+        available_modules = get_available_modules()
+        main_modules = walk_imports([self.entry_module], available_modules)
+
+        common_modules = None
+        for part in self.parts:
+            part_modules = walk_imports(part.module_names, available_modules)
+            part.modules = part_modules
+            if common_modules is None:
+                common_modules = part_modules.copy()
+            else:
+                for name, module in common_modules.items():
+                    if name not in part_modules:
+                        del common_modules[name]
+
+        for part in self.parts:
+            for name, module in part.modules.items():
+                if name in common_modules:
+                    del part.modules[name]
+            part.modules = part.modules.values()
+
+        for name, module in common_modules.items():
+            if name not in main_modules:
+                main_modules[name] = module
+
+        self.modules = RUNTIME_MODULES + main_modules.values()
+        self.asset_env = Environment("testapp/static", "/static/")
+        self.asset_env.config["UGLIFYJS_BIN"] = "uglifyjs.cmd"
+
+
+    def get_state(self):
+        return AppState()
+
+class ClientApp(BaseApp):
+
+    def setup(self):
+        self.state = AppState()
+
+    def get_state(self):
+        return self.state
+
+App = ServerApp if borobudur.is_server else ClientApp

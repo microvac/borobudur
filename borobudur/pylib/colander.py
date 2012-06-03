@@ -157,7 +157,10 @@ class Invalid(Exception):
 
 def All(*validators):
     """ Composite validator which succeeds if none of its
-    subvalidators raises an :class:`colander.Invalid` exception"""
+    subvalidators raises an :class:`colander.Invalid` exception
+
+    prambanan:call_type Function
+    """
     def __call__(node, value):
         excs = []
         for validator in validators:
@@ -197,6 +200,8 @@ def Function(function, message=_('Invalid value')):
 
     The default value for the ``message`` when not provided via the
     constructor is ``Invalid value``.
+
+    prambanan:call_type Function
     """
 
     def __call__(node, value):
@@ -234,6 +239,8 @@ def Range(min=None, max=None, min_err=None, max_err=None):
     maximum value and the provided value respectively.  If it is not
     provided, it defaults to ``'${val} is greater than maximum value
     ${max}'``.
+
+    prambanan:call_type Function
     """
     if min_err is None:
         min_err = _r_min_err
@@ -252,7 +259,10 @@ def Range(min=None, max=None, min_err=None, max_err=None):
 def Length(min=None, max=None):
     """ Validator which succeeds if the value passed to it has a
     length between a minimum and maximum.  The value is most often a
-    string."""
+    string.
+
+    prambanan:call_type Function
+    """
     def __call__(node, value):
         if min is not None:
             if len(value) < min:
@@ -269,7 +279,10 @@ def Length(min=None, max=None):
 
 def OneOf(choices):
     """ Validator which succeeds if the value passed to it is one of
-    a fixed set of values """
+    a fixed set of values
+
+    prambanan:call_type Function
+    """
     def __call__(node, value):
         if value not in choices:
             c = ', '.join(['%s' % x for x in choices])
