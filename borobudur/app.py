@@ -4,7 +4,7 @@ from prambanan.compiler import RUNTIME_MODULES
 
 class LoadFlow(object):
     """
-    prambanan:type page_types list class borobudur.page.Page
+    prambanan:type page_types list class borobudur.page:Page
     """
     def __init__(self, request, page_id):
         self.persist_page = True
@@ -177,6 +177,7 @@ class ServerApp(BaseApp):
         self.modules = RUNTIME_MODULES + main_modules.values()
         self.asset_env = Environment("testapp/static", "/static/")
         self.asset_env.config["UGLIFYJS_BIN"] = "uglifyjs.cmd"
+        self.asset_env.debug = True
 
 
     def get_state(self):
