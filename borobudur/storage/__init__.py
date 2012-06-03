@@ -20,7 +20,7 @@ class SearchConfig(object):
         conf.sorts.append(SearchSort("age", "desc"))
     ``
     """
-    def __init__(self, skip=0, limit=-1, sorts=None):
+    def __init__(self, skip=0, limit=0, sorts=None):
         self.skip = skip
         self.limit = limit
         if sorts is None:
@@ -37,13 +37,13 @@ class Storage(object):
         Create new record in storage which represent obj
 
         - obj is a valid result of colander serialization
-        - mutate obj if change obj after save,
+        - save mutated obj if change obj after save,
             e.g. auto generate id sets obj[id]
         - schema defines what fields in obj to be saved
         - if schema is None, save all given field
 
         raise StorageException if something wrong
-        returns void
+        returns saved mutated obj
         """
 
     def update(self, obj, schema=None):
@@ -51,12 +51,12 @@ class Storage(object):
         Update obj representation in storage
 
         - obj is a valid result of colander serialization
-        - mutate obj if change obj after save
+        - save mutated obj if change obj after save
         - schema defines what fields in obj to be saved
         - if schema is None, save all given field
 
         raise StorageException if something wrong
-        returns void
+        returns saved mutated obj
         """
 
     def delete(self, id):
@@ -83,6 +83,7 @@ class Storage(object):
 
         raise StorageException if something wrong
         returns obj that can be deserialized by colander
+        returns None if not finding anything
         """
 
     def all(self, query=None, config=None, schema=None):

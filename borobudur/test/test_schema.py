@@ -41,7 +41,7 @@ class TestRepository(unittest.TestCase):
         int_named = repository.add_child("Project", "int_named_friend", {
             "alter": {
                 "name": colander.SchemaNode(colander.Int())
-            }
+        }
         })
         self.assertEquals(len(int_named.children), 2)
 
