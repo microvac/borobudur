@@ -1,0 +1,32 @@
+import prambanan
+import borobudur
+
+from borobudur.view import View
+from borobudur.page import Page
+from borobudur.model import Model
+
+class FirstView(View):
+    template=prambanan.template("pt", ("{{project}}", "templates/first.pt"))
+
+class FirstPage(Page):
+
+    def prepare(self):
+        renderer = "server" if borobudur.is_server else "client"
+        print "rendered in %s" % renderer
+
+
+    def open(self):
+        self.add_view(self, "view", FirstView, Model({"name": "Joko Supratman"}))
+
+class SecondView(View):
+    template=prambanan.template("pt", ("{{project}}", "templates/second.pt"))
+
+class SecondPage(Page):
+
+    def prepare(self):
+        renderer = "server" if borobudur.is_server else "client"
+        print "rendered in %s" % renderer
+
+
+    def open(self):
+        self.add_view(self, "view", SecondView, Model({"name": "Second Supratman"}))

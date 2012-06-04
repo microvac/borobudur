@@ -1,0 +1,12 @@
+from prambanan.compiler import *
+import prambanan.compiler.provider
+
+class PrambananProvider(prambanan.compiler.provider.PrambananProvider):
+    overridden_types = {}
+    modules = list(package_to_modules("{{project}}"))
+
+    def get_overridden_types(self):
+        return self.overridden_types.copy()
+
+    def get_modules(self):
+        return self.modules[:]

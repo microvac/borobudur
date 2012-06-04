@@ -6,6 +6,7 @@ class LoadFlow(object):
     """
     prambanan:type page_types list class borobudur.page:Page
     """
+
     def __init__(self, request, page_id):
         self.persist_page = True
         self.request = request
@@ -70,8 +71,6 @@ class LoadFlow(object):
                 dom_query("meta[name='description']").attr("content", page.description)
 
     def next(self):
-        """
-        """
         page_type = self.page_types[self.i]
         page = page_type(self.request)
         page.prepare()

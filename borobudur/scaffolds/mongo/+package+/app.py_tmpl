@@ -1,0 +1,18 @@
+import prambanan
+import borobudur.app
+
+app = borobudur.app.App(
+    #Application Root
+    "/",
+
+    #Base Template
+    prambanan.template("pt", ("{{project}}", "templates/basetemplate.pt")),
+
+    #Parts
+    {
+        "main": [
+            ("first", "{{project}}.views:FirstPage")
+            ("second", "{{project}}.views:SecondPage")
+        ]
+    }
+)

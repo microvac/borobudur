@@ -1,0 +1,4 @@
+<div>
+    Hello ${model.name}
+    <a href="/first">Go to first page</a>
+</div>
