@@ -1,5 +1,7 @@
 import os
 from webassets.bundle import Bundle
+
+import prambanan.template
 from prambanan.cmd import generate_modules, create_args, translate_parser
 from prambanan.output import DirectoryOutputManager
 
@@ -11,6 +13,7 @@ class PrambananModuleBundle(Bundle):
         self.manager = manager
         self.modules = modules
         self.target = target
+
         Bundle.__init__(self, **options)
 
     def resolve_contents(self, env=None, force=False):
@@ -20,6 +23,19 @@ class PrambananModuleBundle(Bundle):
             l = []
             args = create_args(translate_parser, target=self.target)
             generate_modules(args, self.output_manager, self.manager, self.modules)
+
+            templates = {}
+            for module in self.modules:
+                for type in module.templates:
+                    if type not in templates:
+                        templates[type] = []
+                    for config in module.templates[type]:
+                        if config not in templates[type]:
+                            templates[type].append(config)
+
+            for type in templates:
+                prambanan.template.get_provider(type).compile(args, self.output_manager, self.manager, templates[type])
+
             for file in self.output_manager.files:
                 l.append((self.dir+file, os.path.join(self.output_manager.dir, file)))
             self._resolved_contents = l

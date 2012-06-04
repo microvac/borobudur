@@ -174,7 +174,7 @@ class ServerApp(BaseApp):
         self.modules = RUNTIME_MODULES + main_modules.values()
         self.asset_env = Environment("testapp/static", "/static/")
         self.asset_env.config["UGLIFYJS_BIN"] = "uglifyjs.cmd"
-        self.asset_env.debug = True
+        self.asset_env.debug = False
 
 
     def get_state(self):
