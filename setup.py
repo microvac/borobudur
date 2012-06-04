@@ -23,6 +23,7 @@ setup(name='borobudur',
           "pyramid",
           "colander",
           "webassets",
+          "pyquery",
       ],
       entry_points="""
       # -*- Entry points: -*-
