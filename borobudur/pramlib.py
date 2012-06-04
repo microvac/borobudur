@@ -5,7 +5,7 @@ from pkg_resources import resource_filename
 
 pylib_dir = resource_filename("borobudur", "pylib/")
 
-class BorobudurPrambananProvider(PrambananProvider):
+class BorobudurPrambananLibrary(PrambananProvider):
     overridden_types = {}
     validator_types = ["All", "Function", "Range", "Length", "OneOf"]
     overridden_types["translationstring.TranslationString"] = "Function"

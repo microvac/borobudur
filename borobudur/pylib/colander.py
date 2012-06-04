@@ -159,7 +159,6 @@ def All(*validators):
     """ Composite validator which succeeds if none of its
     subvalidators raises an :class:`colander.Invalid` exception
 
-    prambanan:call_type Function
     """
     def __call__(node, value):
         excs = []
@@ -201,7 +200,6 @@ def Function(function, message=_('Invalid value')):
     The default value for the ``message`` when not provided via the
     constructor is ``Invalid value``.
 
-    prambanan:call_type Function
     """
 
     def __call__(node, value):
@@ -240,7 +238,6 @@ def Range(min=None, max=None, min_err=None, max_err=None):
     provided, it defaults to ``'${val} is greater than maximum value
     ${max}'``.
 
-    prambanan:call_type Function
     """
     if min_err is None:
         min_err = _r_min_err
@@ -261,7 +258,6 @@ def Length(min=None, max=None):
     length between a minimum and maximum.  The value is most often a
     string.
 
-    prambanan:call_type Function
     """
     def __call__(node, value):
         if min is not None:
@@ -281,7 +277,6 @@ def OneOf(choices):
     """ Validator which succeeds if the value passed to it is one of
     a fixed set of values
 
-    prambanan:call_type Function
     """
     def __call__(node, value):
         if value not in choices:

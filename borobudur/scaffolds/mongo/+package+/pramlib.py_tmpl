@@ -1,7 +1,7 @@
 from prambanan.compiler import *
-import prambanan.compiler.provider
+import prambanan.compiler.library
 
-class PrambananProvider(prambanan.compiler.provider.PrambananProvider):
+class PrambananLibrary(prambanan.compiler.library.PrambananLibrary):
     overridden_types = {}
     modules = list(package_to_modules("{{project}}"))
 

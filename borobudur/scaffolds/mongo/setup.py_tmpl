@@ -37,6 +37,8 @@ setup(name='{{project}}',
       entry_points = """\
       [paste.app_factory]
       main = {{package}}:main
+      [prambanan.library]
+      {{package}} = {{package}}.pramlib:PrambananLibrary
       """,
       )
 

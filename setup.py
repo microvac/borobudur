@@ -26,8 +26,8 @@ setup(name='borobudur',
       ],
       entry_points="""
       # -*- Entry points: -*-
-      [prambanan.provider]
-      borobudur = borobudur.__prambanan__:BorobudurPrambananProvider
+      [prambanan.library]
+      borobudur = borobudur.pramlib:BorobudurPrambananLibrary
       [pyramid.scaffold]
       borobudur_mongo=borobudur.scaffolds:MongoProjectTemplate
       """,
