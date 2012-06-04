@@ -1,4 +1,4 @@
-from prambanan.jslib.underscore import *
+#from prambanan.jslib.underscore import *
 
 class Event(object):
     _callbacks = {}
@@ -107,7 +107,7 @@ class Model(Event):
 
 class Collection(Event):
 
-    def __init__(self, models, options=None)
+    def __init__(self, models=None, options=None):
         if options is None:
             options = {}
 
@@ -116,7 +116,10 @@ class Collection(Event):
             self.model = options.get("model")
 
         self.models = []
-        self.add(models, {"silent": True})
+        self.length = 0
+        if models is not None:
+            self.reset()
+            self.add(models, {"silent": True})
 
     def add(self, models, options=None):
 
@@ -126,20 +129,33 @@ class Collection(Event):
         models = list(models) if type(models) is list else [models]
 
         #not checking for duplicates
-        at = options.get("at") if options.get("at") is not None else len(self.models)
-        self.models = self.models[:at] + models + self.models[at:] #not quite readable?
+        at = options.get("at") if options.get("at") is not None else self.length
+        self.models = self.models[:at] + models + self.models[at:] #use self.models[:] or self.models?
+
+        self.length = len(self.models)
 
         #append all first then trigger
         if options.get("silent"):
             return self
 
-        #Hmm mungkin ada bug? salah baca behaviour?
-        index = 0
-        for position, model in enumerate(self.models):
-            if model.id == models[index].id:
-                options["index"] = position
-                self.trigger("add", model, self, options)
-                index += 1
+        '''
+        for model in models:
+            for position, coll_model in enumerate(self.models):
+                if coll_model.id == model.id:
+                    options["index"] = position
+                    self.trigger("add", model, self, options)
+                    break
+        '''
+
+        for model in models:
+            i = 0
+            while i < len(self.models):
+                if self.models[i].id == model.id:
+                    options["index"] = i
+                    self.trigger("add", model, self, options)
+                    i += 1
+                    break
+                i += 1
 
         return self
 
@@ -161,7 +177,6 @@ class Collection(Event):
                         self.trigger("remove", model, self, options)
         '''
 
-        #Bener kek gini ga ya behaviournya? Kekekeke
         indexes = []
         for model in models:
             for i in xrange(len(self.models)):
@@ -170,14 +185,17 @@ class Collection(Event):
 
         index = 0
         for model in models:
-            for i in xrange(len(self.models)):
+            i = 0
+            while i < len(self.models):
                 if model.id == self.models[i].id:
                     self.models.pop(i)
                     options["index"] = indexes[index]
                     index += 1
                     if not options.get("silent"):
                         self.trigger("remove", model, self, options)
+                i += 1
 
+        self.length = len(self.models)
         return self
 
     #The JSON representation of a Collection is an array of the models' attributes.
@@ -208,16 +226,20 @@ class Collection(Event):
         return model
 
     #Remove a model from the beginning of the collection.
-    def shift(self):
+    def shift(self, options=None):
         model = self.at(0)
         self.remove(model, options)
         return model
 
     #Get a model from the set by id.
     def get(self, id):
+        result = None
+        if id is None:
+            return result
         for model in self.models:
             if model.id == id:
-                return model
+                result = model
+        return result
 
     #Get the model at the given index.
     def at(self, index):
@@ -245,6 +267,10 @@ class Collection(Event):
     #No comparator no sort!
     def sort(self):
         raise NotImplementedError()
+
+    def reset(self):
+        self.length = 0
+        self.models = []
 
     def _prepareModel(self, model, options=None):
         raise NotImplementedError()
