@@ -6,7 +6,7 @@ from borobudur.page import Page
 from borobudur.model import Model
 
 class FirstView(View):
-    template=prambanan.template("pt", ("{{project}}", "templates/first.pt"))
+    template=prambanan.get_template("zpt", ("{{project}}", "templates/first.pt"))
 
 class FirstPage(Page):
 
@@ -16,10 +16,10 @@ class FirstPage(Page):
 
 
     def open(self):
-        self.add_view(self, "view", FirstView, Model({"name": "Joko Supratman"}))
+        self.add_view("view", FirstView, Model({"name": "Joko Supratman"}))
 
 class SecondView(View):
-    template=prambanan.template("pt", ("{{project}}", "templates/second.pt"))
+    template=prambanan.template("zpt", ("{{project}}", "templates/second.pt"))
 
 class SecondPage(Page):
 
@@ -29,4 +29,4 @@ class SecondPage(Page):
 
 
     def open(self):
-        self.add_view(self, "view", SecondView, Model({"name": "Second Supratman"}))
+        self.add_view("view", SecondView, Model({"name": "Second Supratman"}))

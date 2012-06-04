@@ -95,7 +95,7 @@ class AppPart(object):
         results = []
         for route, page_id in self.pages:
             name = app.name+"."+self.name+"."+page_id.replace(":", ".")
-            results.append((route, name, self.make_pyramid_view(app, page_id)))
+            results.append((app.root+route, name, self.make_pyramid_view(app, page_id)))
         return results
 
     def make_pyramid_view(self, app, page_id):
@@ -112,27 +112,25 @@ class AppState(object):
     active_pages = []
 
 class BaseApp(object):
-    def __init__(self, name, entry_module, templates, base_template, parts_config, storages_config):
+    def __init__(self, name, root, api_root, entry_module, base_template, parts_config):
         self.name = name
-        self.parts=[]
+        self.root = root
+        self.api_root = api_root
         self.entry_module = entry_module
+        self.base_template = base_template
 
-        for part_name, part_config  in parts_config:
+        self.parts=[]
+
+        for part_name, part_config  in parts_config.items():
             part = AppPart(part_name)
-            for route, page_id in part_config["pages"]:
+            for route, page_id in part_config:
                 part.add_page(route, page_id)
             self.parts.append(part)
-
-        self.templates = templates
-        self.base_template = base_template
 
         self.setup()
 
     def setup(self):
         pass
-
-    def get_template(self, template_type, template_config):
-        return self.templates[template_type].get(template_config)
 
     def get_pyramid_views(self):
         results = []

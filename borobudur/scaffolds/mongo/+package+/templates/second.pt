@@ -1,4 +1,4 @@
 <div>
-    Hello ${model.name}
+    Hello ${model.get("name")}
     <a href="/first">Go to first page</a>
 </div>
