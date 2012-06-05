@@ -1,7 +1,9 @@
 import borobudur
 import prambanan
+import logging
 from prambanan.cmd import get_available_modules, walk_import, walk_imports
 from prambanan.compiler import RUNTIME_MODULES
+from prambanan.template import get_provider
 
 class LoadFlow(object):
     """
@@ -140,6 +142,40 @@ class BaseApp(object):
                 results.append(item)
         return results
 
+def find_templates(modules):
+    results = {}
+    for name, module in modules.items():
+        for type, configs in module.templates.items():
+            if type not in results:
+                results[type] = []
+            for config in configs:
+                if config not in results[type]:
+                    results[type].append(config)
+    return results
+
+def find_templates_dependencies(templates):
+    results = []
+    for type in templates:
+        try:
+            provider = get_provider(type)
+        except KeyError:
+            print "Cannot find template provider '%s' in module '%s' for templates %s" % (type, templates[type])
+            continue
+        for dependency in provider.template_dependencies():
+            if not dependency in results:
+                results.append(dependency)
+    return results
+
+def find_modules_and_templates(module_names, available_modules):
+    modules = walk_imports(module_names, available_modules)
+    templates = find_templates(modules)
+    results = walk_imports(find_templates_dependencies(templates), available_modules)
+    template_position = len(results)
+    for name, module in modules.items():
+        if name not in results:
+            results[name] = module
+    return results, templates, template_position
+
 class ServerApp(BaseApp):
     def setup(self):
         from prambanan.compiler.manager import PrambananManager
@@ -149,14 +185,25 @@ class ServerApp(BaseApp):
         self.prambanan_manager = PrambananManager([], "load.conf")
 
         available_modules = get_available_modules()
-        main_modules = walk_imports([self.entry_module], available_modules)
+
+        main_modules, main_templates, main_templates_position = find_modules_and_templates([self.entry_module], available_modules)
 
         common_modules = None
         for part in self.parts:
-            part_modules = walk_imports(part.module_names, available_modules)
+            part_modules, part_templates, _ = find_modules_and_templates(part.module_names, available_modules)
             part.modules = part_modules
+            part.templates = part_templates
+            part.templates_position = 0
+            #todo, split template and add them to mainmodule
             if common_modules is None:
                 common_modules = part_modules.copy()
+                for name, module in common_modules.items():
+                    has_template = False
+                    for type, configs in module.templates.items():
+                        if len(configs) > 0:
+                            has_template = True
+                    if has_template:
+                        del common_modules[name]
             else:
                 for name, module in common_modules.items():
                     if name not in part_modules:
@@ -173,6 +220,9 @@ class ServerApp(BaseApp):
                 main_modules[name] = module
 
         self.modules = RUNTIME_MODULES + main_modules.values()
+        self.templates_position = main_templates_position+len(RUNTIME_MODULES)
+        self.templates = main_templates
+
 
         all_modules = dict([(m.modname, m) for m in self.modules])
         for part in self.parts:

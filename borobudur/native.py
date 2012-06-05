@@ -14,14 +14,19 @@ def create_dom_query(el):
             return PyQuery(el)(selector)
     return dom_query
 
-def add_modules(manager, dom_query, name, modules, env):
-    if not modules:
+def add_modules(manager, dom_query, name, modules, templates, templates_position, env):
+    templates_count = 0
+    for configs in templates.values():
+        templates_count += len(configs)
+
+    if not modules and not templates_count:
         return
+
     abs_dir = os.path.join("testapp", "static", "b", name)
     if not os.path.exists(abs_dir):
         os.makedirs(abs_dir)
     dir = "b/"+name+"/"
-    bundle = PrambananModuleBundle(abs_dir, dir, manager, modules, filters="uglifyjs", output="b/"+name+".js")
+    bundle = PrambananModuleBundle(abs_dir, dir, manager, modules, templates, templates_position, filters="uglifyjs", output="b/"+name+".js")
     for url in bundle.urls(env):
         dom_query.append("<script type='text/javascript' src='%s'> </script>\n" % url)
 
@@ -39,10 +44,10 @@ def wrap_pyramid_view(fn, app, part):
         fn(request)
 
         body = request.dom_query("body")
-        add_modules(app.prambanan_manager, body, app.name, app.modules, app.asset_env)
+        add_modules(app.prambanan_manager, body, app.name, app.modules, app.templates, app.templates_position, app.asset_env)
         for part in app.parts:
             name = "%s.%s" % (app.name, part.name)
-            add_modules(app.prambanan_manager, body, name, part.modules, app.asset_env)
+            add_modules(app.prambanan_manager, body, name, part.modules, part.templates, part.templates_position, app.asset_env)
 
         return Response(etree.tostring(el))
 
