@@ -1,7 +1,7 @@
 import datetime
 import time
-import itertools
 import translationstring
+from prambanan import JS
 
 from . import iso8601
 

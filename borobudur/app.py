@@ -1,4 +1,5 @@
 import borobudur
+import prambanan
 from prambanan.cmd import get_available_modules, walk_import, walk_imports
 from prambanan.compiler import RUNTIME_MODULES
 
@@ -121,7 +122,7 @@ class BaseApp(object):
 
         self.parts=[]
 
-        for part_name, part_config  in parts_config.items():
+        for part_name, part_config  in prambanan.items(parts_config):
             part = AppPart(part_name)
             for route, page_id in part_config:
                 part.add_page(route, page_id)
@@ -172,9 +173,20 @@ class ServerApp(BaseApp):
                 main_modules[name] = module
 
         self.modules = RUNTIME_MODULES + main_modules.values()
+
+        all_modules = dict([(m.modname, m) for m in self.modules])
+        for part in self.parts:
+            part_modules = dict([(m.modname, m) for m in part.modules])
+            all_modules.update(part_modules)
+
+        for key, module in all_modules.items():
+            for dep in module.dependencies:
+                if dep not in all_modules:
+                    print "cannot find dependency: %s for module %s" % (dep , key)
+
         self.asset_env = Environment("testapp/static", "/static/")
         self.asset_env.config["UGLIFYJS_BIN"] = "uglifyjs.cmd"
-        self.asset_env.debug = False
+        self.asset_env.debug = True
 
 
     def get_state(self):

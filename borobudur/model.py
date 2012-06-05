@@ -1,5 +1,6 @@
+import prambanan.jslib.underscore as underscore
 import colander
-from .jslib import backbone
+import borobudur.jslib.backbone as backbone
 
 class Model(backbone.Model):
     """
@@ -101,6 +102,6 @@ class Model(backbone.Model):
     def has_changed(self, attr=None):return self.hasChanged(attr)
     def changed_attributes(self, diff=None):return self.changedAttributes(diff)
 
-class Collection(object):
+class Collection(backbone.Collection):
     pass
 
