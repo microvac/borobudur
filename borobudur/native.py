@@ -4,8 +4,6 @@ from pyquery import PyQuery
 from borobudur.asset import PrambananModuleBundle
 import os
 
-__all__ = ["create_dom_query", "wrap_pyramid_view"]
-
 def create_dom_query(el):
     def dom_query(selector=None):
         if selector is None:
@@ -14,42 +12,14 @@ def create_dom_query(el):
             return PyQuery(el)(selector)
     return dom_query
 
-def add_modules(manager, dom_query, name, modules, templates, templates_position, env):
-    templates_count = 0
-    for configs in templates.values():
-        templates_count += len(configs)
 
-    if not modules and not templates_count:
-        return
+class Router(object):
+    def __init__(self):
+        raise Exception()
 
-    abs_dir = os.path.join("testapp", "static", "b", name)
-    if not os.path.exists(abs_dir):
-        os.makedirs(abs_dir)
-    dir = "b/"+name+"/"
-    bundle = PrambananModuleBundle(abs_dir, dir, manager, modules, templates, templates_position, filters="uglifyjs", output="b/"+name+".js")
-    for url in bundle.urls(env):
-        dom_query.append("<script type='text/javascript' src='%s'> </script>\n" % url)
+    def navigate(self, url):
+        pass
 
-def wrap_pyramid_view(fn, app, part):
-
-    def view(request):
-        el = etree.Element("div")
-        app.base_template.render(el)
-        el = el[0]
-        request.document = el
-        request.dom_query = create_dom_query(el)
-
-        request.app_state = app.get_state()
-
-        fn(request)
-
-        body = request.dom_query("body")
-        add_modules(app.prambanan_manager, body, app.name, app.modules, app.templates, app.templates_position, app.asset_env)
-        for part in app.parts:
-            name = "%s.%s" % (app.name, part.name)
-            add_modules(app.prambanan_manager, body, name, part.modules, part.templates, part.templates_position, app.asset_env)
-
-        return Response(etree.tostring(el))
-
-    return view
+    def bootstrap(self, env):
+        pass
 

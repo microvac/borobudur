@@ -66,29 +66,39 @@ class Page(object):
     keywords=None
     description=None
 
+    client_only = False
+
     parent_page_type = None
     parent_page = None
 
-    def __init__(self, request):
-        self.dom_query = request.dom_query
-        self.document = request.document
+    def __init__(self, match_dict, document, should_render):
+        self.match_dict = match_dict
+        self.document = document
         self.loaders = Loaders()
         self.models = {}
         self.views = []
+        self.should_render = should_render
 
     def prepare(self, *args):
         pass
 
+    def will_reload(self, match_dict):
+        return False
+
     def load(self, load_flow):
         self.loaders.apply(load_flow)
 
-    def open(self):
+    def open(self ):
         pass
 
     def add_view(self, id, view_type, model):
-        el = self.dom_query("#"+id)[0]
+        """
+        prambanan:type view_type class borobudur.view:View
+        """
+        el = self.document.el_query("#"+id)[0]
         view = view_type(el, model)
-        view.render()
+        if self.should_render:
+            view.render()
         self.views.append((id, view))
 
     def get_view(self, id):
@@ -100,7 +110,7 @@ class Page(object):
     def destroy(self):
         reversed_views = reversed(self.views)
         for id, view in reversed_views:
-            view.el_query.replaceWidth("<div id='"+id+"'/>")
+            view.el_query().replaceWith("<div id='"+id+"'/>")
             view.remove()
 
 class PagesGroup(object):
