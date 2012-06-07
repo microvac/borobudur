@@ -15,8 +15,8 @@ bootstrap_template = """
 class Document(object):
     def __init__(self, el):
         self.el = el
-        self.el_query = borobudur.create_dom_query(el)
-        self.q_el = self.el_query()
+        self.el_query = borobudur.create_el_query(el)
+        self.q_el = borobudur.query_el(el)
 
 class AppState(object):
     leaf_page=None
@@ -72,7 +72,7 @@ def wrap_pyramid_view(entry_point, page_id, page_callback, base_template, app, p
         q_bootstrap = PyQuery(etree.Element("script")).html(bootstrap)
         q_body.append(q_bootstrap)
 
-        return Response(etree.tostring(el))
+        return Response(etree.tostring(el, pretty_print=True))
 
     return view
 

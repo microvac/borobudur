@@ -1,4 +1,4 @@
-function create_dom_query(el){
+function create_el_query(el){
     return function(selector){
         if (!_.isUndefined(selector))
             return $(selector, el);
@@ -6,6 +6,8 @@ function create_dom_query(el){
             return $(el);
     }
 }
+
+query_el = window.$
 
 var Router = (function(){
 
@@ -71,7 +73,7 @@ var Router = (function(){
                 var match_dict = this._extractParameters(route, fragment);
                 var document = {
                     el: document,
-                    el_query: create_dom_query(document),
+                    el_query: create_el_query(document),
                     q_el: $(document)
                 }
                 var callbacks = {"success": function(){}};
