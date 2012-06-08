@@ -1,0 +1,51 @@
+<h5>Live Edit</h5>
+<form id="pDebugAssetLive">
+    <br />
+    <input type="checkbox" name="css" /> CSS Live Edit
+    <br />
+    <input type="checkbox" name="js" /> Javascript Live Edit
+    <br />
+</form>
+<br />
+<h5>Loaded Assets</h5>
+
+<%
+    asset_template="""
+    <tr>
+    <th colspan="2"><%= type %></th>
+    </tr>
+    <%
+        _.each(_.keys(assets[type]), function(id){
+            var i = 0;
+            _.each(assets[type][id], function(url){
+        %>
+            <tr>
+            <% if(i === 0) { %><td><%= id %></td> <% }else{ %> <td>&nbsp;</td> <% } %>
+            <td><%= url %></td>
+            </tr>
+    <%
+            i+=1;
+            });
+        });
+    %>
+    """
+    class anu(object):
+        def __html__(self):
+            return asset_template
+%>
+
+<script id="pDebugAssetTemplate">${anu()}</script>
+
+<table id="pDebugAssetTable">
+	<thead>
+		<tr>
+			<th>Id</th>
+			<th>Url</th>
+		</tr>
+	</thead>
+	<tbody>
+	</tbody>
+</table>
+
+<script type="text/javascript" src="/_debug_toolbar_borobudur/static/asset.js"></script>
+

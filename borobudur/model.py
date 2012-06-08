@@ -95,6 +95,17 @@ class Model(backbone.Model):
 
         self.storage.delete(self.id)
 
+    def __getitem__(self, name):
+        return self.get(name)
+
+    def __setitem__(self, name, value):
+        attrs = {}
+        attrs[name] = value
+        self.set(attrs)
+
+    def __delitem__(self, key):
+        raise NotImplementedError()
+
     # Methods converted to python underscore-separated style
     def is_new(self): return self.isNew()
     def is_valid(self):return self.isValid()

@@ -15,3 +15,5 @@ pip-log.txt
 .installed-c
 
 borobudur/test/js_output_src/gen
+**/test/sandbox/*
+

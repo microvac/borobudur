@@ -47,11 +47,10 @@ var Router = (function(){
             this.options = {};
             var leafPages = app.get_leaf_pages();
             _.each(leafPages, function(current){
-                var part = current[0];
-                var route = current[1];
-                var page_id = current[2];
-                var callback = current[3];
-                var name = app.name + part.name + page_id.replace(":", ".");
+                var route = current[0];
+                var page_id = current[1];
+                var callback = current[2];
+                var name = app.name + page_id.replace(":", ".");
                 this.route(route, name, callback);
             }, this);
         },

@@ -71,6 +71,8 @@ class Page(object):
     parent_page_type = None
     parent_page = None
 
+    styles=None
+
     def __init__(self, match_dict, document, should_render):
         self.match_dict = match_dict
         self.document = document

@@ -28,13 +28,12 @@ class LoadFlow(object):
     prambanan:type page_types list class borobudur.page:Page
     """
 
-    def __init__(self, page_id, app_state, match_dict, document, callbacks):
-        page_type = prambanan.load_module_attr(page_id)
+    def __init__(self, page_type_id, app_state, match_dict):
+        page_type = prambanan.load_module_attr(page_type_id)
 
+        self.page_type_id = page_type_id
         self.app_state = app_state
         self.match_dict = match_dict
-        self.document = document
-        self.callbacks = callbacks
 
         loaded_index = -1 if not app_state.load_info else app_state.load_info["index"]
         self.load_from = loaded_index + 1
@@ -57,7 +56,10 @@ class LoadFlow(object):
         self.persist_page = persist_page
         self.page_types = list(reversed(page_types))
 
-    def apply(self):
+    def apply(self, document, callbacks):
+        self.document = document
+        self.callbacks = callbacks
+
         app_state = self.app_state
         while app_state.leaf_page != self.persist_page:
             it = app_state.leaf_page
@@ -97,7 +99,7 @@ class LoadFlow(object):
                 el_query("meta[name='keywords']").attr("content", page.keywords)
             if page.description is not None:
                 el_query("meta[name='description']").attr("content", page.description)
-        self.callbacks["success"](page, self.i)
+        self.callbacks["success"](self)
 
     def next(self):
         page_type = self.page_types[self.i]
@@ -117,28 +119,8 @@ class AppPart(object):
 
     def __init__(self, name):
         self.name = name
-        self.pages = []
-        self.module_names = []
 
-    def add_page(self, route, page_id):
-        self.pages.append((route, page_id))
-        module = page_id.split(":")[0]
-        if not module in self.module_names:
-            self.module_names.append(module)
 
-    def get_leaf_pages(self):
-        results = []
-        for route, page_id in self.pages:
-            results.append((self, route, page_id, self.make_callback(page_id)))
-        return results
-
-    def make_callback(self, page_id):
-
-        def callback(app_state, match_dict, document, callbacks):
-            load_flow = LoadFlow(page_id, app_state, match_dict, document, callbacks)
-            load_flow.apply()
-
-        return callback
 
 
 class App(object):
@@ -146,19 +128,28 @@ class App(object):
         self.name = settings["name"];
         self.root = settings["root"];
         self.api_root = settings["api_root"];
+        self.pages = []
+        self.module_names = []
 
-        self.parts=[]
+        for route, page_type_id  in settings["pages"]:
+            self.add_page(route, page_type_id)
 
-        for part_name, part_config  in prambanan.items(settings["parts"]):
-            part = AppPart(part_name)
-            for route, page_id in part_config:
-                part.add_page(route, page_id)
-            self.parts.append(part)
+    def add_page(self, route, page_type_id):
+        self.pages.append((route, page_type_id))
+        module = page_type_id.split(":")[0]
+        if not module in self.module_names:
+            self.module_names.append(module)
 
     def get_leaf_pages(self):
         results = []
-        for part in self.parts:
-            for item in part.get_leaf_pages():
-                results.append(item)
+        for route, page_type_id in self.pages:
+            results.append((route, page_type_id, self.make_callback(page_type_id)))
         return results
 
+    def make_callback(self, page_type_id):
+
+        def callback(app_state, match_dict, document, callbacks):
+            load_flow = LoadFlow(page_type_id, app_state, match_dict)
+            load_flow.apply(document, callbacks)
+
+        return callback
