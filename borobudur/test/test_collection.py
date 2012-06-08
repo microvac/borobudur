@@ -147,3 +147,28 @@ class TestCollection(unittest.TestCase):
         self.prepare()
         attrs = self.collection.pluck("name")
         pprint(attrs)
+
+    def test_setitem_getitem(self):
+        self.prepare()
+        tester4 = Model({"name": "Tester4"})
+
+        #Modify existing
+        tester4.id = self.collection[2].id
+        self.collection[2] = tester4
+
+        #Out of range index
+        tester5 = Model({"name": "Tester5"})
+        tester5.id = self.id
+        self.id += 1
+        self.collection[10] = tester5
+
+        a = self.collection[2]
+        b = self.collection[3]
+        result = dict(id=tester5.id, index=3, name=tester5.get("name"))
+
+        self.assertEqual(self.result[0], result)
+        self.assertEqual(self.collection.length, 4)
+        self.assertEqual(a, tester4)
+        self.assertEqual(b, tester5)
+
+
