@@ -1,6 +1,7 @@
 from borobudur.storage import (
     Storage,
     StorageException,
+    SearchConfig
     )
 import borobudur.schema as schema
 
@@ -163,28 +164,26 @@ class MongoStorage(Storage):
         return result
 
     def all(self, query=None, config=None, schema=None):
-        skip = getattr(config, "skip", 0) if config is not None else 0
-        limit = getattr(config, "limit", 0) if config is not None else 0
-        sort = getattr(config, "sorts", None) if config is not None else None
+        if config is None:
+            config = SearchConfig(0, 0)
 
         try:
             cursor = self.collection.find(spec=query,
                                           fields=self.get_field_list(schema),
-                                          skip=skip,
-                                          limit=limit
+                                          skip=config.skip,
+                                          limit=config.limit
             )
             #fields args is for optimization by choosing only listed fields in schema
         except:
             raise MongoStorageException("Error in searching: \n%s" % traceback.format_exc())
 
-        if sort is not None:
+        if not config.sorts:
             for sort in config.sorts:
                 order = None
                 if sort.order == "asc":
                     order = ASCENDING
                 elif sort.order == "desc":
                     order = DESCENDING
-                #GEO2D, or GEOHAYSTACK?
                 cursor.sort(sort.criteria, order)
 
         result = []
