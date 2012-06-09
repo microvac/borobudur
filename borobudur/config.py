@@ -99,19 +99,19 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
     for  route, page_type_id, callback in app.get_leaf_pages():
         route_name = app.name+"."+page_type_id.replace(":", ".")
 
-        route = app.root+"/"+route
+        route = app.root+route
         config.add_route(route_name, route)
 
         view = wrap_pyramid_view(callback, base_template, asset_manager, calculator, client_entry_point)
         config.add_view(view, route_name=route_name)
 
     al_route_name = app.name+"._api."+"asset.list"
-    config.add_route(al_route_name, app.root+"/"+app.api_root+"/assets/list/{page_type_id}")
+    config.add_route(al_route_name, app.root+app.api_root+"assets/list/{page_type_id}")
     al_view = asset_list_view(asset_manager, calculator, client_entry_point)
     config.add_view(al_view, route_name=al_route_name)
 
     ac_route_name = app.name+"._api."+"asset.changed"
-    config.add_route(ac_route_name, app.root+"/"+app.api_root+"/assets/changed/{page_type_id}")
+    config.add_route(ac_route_name, app.root+app.api_root+"assets/changed/{page_type_id}")
     ac_view = asset_changed_view(asset_manager, calculator, client_entry_point)
     config.add_view(ac_view, route_name=ac_route_name)
 

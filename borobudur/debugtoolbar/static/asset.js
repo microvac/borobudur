@@ -46,8 +46,8 @@
 
         // loads all local css and js resources upon first activation
         loadResources:function () {
-            changesAPI = app.root+"/"+app.api_root+"/assets/changed/"
-            listAPI = app.root+"/"+app.api_root+"/assets/list/"
+            changesAPI = app.root+app.api_root+"assets/changed/"
+            listAPI = app.root+app.api_root+"assets/list/"
             resources = app.state_info.loaded_assets;
             // add rule for morphing between old and new css files
             var head = document.getElementsByTagName("head")[0],

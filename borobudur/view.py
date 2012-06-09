@@ -11,23 +11,45 @@ def on_element(key):
     return  decorate
 
 class View(object):
+    """
+    prambanan:type children l(t(i(str), c(borobudur.view:View)))
+    """
     events = {}
-    def __init__(self, el, model):
+    children = []
+    def __init__(self, el, model, el_rendered):
         self.model = model
         self.el = el
         self.el_query = borobudur.create_el_query(el)
         self.q_el = borobudur.query_el(el)
+        self.child_views = []
 
         self.delegate_events()
 
+        if not el_rendered:
+            self.render()
+
+        self.initialize_children(el_rendered)
+
+
+    def initialize_children(self, el_rendered):
+        return
+        for child_name, child_type in self.children:
+            child_el = self.el_query("[data-child=%s]" % child_name)[0]
+            child_model = self.get_child_model(child_name)
+            child_view = child_type(child_el, child_model, el_rendered)
+            self.child_views.append(child_view)
+
+    def get_child_model(self, child_name):
+        return self.model[child_name]
+
     def render(self):
-        cls = str(self.__class__)
-        renderer = "server" if borobudur.is_server else "client"
-        print "%s rendered in %s" % (cls, renderer)
         self.template.render(self.el, model=self.model)
         return self
 
     def remove(self):
+        for child_view in self.child_views:
+            child_view.remove()
+        self.child_views = []
         self.q_el.remove()
         return self
 
@@ -71,4 +93,5 @@ class View(object):
             if value._on_element:
                 results.append([value._on_element, value])
         return results
+
 

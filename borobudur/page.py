@@ -73,13 +73,13 @@ class Page(object):
 
     styles=None
 
-    def __init__(self, match_dict, document, should_render):
+    def __init__(self, match_dict, document, el_rendered):
         self.match_dict = match_dict
         self.document = document
         self.loaders = Loaders()
         self.models = {}
         self.views = []
-        self.should_render = should_render
+        self.el_rendered = el_rendered
 
     def prepare(self, *args):
         pass
@@ -95,12 +95,10 @@ class Page(object):
 
     def add_view(self, id, view_type, model):
         """
-        prambanan:type view_type class borobudur.view:View
+        prambanan:type view_type c(borobudur.view:View)
         """
         el = self.document.el_query("#"+id)[0]
-        view = view_type(el, model)
-        if self.should_render:
-            view.render()
+        view = view_type(el, model, self.el_rendered)
         self.views.append((id, view))
 
     def get_view(self, id):

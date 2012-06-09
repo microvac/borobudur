@@ -25,7 +25,7 @@ def find_LCA(current_page, target_page_type):
 
 class LoadFlow(object):
     """
-    prambanan:type page_types list class borobudur.page:Page
+    prambanan:type page_types l(c(borobudur.page:Page))
     """
 
     def __init__(self, page_type_id, app_state, match_dict):
@@ -89,6 +89,21 @@ class LoadFlow(object):
         else:
             self.finish()
 
+
+    def next(self):
+        page_type = self.page_types[self.i]
+        if borobudur.is_server and page_type.client_only:
+            self.i -= 1
+            self.finish()
+        else:
+            page_el_rendered = self.i < self.load_from
+            page = page_type(self.match_dict, self.document, page_el_rendered)
+            page.parent_page = self.app_state.leaf_page
+            page.prepare()
+
+            self.current = page
+
+            page.load(self)
     def finish(self):
         page = self.current
         el_query = self.document.el_query
@@ -100,20 +115,6 @@ class LoadFlow(object):
             if page.description is not None:
                 el_query("meta[name='description']").attr("content", page.description)
         self.callbacks["success"](self)
-
-    def next(self):
-        page_type = self.page_types[self.i]
-        if borobudur.is_server and page_type.client_only:
-            self.i -= 1
-            self.finish()
-        else:
-            page = page_type(self.match_dict, self.document, self.i >= self.load_from)
-            page.parent_page = self.app_state.leaf_page
-            page.prepare()
-
-            self.current = page
-
-            page.load(self)
 
 class AppPart(object):
 

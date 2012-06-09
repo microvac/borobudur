@@ -14,6 +14,9 @@ class Model(backbone.Model):
 
 
     def validate(self, attributes):
+        if self.schema is None:
+            return None
+
         try:
             self.schema.deserialize(attributes)
         except colander.Invalid as e:
