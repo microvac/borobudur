@@ -127,10 +127,11 @@ class Collection(Event):
             options = {}
 
         models = list(models) if type(models) is list else [models]
+        self._prepareModel(models)
 
         #not checking for duplicates
         at = options.get("at") if options.get("at") is not None else self.length
-        self.models = self.models[:at] + models + self.models[at:] #use self.models[:] or self.models?
+        self.models = self.models[:at] + models + self.models[at:] #if at > len(self.models) append in the end
 
         self.length = len(self.models)
 
@@ -166,6 +167,7 @@ class Collection(Event):
             options = {}
 
         models = list(models) if type(models) is list else [models]
+        self._prepareModel(models)
 
         '''
         for model in models:
@@ -264,16 +266,35 @@ class Collection(Event):
         return map(lambda model: model.get(attr), self.models)
         #return map(self.models, lambda model: model.get(attr))
 
-    #No comparator no sort!
-    def sort(self):
-        raise NotImplementedError()
-
     def reset(self):
         self.length = 0
         self.models = []
 
-    def _prepareModel(self, model, options=None):
+    #If key > len(self.models) append at the end
+    def __setitem__(self, key, value):
+        if type(value) != type(self.model()):
+            raise TypeError()
+        try:
+            self.models[key] = value
+        except IndexError:
+            options = {"at": key}
+            self.add(value, options)
+
+    def __getitem__(self, key):
+        return self.at(key)
+
+    #For now just check model type
+    def _prepareModel(self, models, options=None):
+        for model in models:
+            if type(model) != type(self.model()):
+                raise TypeError()
+
+    #No comparator no sort!
+    def sort(self):
         raise NotImplementedError()
+
+
+
 
 
 
