@@ -42,6 +42,7 @@ class StorageContext(object):
     def get(self, name):
         return self.registry.get(name)
 
+
 def null_converter(obj, schema=None, func=None):
     return obj
 

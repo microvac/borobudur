@@ -93,16 +93,16 @@ def asset_changed_view(asset_manager, calculate, entry_point):
 
     return view
 
-def make_storage_view(schema_namespace, storage, schema_repository):
+def make_storage_view(schema_namespace, storage, schemas):
 
     class View(object):
 
         def __init__(self, request):
             self.request = request
             if request.params.get("s"):
-                self.schema = schema_repository.get(schema_namespace, request.params.get("s"))
+                self.schema = schemas.get(schema_namespace, request.params.get("s"))
             else:
-                self.schema = schema_repository.get(schema_namespace)
+                self.schema = schemas.get(schema_namespace)
 
         def create(self):
             appstruct = self.schema.deserialize(self.request.json_body)
@@ -155,6 +155,21 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
     config.add_route(ac_route_name, app.root+app.api_root+"assets/changed/{page_type_id}")
     ac_view = asset_changed_view(asset_manager, calculator, client_entry_point)
     config.add_view(ac_view, route_name=ac_route_name)
+
+    for name, storage, schemas in app.storages:
+        storage_view = make_storage_view(name, storage, schemas)
+
+        config.add_route("list_"+name, app.root+app.api_root+"storages/"+name)
+        config.add_route("create_"+name, app.root+app.api_root+"storages/"+name)
+        config.add_route("read_"+name, app.root+app.api_root+"storages/"+name+"/{id}")
+        config.add_route("update_"+name, app.root+app.api_root+"storages/"+name+"/{id}")
+        config.add_route("delete_"+name, app.root+app.api_root+"storages/"+name+"/{id}")
+
+        config.add_view(storage_view, route_name="list_"+name, attr="list", request_method="GET", renderer="json")
+        config.add_view(storage_view, route_name="create_"+name, attr="create", request_method="POST", renderer="json")
+        config.add_view(storage_view, route_name="read_"+name, attr="read", request_method="GET", renderer="json")
+        config.add_view(storage_view, route_name="update_"+name, attr="update", request_method="PUT", renderer="json")
+        config.add_view(storage_view, route_name="delete_"+name, attr="delete", request_method="DELETE", renderer="json")
 
 def includeme(config):
     config.add_directive('add_borobudur_app', add_borobudur_app)

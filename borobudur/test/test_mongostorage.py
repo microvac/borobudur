@@ -17,30 +17,30 @@ class UserStorage(mongo.MongoStorage):
 class ProjectStorage(mongo.MongoStorage):
     pass
 
-repository = borobudur.schema.SchemaRepository()
+schemas = borobudur.schema.SchemaRepository()
 
-comment = repository.add_mapping("Comment", {
+comment = schemas.add_mapping("Comment", {
     "sender": colander.SchemaNode(colander.String()),
     "message": colander.SchemaNode(colander.String()),
     })
 
-comments = repository.add_sequence("Comments", comment)
+comments = schemas.add_sequence("Comments", comment)
 
-project = repository.add_mapping("Project", {
+project = schemas.add_mapping("Project", {
     "name": colander.SchemaNode(colander.String()),
     "comments": comments
 })
 
-projects = repository.add_sequence("Projects", project)
+projects = schemas.add_sequence("Projects", project)
 
-user = repository.add_mapping("User", {
+user = schemas.add_mapping("User", {
     "name": colander.SchemaNode(colander.String()),
     "age": colander.SchemaNode(colander.Int()),
     "projects": projects
 })
 
 lazy_projects = borobudur.schema.anonymous_sequence(colander.SchemaNode(borobudur.schema.Ref()))
-user_lazy_projects = repository.modify(user, "lazy", {
+user_lazy_projects = schemas.modify(user, "lazy", {
     "alter" : {
         "projects": lazy_projects,
     }
