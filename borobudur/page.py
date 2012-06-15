@@ -73,15 +73,15 @@ class Page(object):
 
     styles=[]
 
-    def __init__(self, match_dict, document, el_rendered):
-        self.match_dict = match_dict
+    def __init__(self, matchdict, document, el_rendered):
+        self.matchdict = matchdict
         self.document = document
         self.loaders = Loaders()
         self.models = {}
         self.views = []
         self.el_rendered = el_rendered
 
-    def prepare(self, *args):
+    def prepare(self):
         pass
 
     def will_reload(self, match_dict):

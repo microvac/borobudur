@@ -28,12 +28,12 @@ class LoadFlow(object):
     prambanan:type page_types l(c(borobudur.page:Page))
     """
 
-    def __init__(self, page_type_id, app_state, match_dict):
+    def __init__(self, page_type_id, app_state, matchdict):
         page_type = prambanan.load_module_attr(page_type_id)
 
         self.page_type_id = page_type_id
         self.app_state = app_state
-        self.match_dict = match_dict
+        self.matchdict = matchdict
 
         loaded_index = -1 if not app_state.load_info else app_state.load_info["index"]
         self.load_from = loaded_index + 1
@@ -44,7 +44,7 @@ class LoadFlow(object):
 
         current = persist_page
         while current is not None:
-            if current.will_reload(match_dict):
+            if current.will_reload(matchdict):
                 persist_page = current
             current = current.parent_page
 
@@ -97,7 +97,7 @@ class LoadFlow(object):
             self.finish()
         else:
             page_el_rendered = self.i < self.load_from
-            page = page_type(self.match_dict, self.document, page_el_rendered)
+            page = page_type(self.matchdict, self.document, page_el_rendered)
             page.parent_page = self.app_state.leaf_page
             page.prepare()
 
@@ -149,8 +149,8 @@ class App(object):
 
     def make_callback(self, page_type_id):
 
-        def callback(app_state, match_dict, document, callbacks):
-            load_flow = LoadFlow(page_type_id, app_state, match_dict)
+        def callback(app_state, matchdict, document, callbacks):
+            load_flow = LoadFlow(page_type_id, app_state, matchdict)
             load_flow.apply(document, callbacks)
 
         return callback
