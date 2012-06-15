@@ -196,7 +196,7 @@ class AssetManager(object):
         page_type_id = load_flow.page_type_id
 
         packs = list(calculate(page_type_id, entry_point))
-        styles = ["bootstrap"]
+        styles = [style for page_type in load_flow.page_types for style in page_type.styles]
 
         assets = {"js":{}, "css":{}}
 
@@ -206,10 +206,10 @@ class AssetManager(object):
         for type, name, bundle in self.get_all_bundles(packs, styles):
             if type == "js":
                 format = "<script type='text/javascript' src='%s'> </script>\n"
-                q_el = q_head
+                q_el = q_body
             else:
                 format =" <link rel='stylesheet' href='%s' />"
-                q_el = q_body
+                q_el = q_head
             urls = []
             for url in bundle.urls(self.env):
                 q_el.append(format % url)

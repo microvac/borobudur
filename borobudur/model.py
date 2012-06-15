@@ -117,5 +117,8 @@ class Model(backbone.Model):
     def changed_attributes(self, diff=None):return self.changedAttributes(diff)
 
 class Collection(backbone.Collection):
-    pass
+
+    def __iter__(self):
+        return self.models
+
 

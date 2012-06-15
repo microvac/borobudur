@@ -5,6 +5,7 @@ import borobudur
 from lxml import etree
 from pyramid.response import Response
 from borobudur.asset import SimplePackCalculator
+from borobudur.model import Model
 
 class Document(object):
     def __init__(self, el):
@@ -25,7 +26,7 @@ def wrap_pyramid_view(page_callback, base_template, asset_manager, calculator, e
 
     def view(request):
         el = etree.Element("div")
-        base_template.render(el)
+        base_template.render(el, Model())
         el = el[0]
 
         app_state = AppState()

@@ -1,3 +1,4 @@
+from borobudur.model import Collection, Model
 import prambanan
 import borobudur
 import prambanan.jslib.underscore as underscore
@@ -16,6 +17,7 @@ class View(object):
     """
     events = {}
     children = []
+    template = None
     def __init__(self, el, model, el_rendered):
         self.model = model
         self.el = el
@@ -43,7 +45,7 @@ class View(object):
         return self.model[child_name]
 
     def render(self):
-        self.template.render(self.el, model=self.model)
+        self.template.render(self.el, self.model)
         return self
 
     def remove(self):
