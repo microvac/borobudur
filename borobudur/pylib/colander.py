@@ -374,7 +374,7 @@ class Mapping(SchemaType):
 
         for num, subnode in enumerate(node.children):
             name = subnode.name
-            subval = value.pop(name, null)
+            subval = value[name]
             try:
                 result[name] = callback(subnode, subval)
             except Invalid as e:
@@ -1272,7 +1272,6 @@ class SchemaNode(object):
         self.description = kw.pop('description', '')
         self.widget = kw.pop('widget', None)
         self.after_bind = kw.pop('after_bind', None)
-        self.__dict__.update(kw)
         self.children = list(children)
 
     def required(self):
@@ -1386,7 +1385,8 @@ class SchemaNode(object):
         are also cloned recursively.  Attributes present in node
         dictionaries are preserved."""
         cloned = self.__class__(self.typ)
-        cloned.__dict__.update(self.__dict__)
+        for key in dir(self):
+            setattr(cloned, key, getattr(self, key))
         cloned.children = [ node.clone() for node in self.children ]
         return cloned
 
