@@ -6,6 +6,7 @@ from lxml import etree
 from pyramid.response import Response
 from borobudur.asset import SimplePackCalculator
 from borobudur.model import Model
+import borobudur.schema
 
 class Document(object):
     def __init__(self, el):
@@ -92,6 +93,45 @@ def asset_changed_view(asset_manager, calculate, entry_point):
 
     return view
 
+def make_storage_view(schema_namespace, storage, schema_repository):
+
+    class View(object):
+
+        def __init__(self, request):
+            self.request = request
+            if request.params.get("s"):
+                self.schema = schema_repository.get(schema_namespace, request.params.get("s"))
+            else:
+                self.schema = schema_repository.get(schema_namespace)
+
+        def create(self):
+            appstruct = self.schema.deserialize(self.request.json_body)
+            result = storage.insert(appstruct, self.schema)
+            serialized = self.schema.serialize(result)
+            return render_to_response("json", serialized)
+
+        def read(self):
+            result = storage.one(self.request.matchdict["id"], self.schema)
+            serialized = self.schema.serialize(result)
+            return render_to_response("json", serialized)
+
+        def update(self):
+            appstruct = self.schema.deserialize(self.request.json_body)
+            result = storage.update(appstruct, self.schema)
+            serialized = self.schema.serialize(result)
+            return render_to_response("json", serialized)
+
+        def delete(self):
+            result = storage.delete(self.request.matchdict["id"])
+            return render_to_response("json", result)
+
+        def list(self):
+            sequence_schema = borobudur.schema.anonymous_sequence(self.schema)
+            results = storage.all(schema=self.schema)
+            serialized = sequence_schema.serialize(results)
+            return render_to_response("json", serialized)
+
+    return View
 
 def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point):
 
@@ -115,7 +155,6 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
     config.add_route(ac_route_name, app.root+app.api_root+"assets/changed/{page_type_id}")
     ac_view = asset_changed_view(asset_manager, calculator, client_entry_point)
     config.add_view(ac_view, route_name=ac_route_name)
-
 
 def includeme(config):
     config.add_directive('add_borobudur_app', add_borobudur_app)

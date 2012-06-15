@@ -10,16 +10,19 @@ from pymongo import (
     DESCENDING,
     Connection)
 from bson.dbref import DBRef
+from bson.objectid import ObjectId
 
 import colander
-import traceback
 
 
 class StorageContext(object):
 
-    def __init__(self, host, port):
-        self.connection = Connection(host=host, port=port)
+    def __init__(self):
+        self.connection = None
         self.registry = {}
+
+    def connect(self, host=None, port=None):
+        self.connection = Connection(host, port)
 
     def register(self, name, db, collection):
         def wrapper(storage):
@@ -100,21 +103,17 @@ class MongoStorageException(StorageException):
 
 class MongoStorage(Storage):
 
-    def __init__(self, connection, db, collection_name, embedded_path=None):
+    id_attribute = "_id"
+    id_type = ObjectId
+
+    def __init__(self, connection, db, collection_name):
         self.connection = connection
         self.db = self.connection[db]
-        if self.db is None:
-            raise MongoStorageException("There is no database named: %s" % db )
         self.collection = self.db[collection_name]
-        if self.collection is None:
-            raise MongoStorageException("There is no collection named: %s" % collection_name)
 
     def insert(self, obj, schema=None):
         result = mapping_serializer(obj, schema, self.serialize)
-        try:
-            self.collection.insert(result)
-        except:
-            raise MongoStorageException("Error in inserting: \n%s" % traceback.format_exc())
+        self.collection.insert(result)
         return result
 
     def serialize(self, obj, schema, serialize_child):
@@ -136,29 +135,25 @@ class MongoStorage(Storage):
             return result
 
     def update(self, obj, schema=None):
-        try:
-            result = mapping_serializer(obj, schema, self.serialize)
-            #self.collection.update({'_id': obj['_id']}, result)
-            self.collection.save(result) #save = upsert
-        except:
-            raise MongoStorageException("Error in updating: \n%s" % traceback.format_exc())
+        result = mapping_serializer(obj, schema, self.serialize)
+        self.collection.update({self.id_attribute: self.id_type(obj.get(self.id_attribute))},
+                               result,
+                               upsert=True,
+                               manipulate=True,
+                              )
+        #self.collection.save(result) #save = upsert
         return result
 
     #Todo: cascade delete
     def delete(self, id):
-        if self.collection.find_one({'_id': id}) is None:
+        result = self.collection.find_one({self.id_attribute: self.id_type(id)})
+        if not result:
             raise ValueError("Error in deleting - There is no such id as: %s" % id.__str__())
-        try:
-            self.collection.remove({'_id': id})
-        except:
-            raise MongoStorageException("Error in deleting: \n%s" % traceback.format_exc())
+        self.collection.remove({self.id_attribute: self.id_type(id)})
         return True
 
     def one(self, id, schema=None):
-        try:
-            result = self.collection.find_one({'_id':id})
-        except:
-            raise MongoStorageException("Error in finding id: %s \n%s" % (id.__str__(), traceback.format_exc()))
+        result = self.collection.find_one({self.id_attribute: self.id_type(id)})
         if result is not None:
             result = mapping_deserializer(result, schema, self.deserialize)
         return result
@@ -167,17 +162,14 @@ class MongoStorage(Storage):
         if config is None:
             config = SearchConfig(0, 0)
 
-        try:
-            cursor = self.collection.find(spec=query,
-                                          fields=self.get_field_list(schema),
-                                          skip=config.skip,
-                                          limit=config.limit
-            )
-            #fields args is for optimization by choosing only listed fields in schema
-        except:
-            raise MongoStorageException("Error in searching: \n%s" % traceback.format_exc())
+        cursor = self.collection.find(spec=query,
+                                      fields=self.get_field_list(schema),
+                                      skip=config.skip,
+                                      limit=config.limit
+        )
+        #fields args is for optimization by choosing only listed fields in schema
 
-        if not config.sorts:
+        if config.sorts:
             for sort in config.sorts:
                 order = None
                 if sort.order == "asc":
@@ -192,10 +184,7 @@ class MongoStorage(Storage):
         return result
 
     def count(self, query=None):
-        try:
-            return self.collection.find(spec=query).count()
-        except:
-            raise MongoStorageException("Error in counting: \n%s" % traceback.format_exc())
+        return self.collection.find(spec=query).count()
 
     def get_field_list(self, schema):
         if schema is None: return None

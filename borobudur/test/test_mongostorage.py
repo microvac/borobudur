@@ -6,13 +6,14 @@ from borobudur.storage.mongo import StorageContext
 import colander
 from pprint import pprint
 
-storage_context = StorageContext('localhost', 27017)
+storage_context = StorageContext()
+storage_context.connect("localhost, 27017")
 
-@storage_context.register("User", "test", "user")
+@storage_context.register("User", "test_mongostorage", "user")
 class UserStorage(mongo.MongoStorage):
     pass
 
-@storage_context.register("Project", "test", "project")
+@storage_context.register("Project", "test_mongostorage", "project")
 class ProjectStorage(mongo.MongoStorage):
     pass
 
@@ -49,7 +50,7 @@ user_lazy_projects = repository.modify(user, "lazy", {
 class TestMongoStorage(unittest.TestCase):
 
     def setUp(self):
-        storage_context.connection.drop_database("test")
+        storage_context.connection.drop_database("test_mongostorage")
 
         comment_1 = dict(sender="Komentator1", message="Komentator1 disini!")
         comment_2 = dict(sender="Komentator2", message="Komentator2 euy!")
