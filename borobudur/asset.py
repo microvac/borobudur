@@ -208,7 +208,7 @@ class AssetManager(object):
                 format = "<script type='text/javascript' src='%s'> </script>\n"
                 q_el = q_body
             else:
-                format =" <link rel='stylesheet' href='%s' />"
+                format ="<link rel='stylesheet' href='%s' />\n"
                 q_el = q_head
             urls = []
             for url in bundle.urls(self.env):

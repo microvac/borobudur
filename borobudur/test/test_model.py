@@ -5,6 +5,8 @@ import borobudur.storage
 import borobudur.model
 import colander
 
+from borobudur.schema import MappingSchema
+
 class TestModel(unittest.TestCase):
 
     def test_create(self):
@@ -49,90 +51,82 @@ class TestModel(unittest.TestCase):
 # Model with schema
 ###########################################
 
-#some schema
-repository = borobudur.schema.SchemaRepository()
-phone = repository.add_mapping("Phone", {
-    "number": colander.SchemaNode(colander.String()),
-})
-
-friend = repository.add_mapping("Friend", {
-    "rank": colander.SchemaNode(colander.Int(), validator=colander.Range(0, 9999)),
-    "name": colander.SchemaNode(colander.String()),
-    "phone": phone
-    })
 
 #create model that creating child by finding namespace in model registry
-model_registry = {}
-class BaseModel(borobudur.model.Model):
-    def create_child_from_schema(self, attributes, schema):
-        return model_registry[schema.schema_namespace](attributes, schema= schema)
-class PhoneModel(BaseModel): pass
-class FriendModel(BaseModel): pass
-model_registry["Phone"]=PhoneModel
-model_registry["Friend"]=FriendModel
+PhoneSchema = MappingSchema(
+    number = colander.SchemaNode(colander.String())
+)
 
-#test it
+class Phone(borobudur.model.Model):
+    schemas = {
+        "": PhoneSchema
+    }
+
+FriendSchema = MappingSchema(
+    rank= colander.SchemaNode(colander.Int(), validator=colander.Range(0, 9999)),
+    name = colander.SchemaNode(colander.String()),
+    phone = borobudur.schema.RefSchema(Phone),
+)
+
+class Friend(borobudur.model.Model):
+    schemas = {
+        "": FriendSchema
+    }
+
 class TestModelWithSchema(unittest.TestCase):
 
     def test_relational(self):
         #model with schema auto created
-        a = FriendModel({
+        a = Friend({
             "name": "supriadi",
             "rank": 3,
             "phone": {"number": {"8823234"}}
-        }, schema =  friend)
-        self.assertTrue(isinstance(a.get("phone"), PhoneModel))
+        }, schema_name =  "")
+        self.assertTrue(isinstance(a.get("phone"), Phone))
 
         #model without schema auto created
-        b = FriendModel({
+        b = Friend({
             "name": "supriadi",
             "rank": 3,
             "phone": {"number": {"8823234"}}
         })
-        self.assertFalse(isinstance(b.get("phone"), PhoneModel))
+        self.assertFalse(isinstance(b.get("phone"), Phone))
 
     def test_validate(self):
-        a = FriendModel({
+        a = Friend({
             "name": "supriadi",
             "rank": 3,
             "phone": {"number": {"8823234"}}
         })
-        a.schema = friend
+        a.schema = Friend.get_schema()
         self.assertTrue(a.is_valid())
 
-        b = FriendModel({
+        b = Friend({
             "name": "supriadi",
             "rank": "kutumbaba",
             "phone": {"number": {"8823234"}}
         })
-        b.schema = friend
+        b.schema = Friend.get_schema()
         self.assertFalse(b.is_valid())
 
-        c = FriendModel({
+        c = Friend({
             "name": "supriadi",
             "rank": 20000,
             "phone": {"number": {"8823234"}}
         })
-        c.schema = friend
+        c.schema = Friend.get_schema()
         self.assertFalse(c.is_valid())
 
     def test_auto_deserialization(self):
-        a = FriendModel({
+        a = Friend({
             "name": "supriadi",
             "rank": "5000",
             "phone": {"number": 8823234}
-        }, schema= friend)
+        }, schema_name="")
 
         self.assertEqual(a.get("rank"), 5000)
         self.assertNotEqual(a.get("rank"), "5000")
 
         self.assertEqual(a.get("phone").get("number"), "8823234")
         self.assertNotEqual(a.get("phone").get("number"), 8823234)
-
-###########################################
-# Model with dummy storage
-###########################################
-
-class DummyStorage(borobudur.storage.Storage):
-    pass
 

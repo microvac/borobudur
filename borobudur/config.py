@@ -42,7 +42,7 @@ def wrap_pyramid_view(page_callback, base_template, asset_manager, calculator, e
 
         page_callback(app_state, request.matchdict, document, load_callbacks)
 
-        return Response(etree.tostring(el, pretty_print=True))
+        return Response(etree.tostring(el, pretty_print=True, method="html"))
 
     return view
 

@@ -1,17 +1,23 @@
 import prambanan.jslib.underscore as underscore
 import colander
 import borobudur.jslib.backbone as backbone
+import borobudur.schema
 
 class Model(backbone.Model):
     """
     """
+    schemas = {}
 
-    def __init__(self, attributes=None, schema=None, storage=None):
-        self.schema = schema
-        self.storage = storage
-
+    def __init__(self, attributes=None, schema_name=None):
+        if schema_name is not None:
+            self.schema = self.__class__.get_schema(schema_name)
+        else:
+            self.schema = None
         super(Model, self).__init__(attributes)
 
+    @classmethod
+    def get_schema(cls, schema_name=""):
+        return cls.schemas[schema_name]
 
     def validate(self, attributes):
         if self.schema is None:
@@ -31,30 +37,16 @@ class Model(backbone.Model):
         copy = {}
 
         for key in iter(attrs):
-            child = None
+            child = attrs[key]
 
             if self.schema is not None and key in self.schema:
-                child_type = self.schema[key].typ
-                if isinstance(child_type, colander.Mapping) or isinstance(child_type, colander.Sequence):
-                    child = self.create_child_from_schema(attrs[key], self.schema[key])
-                else:
-                    child = self.schema[key].deserialize(attrs[key])
-
-            if child is None:
-                child = attrs[key]
-
+                child_schema = self.schema[key]
+                child = child_schema.deserialize(child)
+                if isinstance(child_schema, borobudur.schema.RefSchema):
+                    child = child_schema.create_target(child)
             copy[key] = child
 
         super(Model, self).set(copy, {"silent":silent})
-
-    def create_child_from_schema(self, attributes, schema):
-        """
-        overrides this method if you want to have children automatically become a Model
-
-        returns a borobudur.Model if child created or None if you don't do anything
-        """
-        return None
-
 
     def toJSON(self):
         """
@@ -102,9 +94,7 @@ class Model(backbone.Model):
         return self.get(name)
 
     def __setitem__(self, name, value):
-        attrs = {}
-        attrs[name] = value
-        self.set(attrs)
+        self.set({"name":value})
 
     def __delitem__(self, key):
         raise NotImplementedError()

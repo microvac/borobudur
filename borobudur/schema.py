@@ -1,5 +1,13 @@
 import colander
-from colander import null
+from colander import (\
+    null, SchemaNode, String, Integer, Boolean, Date, DateTime
+)
+
+class Currency(Integer):
+    pass
+
+class File(Integer):
+    pass
 
 class Ref(object):
     def serialize(self, node, appstruct):
@@ -23,133 +31,61 @@ class Ref(object):
         result = DBRef(collection=cstruct.get("collection"), id=ObjectId(cstruct.get("id")))
         return result
 
-def create_schema_node_from_cls(cls):
+class RefSchema(colander.SchemaNode):
     """
-    prambanan:type cls c(object)
+    prambanan:type target c(object)
     """
-    schema = colander.SchemaNode(colander.Mapping())
-    schema.schema_name = ""
-    obj = cls()
-    attrs = dir(obj)
-    for key in attrs:
-        if not key.startswith("__"):
-            value = getattr(obj, key)
-            if isinstance(value, colander.SchemaNode):
-                child = value.clone()
-                child.name = key
-                schema.add(child)
-    return schema
 
-class SchemaRepository(object):
-    def __init__(self):
-        self.schemas = {}
+    def __init__(self, target, schema_name=""):
+        self.target = target
+        self.schema_name = schema_name
 
-    def register(self, schema):
-        key = schema.schema_namespace if (schema.schema_name == "") else (
-        "%s.%s" % (schema.schema_namespace, schema.schema_name))
-        self.schemas[key] = schema
-        return schema
+        node = target.get_schema(schema_name).clone()
+        self.typ = node.typ
+        self.preparer = node.preparer
+        self.validator = node.validator
+        self.default = node.default
+        self.missing = node.missing
+        self.name = node.name
+        self.raw_title = node.raw_title
+        self.title = node.title
+        self.description = node.description
+        self.widget = node.widget
+        self.children = node.children
+        self.order = node._order
 
-    def get(self, schema_namespace, schema_name=""):
-        key = schema_namespace if (schema_name == "") else ("%s.%s" % (schema_namespace, schema_name))
-        return self.schemas[key]
+    def create_target(self, attributes):
+        return self.target(attributes, self.schema_name)
 
-    def root(self, schema_namespace):
+    def clone(self):
+        """ Clone the schema node and return the clone.  All subnodes
+        are also cloned recursively.  Attributes present in node
+        dictionaries are preserved."""
+        cloned = self.__class__(self.target, self.schema_name)
+        return cloned
 
-        def decorate(cls):
-            schema = create_schema_node_from_cls(cls)
-            schema.schema_namespace = schema_namespace
-            schema.schema_name = ""
-            self.register(schema)
-            return cls
-
-        return decorate
-
-    def child(self, schema_namespace, schema_name):
-
-        def decorate(cls):
-            schema = create_schema_node_from_cls(cls)
-            schema.schema_namespace = schema_namespace
-            schema.schema_name = schema_name
-            self.register(schema)
-            return cls
-
-        return decorate
-
-    def add_mapping(self, schema_namespace, nodes):
-        schema = colander.SchemaNode(colander.Mapping())
-        schema.schema_name = ""
-        schema.schema_namespace = schema_namespace
-
-        for key, child in sorted(nodes.items(), key=lambda (k, v): v._order):
-            child = child.clone()
-            child.name = key
-            schema.add(child)
-
-        return self.register(schema)
-
-    def add_sequence(self, schema_namespace, child):
-        schema = colander.SchemaNode(colander.Sequence())
-        schema.schema_name = child.schema_name
-        schema.schema_namespace = schema_namespace
-
+class SequenceSchema(colander.SchemaNode):
+    def __init__(self, child):
+        super(SequenceSchema, self).__init__(colander.Sequence())
         child = child.clone()
         child.name = "child"
-        schema.add(child)
+        self.add(child)
 
-        return self.register(schema)
+    def clone(self):
+        cloned = self.__class__(self.children[0])
+        return cloned
 
-    def add_child(self, schema_namespace, schema_name, options={}):
-        return self.modify(self.get(schema_namespace), schema_name, options)
+class MappingSchema(colander.SchemaNode):
 
+    def __init__(self, **kwargs):
+        super(MappingSchema, self).__init__(colander.Mapping())
 
-    def modify(self, source, schema_name, options={}):
-        #clone because we modifying source children list
-        schema = source.clone()
-        schema.schema_name = schema_name
-        schema.schema_namespace = source.schema_namespace
+        for key in kwargs:
+            child = kwargs.get(key)
+            child.name = key
+            self.add(child)
 
-        if "remove" in options:
-            removed_names = options["remove"]
-            children = schema.children
-            for i in xrange(len(children) - 1, -1, -1):
-                if children[i].name in removed_names:
-                    del children[i]
-
-        if "alter" in options:
-            altered_children = options["alter"]
-            children = schema.children
-            for i in xrange(len(children) - 1, -1, -1):
-                if children[i].name in altered_children:
-                    #clone because we change child name, and it can be used elsewhere
-                    child = altered_children[children[i].name]
-                    child = child.clone()
-                    child.name = children[i].name
-                    children[i] = child
-
-        if "add" in options:
-            added_children = options["add"]
-            for key, child in added_children.items():
-                #clone because we change child name, and it can be used elsewhere
-                child = child.clone()
-                child.name = key
-                schema.add(child)
-
-        return self.register(schema)
-
-
-def anonymous_mapping(nodes):
-    schema = colander.SchemaNode(colander.Mapping())
-    for key, child in sorted(nodes.items(), key=lambda (k, v): v._order):
-        child = child.clone()
-        child.name = key
-        schema.add(child)
-    return schema
-
-
-def anonymous_sequence(child):
-    schema = colander.SchemaNode(colander.Sequence())
-    child = child.clone()
-    child.name = "child"
-    schema.add(child)
-    return schema
+    def clone(self):
+        cloned = MappingSchema()
+        cloned.children = list(self.children)
+        return cloned
