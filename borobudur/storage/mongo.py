@@ -1,9 +1,12 @@
 from borobudur.storage import (
     Storage,
     StorageException,
-    SearchConfig
+    SearchConfig,
     )
-import borobudur.schema as schema
+import borobudur.schema
+from borobudur.schema import (
+    RefSchema,
+)
 
 from pymongo import (
     ASCENDING,
@@ -24,24 +27,23 @@ class StorageContext(object):
     def connect(self, host=None, port=None):
         self.connection = Connection(host, port)
 
-    def register(self, name, db, collection):
+    def register(self, model):
         def wrapper(storage):
             storage.context = self
-            self.registry[name] = storage(self.connection, db, collection)
+            self.registry[model] = storage(self.connection)
             return storage
         return wrapper
 
-    def unregister(self, name):
+    def unregister(self, model):
         def wrapper(storage):
             del storage.context
             del storage.connection
-            self.registry.pop(name)
+            self.registry.pop(model)
             return storage
         return wrapper
 
-    def get(self, name):
-        return self.registry.get(name)
-
+    def get(self, model):
+        return self.registry[model]
 
 def null_converter(obj, schema=None, func=None):
     return obj
@@ -84,7 +86,7 @@ serializers = {
     #colander.Decimal:
     colander.Sequence: sequence_converter,
     colander.Mapping: mapping_serializer,
-    schema.Ref: null_converter,
+    borobudur.schema.Ref: null_converter,
 }
 
 deserializers = {
@@ -96,7 +98,7 @@ deserializers = {
     #colander.Decimal:
     colander.Sequence: sequence_converter,
     colander.Mapping: mapping_deserializer,
-    schema.Ref: null_converter,
+    borobudur.schema.Ref: null_converter,
 }
 
 class MongoStorageException(StorageException):
@@ -104,13 +106,15 @@ class MongoStorageException(StorageException):
 
 class MongoStorage(Storage):
 
+    db_name = None
+    collection_name = None
     id_attribute = "_id"
     id_type = ObjectId
 
-    def __init__(self, connection, db, collection_name):
+    def __init__(self, connection):
         self.connection = connection
-        self.db = self.connection[db]
-        self.collection = self.db[collection_name]
+        self.db = self.connection[self.db_name]
+        self.collection = self.db[self.collection_name]
 
     def insert(self, obj, schema=None):
         result = mapping_serializer(obj, schema, self.serialize)
@@ -118,34 +122,39 @@ class MongoStorage(Storage):
         return result
 
     def serialize(self, obj, schema, serialize_child):
-        storage = self.context.registry.get(schema.schema_namespace) if hasattr(schema, "schema_namespace") else None
+        if type(schema)==RefSchema:
+            return obj[schema.target.id_attribute]
+        else:
+            return serializers[type(schema.typ)](obj, schema, serialize_child)
+
+    '''
+    def serialize_insert(self, obj, schema, serialize_child):
+        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
         if storage is None:
             return serializers[type(schema.typ)](obj, schema, serialize_child)
         else:
             result = storage.update(obj, schema)
-            ref = DBRef(collection=storage.collection.name, id=result['_id'])
+            ref = result[storage.id_attribute]
             return ref
+    '''
 
     def deserialize(self, obj, schema, deserialize_child):
-        storage = self.context.registry.get(schema.schema_namespace) if hasattr(schema, "schema_namespace") else None
+        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
         if storage is None:
             return deserializers[type(schema.typ)](obj, schema, deserialize_child)
         else:
-            #if context changes collection then the reference cannot be found
-            result = storage.one(obj.id, schema)
+            result = storage.one(obj, schema)
             return result
 
-    def update(self, obj, schema=None):
-        result = mapping_serializer(obj, schema, self.serialize)
-        self.collection.update({self.id_attribute: self.id_type(obj.get(self.id_attribute))},
-                               result,
-                               upsert=True,
-                               manipulate=True,
-                              )
-        #self.collection.save(result) #save = upsert
-        return result
 
-    #Todo: cascade delete
+    def update(self, obj, schema=None):
+        serialized = mapping_serializer(obj, schema, self.serialize)
+        result = self.flatten(serialized)
+        self.collection.update({self.id_attribute: self.id_type(obj[self.id_attribute])},
+                               {"$set": result},
+                              )
+        return self.one(obj[self.id_attribute], schema)
+
     def delete(self, id):
         result = self.collection.find_one({self.id_attribute: self.id_type(id)})
         if not result:
@@ -155,7 +164,7 @@ class MongoStorage(Storage):
 
     def one(self, id, schema=None):
         result = self.collection.find_one({self.id_attribute: self.id_type(id)})
-        if result is not None:
+        if result:
             result = mapping_deserializer(result, schema, self.deserialize)
         return result
 
@@ -187,6 +196,31 @@ class MongoStorage(Storage):
     def count(self, query=None):
         return self.collection.find(spec=query).count()
 
+    def flatten(self, item, prefix=""):
+        result = {}
+        if isinstance(item, list):
+            for index, it in enumerate(item):
+                subprefix = prefix+"."+str(index)
+                result.update(self.flatten(it, subprefix))
+        elif isinstance(item, dict):
+            for key, value in item.items():
+                if key == "_id":
+                    continue
+                if isinstance(value, list):
+                    for index, it in enumerate(value):
+                        subprefix = prefix+"."+key+"."+str(index) if prefix else key+"."+str(index)
+                        result.update(self.flatten(it, subprefix))
+                elif isinstance(value, dict):
+                    subprefix = prefix+"."+key if prefix else key
+                    result.update(self.flatten(value, subprefix))
+                else:
+                    subprefix = prefix+"."+key if prefix else key
+                    result[subprefix] = value
+        else:
+            if prefix != "_id":
+                result[prefix] = item
+        return result
+
     def get_field_list(self, schema):
         if schema is None: return None
         result = []
@@ -194,8 +228,95 @@ class MongoStorage(Storage):
             result.append(child.name)
         return result
 
-#connection = Connection('localhost', 27017)
-#db = None;
-#userStorage = MongoStorage(connection, db, "users")
-#portofolioStorage = MongoStorage(connection, db, "users", "portofolios")
-#config.expose_storage(userStorage, route_name="/app/storage/users")
+class EmbeddedMongoStorage(Storage):
+
+    parent_storage = None
+    attribute_path = None
+    id_attribute = "id"
+    id_type = str
+    empty_schema = None
+
+    def __init__(self, connection):
+        pass
+
+    def insert(self, parent_id, obj, schema=None):
+        serialized = mapping_serializer(obj, schema, self.serialize)
+        parent_schema = self.build_parent_schema(schema)
+        parent = self.parent.one(parent_id, parent_schema)
+        collection = parent[self.attribute_path]
+        collection.append(serialized)
+        index = len(collection) - 1
+        update_result = self.parent.update(collection, parent_schema)
+        result = update_result[self.attribute_path][index]
+        return result
+
+    def serialize(self, obj, schema, serialize_child):
+        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
+        if storage is None:
+            return serializers[type(schema.typ)](obj, schema, serialize_child)
+        else:
+            result = storage.update(obj, schema)
+            ref = result[storage.id_attribute]
+            return ref
+
+    def deserialize(self, obj, schema, deserialize_child):
+        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
+        if storage is None:
+            return deserializers[type(schema.typ)](obj, schema, deserialize_child)
+        else:
+            result = storage.one(obj, schema)
+            return result
+
+    def update(self, parent_id, obj, schema=None):
+        serialized = mapping_serializer(obj, schema, self.serialize)
+        parent_schema = self.build_parent_schema(schema)
+        parent = self.parent.one(parent_id, parent_schema)
+        collection = parent[self.attribute_path]
+        index = self.find(obj[self.id_attribute], collection)
+        collection[index] = serialized
+        update_result = self.parent.update(collection, parent_schema)
+        result = update_result[self.attribute_path][index]
+        return result
+
+    def delete(self, parent_id, id):
+        parent = self.parent.one(parent_id)
+        parent_schema = self.build_parent_schema()
+        collection = parent[self.attribute_path]
+        index = self.find(id, collection)
+        collection.pop(index)
+        update_result = self.parent.update(collection, parent_schema)
+        return True
+
+    def one(self, parent_id, id, schema=None):
+        parent_schema = self.build_parent_schema(schema)
+        parent = self.parent.one(parent_id, parent_schema)
+        collection = parent[self.attribute_path]
+        index = self.find(id, collection)
+        return collection[index]
+
+    def all(self, parent_id, query=None, config=None, schema=None):
+        parent_schema = self.build_parent_schema(schema)
+        parent = self.parent.one(parent_id, parent_schema)
+        collection = parent[self.attribute_path]
+        return collection
+
+    def count(self, parent_id, query=None):
+        parent_schema = self.build_parent_schema()
+        parent = self.parent.one(parent_id, parent_schema)
+        collection = parent[self.attribute_path]
+        return len(collection)
+
+    def find(self, id, sequence):
+        for index, item in enumerate(sequence):
+            if item.get(id_attribute) == id:
+                return index
+        return None
+
+    def build_parent_schema(self, schema=None):
+        if schema is None:
+            schema = self.empty_schema
+
+        structure = {
+            self.id_attribute: borobudur.schema.SequenceSchema(schema)
+        }
+        return borobudur.schema.MappingSchema(**structure)
