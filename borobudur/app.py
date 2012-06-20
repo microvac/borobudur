@@ -89,7 +89,6 @@ class LoadFlow(object):
         else:
             self.finish()
 
-
     def next(self):
         page_type = self.page_types[self.i]
         if borobudur.is_server and page_type.client_only:
@@ -104,6 +103,7 @@ class LoadFlow(object):
             self.current = page
 
             page.load(self)
+
     def finish(self):
         page = self.current
         el_query = self.document.el_query
@@ -120,9 +120,6 @@ class AppPart(object):
 
     def __init__(self, name):
         self.name = name
-
-
-
 
 class App(object):
     def __init__(self, settings):

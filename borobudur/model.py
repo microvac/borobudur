@@ -6,7 +6,9 @@ import borobudur.schema
 class Model(backbone.Model):
     """
     """
+    id_attribute = "_id"
     schemas = {}
+    storage_url = None
 
     def __init__(self, attributes=None, parent=None, schema_name=None):
         self.parent = parent

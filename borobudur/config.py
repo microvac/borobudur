@@ -1,12 +1,14 @@
+from pyramid.response import Response
 from pyramid.renderers import render_to_response
 from pyramid.view import view_config
-import borobudur
 
-from lxml import etree
-from pyramid.response import Response
+import borobudur
+import borobudur.schema
+import borobudur.storage
 from borobudur.asset import SimplePackCalculator
 from borobudur.model import Model
-import borobudur.schema
+
+from lxml import etree
 
 class Document(object):
     def __init__(self, el):
@@ -93,16 +95,13 @@ def asset_changed_view(asset_manager, calculate, entry_point):
 
     return view
 
-def make_storage_view(schema_namespace, storage, schemas):
+def make_storage_view(model, storage):
 
     class View(object):
 
         def __init__(self, request):
             self.request = request
-            if request.params.get("s"):
-                self.schema = schemas.get(schema_namespace, request.params.get("s"))
-            else:
-                self.schema = schemas.get(schema_namespace)
+            self.schema = model.get_schema(request.params.get("s", ""))
 
         def create(self):
             appstruct = self.schema.deserialize(self.request.json_body)
@@ -126,8 +125,20 @@ def make_storage_view(schema_namespace, storage, schemas):
             return render_to_response("json", result)
 
         def list(self):
-            sequence_schema = borobudur.schema.anonymous_sequence(self.schema)
-            results = storage.all(schema=self.schema)
+            skip = self.request.params.get("ps", 0)
+            limit = self.request.params.get("pl", 0)
+            sort_order = self.request.params.get("so")
+            sort_criteria = self.request.params.get("sc")
+            sorts = None
+            if sort_criteria and sort_order:
+                sorts = borobudur.storage.SearchSort(sort_criteria, sort_order)
+            elif sort_criteria:
+                sorts = borobudur.storage.SearchSort(sort_criteria)
+
+            config = borobudur.storage.SearchConfig(skip, limit, sorts)
+
+            results = storage.all(schema=self.schema, config=config)
+            sequence_schema = borobudur.schema.SequenceSchema(self.schema)
             serialized = sequence_schema.serialize(results)
             return render_to_response("json", serialized)
 
@@ -156,14 +167,17 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
     ac_view = asset_changed_view(asset_manager, calculator, client_entry_point)
     config.add_view(ac_view, route_name=ac_route_name)
 
-    for name, storage, schemas in app.storages:
-        storage_view = make_storage_view(name, storage, schemas)
+    for model, storage in app.storages:
+        storage_view = make_storage_view(model, storage)
 
-        config.add_route("list_"+name, app.root+app.api_root+"storages/"+name)
-        config.add_route("create_"+name, app.root+app.api_root+"storages/"+name)
-        config.add_route("read_"+name, app.root+app.api_root+"storages/"+name+"/{id}")
-        config.add_route("update_"+name, app.root+app.api_root+"storages/"+name+"/{id}")
-        config.add_route("delete_"+name, app.root+app.api_root+"storages/"+name+"/{id}")
+        name = model.__class__.__name__
+        storage_url = model.storage_url
+
+        config.add_route("list_"+name, app.root+app.api_root+"storages/"+storage_url)
+        config.add_route("create_"+name, app.root+app.api_root+"storages/"+storage_url)
+        config.add_route("read_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+        config.add_route("update_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+        config.add_route("delete_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
 
         config.add_view(storage_view, route_name="list_"+name, attr="list", request_method="GET", renderer="json")
         config.add_view(storage_view, route_name="create_"+name, attr="create", request_method="POST", renderer="json")
