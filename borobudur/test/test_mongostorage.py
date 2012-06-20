@@ -62,6 +62,13 @@ class ProjectStorage(mongo.MongoStorage):
     db_name = "test_mongostorage"
     collection_name = "project"
 
+class CommentStorage(mongo.EmbeddedMongoStorage):
+    parent_storage = ProjectStorage
+    attribute_path = "comments"
+    id_attribute = "sender"
+    id_type = str
+
+
 class TestMongoStorage(unittest.TestCase):
 
     def setUp(self):
@@ -110,22 +117,18 @@ class TestMongoStorage(unittest.TestCase):
         #pprint(obj)
         self.assertEqual(result, obj)
 
-
     def test_delete(self):
         storage_context.connection.drop_database("test_mongostorage")
         self.prepare()
-        test = self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user)
-        self.assertIsNotNone(test)
+        self.assertIsNotNone(self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user))
         self.user_storage.delete(self.user_a[self.user_storage.id_attribute])
-        test2 = self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user)
-        self.assertIsNone(test2)
+        self.assertIsNone(self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user))
 
     def test_lazy_loading(self):
         storage_context.connection.drop_database("test_mongostorage")
         self.prepare()
         result = self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user_lazy_projects)
         self.assertEqual(self.user_a, result)
-
 
     def test_all_and_count(self):
         storage_context.connection.drop_database("test_mongostorage")
@@ -167,12 +170,37 @@ class TestMongoStorage(unittest.TestCase):
         print("=============================================")
 
         #search with query
-        query = {
-            "name": "UserB"
-        }
+        query = { "name": "UserB" }
         result = self.user_storage.all(query=query, schema=user)
         #pprint(result)
         print("=============================================")
         print("Count: ") + str(len(result))
         print("=============================================")
         self.assertEqual(self.user_storage.count(query=query), 4)
+
+    #=============================================
+    #This section is for EmbeddedMongoStorage tests
+    #=============================================
+
+    def prepare_embedded(self):
+        self.comment_storage = CommentStorage(storage_context.connection)
+
+    def test_embedded_insert(self):
+        self.prepare()
+        self.prepare_embedded()
+
+        comment_1 = dict(sender="Commentator_1", message="This is Commentator_1")
+        comment_2 = dict(sender="Commentator_2", message="This is Commentator_2")
+
+        self.comment_storage.insert(str(self.project_1[Project.id_attribute]), comment_1, comment)
+        self.comment_storage.insert(str(self.project_1[Project.id_attribute]), comment_2, comment)
+
+        result_1 = self.comment_storage.one(str(self.project_1[Project.id_attribute]), comment_1[CommentStorage.id_attribute], comment)
+        result_2 = self.comment_storage.one(str(self.project_1[Project.id_attribute]), comment_2[CommentStorage.id_attribute], comment)
+
+        self.assertEqual(comment_1, result_1)
+        self.assertEqual(comment_2, result_2)
+
+    def test_embedded_update(self):
+        pass
+

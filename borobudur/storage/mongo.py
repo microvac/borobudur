@@ -232,21 +232,22 @@ class EmbeddedMongoStorage(Storage):
 
     parent_storage = None
     attribute_path = None
+    empty_schema = None
     id_attribute = "id"
     id_type = str
-    empty_schema = None
 
     def __init__(self, connection):
-        pass
+        self.parent_storage = self.parent_storage(connection)
+        #pass
 
     def insert(self, parent_id, obj, schema=None):
         serialized = mapping_serializer(obj, schema, self.serialize)
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent.one(parent_id, parent_schema)
+        parent = self.parent_storage.one(parent_id, parent_schema)
         collection = parent[self.attribute_path]
         collection.append(serialized)
         index = len(collection) - 1
-        update_result = self.parent.update(collection, parent_schema)
+        update_result = self.parent_storage.update(parent, parent_schema)
         result = update_result[self.attribute_path][index]
         return result
 
@@ -270,45 +271,45 @@ class EmbeddedMongoStorage(Storage):
     def update(self, parent_id, obj, schema=None):
         serialized = mapping_serializer(obj, schema, self.serialize)
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent.one(parent_id, parent_schema)
+        parent = self.parent_storage.one(parent_id, parent_schema)
         collection = parent[self.attribute_path]
         index = self.find(obj[self.id_attribute], collection)
         collection[index] = serialized
-        update_result = self.parent.update(collection, parent_schema)
+        update_result = self.parent_storage.update(collection, parent_schema)
         result = update_result[self.attribute_path][index]
         return result
 
     def delete(self, parent_id, id):
-        parent = self.parent.one(parent_id)
+        parent = self.parent_storage.one(parent_id)
         parent_schema = self.build_parent_schema()
         collection = parent[self.attribute_path]
         index = self.find(id, collection)
         collection.pop(index)
-        update_result = self.parent.update(collection, parent_schema)
+        update_result = self.parent_storage.update(collection, parent_schema)
         return True
 
     def one(self, parent_id, id, schema=None):
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent.one(parent_id, parent_schema)
+        parent = self.parent_storage.one(parent_id, parent_schema)
         collection = parent[self.attribute_path]
         index = self.find(id, collection)
         return collection[index]
 
     def all(self, parent_id, query=None, config=None, schema=None):
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent.one(parent_id, parent_schema)
+        parent = self.parent_storage.one(parent_id, parent_schema)
         collection = parent[self.attribute_path]
         return collection
 
     def count(self, parent_id, query=None):
         parent_schema = self.build_parent_schema()
-        parent = self.parent.one(parent_id, parent_schema)
+        parent = self.parent_storage.one(parent_id, parent_schema)
         collection = parent[self.attribute_path]
         return len(collection)
 
     def find(self, id, sequence):
         for index, item in enumerate(sequence):
-            if item.get(id_attribute) == id:
+            if item.get(self.id_attribute) == id:
                 return index
         return None
 
@@ -317,6 +318,6 @@ class EmbeddedMongoStorage(Storage):
             schema = self.empty_schema
 
         structure = {
-            self.id_attribute: borobudur.schema.SequenceSchema(schema)
+            self.attribute_path: borobudur.schema.SequenceSchema(schema)
         }
         return borobudur.schema.MappingSchema(**structure)
