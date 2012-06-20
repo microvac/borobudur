@@ -275,17 +275,17 @@ class EmbeddedMongoStorage(Storage):
         collection = parent[self.attribute_path]
         index = self.find(obj[self.id_attribute], collection)
         collection[index] = serialized
-        update_result = self.parent_storage.update(collection, parent_schema)
+        update_result = self.parent_storage.update(parent, parent_schema)
         result = update_result[self.attribute_path][index]
         return result
 
     def delete(self, parent_id, id):
-        parent = self.parent_storage.one(parent_id)
         parent_schema = self.build_parent_schema()
+        parent = self.parent_storage.one(parent_id, parent_schema)
         collection = parent[self.attribute_path]
         index = self.find(id, collection)
         collection.pop(index)
-        update_result = self.parent_storage.update(collection, parent_schema)
+        update_result = self.parent_storage.update(parent, parent_schema)
         return True
 
     def one(self, parent_id, id, schema=None):
