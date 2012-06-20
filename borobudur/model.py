@@ -8,7 +8,8 @@ class Model(backbone.Model):
     """
     schemas = {}
 
-    def __init__(self, attributes=None, schema_name=None):
+    def __init__(self, attributes=None, parent=None, schema_name=None):
+        self.parent = parent
         if schema_name is not None:
             self.schema = self.__class__.get_schema(schema_name)
         else:
@@ -57,7 +58,7 @@ class Model(backbone.Model):
         result =  super(Model, self).toJSON()
         for key in iter(result):
             value = result[key]
-            if isinstance(value, Model):
+            if isinstance(value, Model) or isinstance(value, Collection):
                 result[key] = value.toJSON()
         return result
 
