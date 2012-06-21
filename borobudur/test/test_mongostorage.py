@@ -196,11 +196,11 @@ class TestMongoStorage(unittest.TestCase):
         comment_1 = dict(sender="Commentator_1", message="This is Commentator_1")
         comment_2 = dict(sender="Commentator_2", message="This is Commentator_2")
 
-        self.comment_storage.insert(str(self.project_1[Project.id_attribute]), comment_1, comment)
-        self.comment_storage.insert(str(self.project_1[Project.id_attribute]), comment_2, comment)
+        self.comment_storage.insert((str(self.project_1[Project.id_attribute]),), comment_1, comment)
+        self.comment_storage.insert((str(self.project_1[Project.id_attribute]),), comment_2, comment)
 
-        result_1 = self.comment_storage.one(str(self.project_1[Project.id_attribute]), comment_1[CommentStorage.id_attribute], comment)
-        result_2 = self.comment_storage.one(str(self.project_1[Project.id_attribute]), comment_2[CommentStorage.id_attribute], comment)
+        result_1 = self.comment_storage.one((comment_1[CommentStorage.id_attribute], (str(self.project_1[Project.id_attribute]))), comment)
+        result_2 = self.comment_storage.one((comment_2[CommentStorage.id_attribute], (str(self.project_1[Project.id_attribute]))), comment)
 
         self.assertEqual(comment_1, result_1)
         self.assertEqual(comment_2, result_2)
@@ -213,11 +213,11 @@ class TestMongoStorage(unittest.TestCase):
         comment_1 = dict(sender="Commentator_1", message="This is Commentator_1")
         comment_2 = dict(sender="Commentator_2", message="This is Commentator_2")
 
-        self.comment_storage.insert(str(self.project_1[Project.id_attribute]), comment_1, comment)
-        result = self.comment_storage.one(str(self.project_1[Project.id_attribute]), comment_1[CommentStorage.id_attribute], comment)
+        self.comment_storage.insert((str(self.project_1[Project.id_attribute]),), comment_1, comment)
+        result = self.comment_storage.one((comment_1[CommentStorage.id_attribute], (str(self.project_1[Project.id_attribute]))), comment)
         result["message"] = "LALALALALALA"
-        self.comment_storage.update(str(self.project_1[Project.id_attribute]), result, comment)
-        result2 = self.comment_storage.one(str(self.project_1[Project.id_attribute]), comment_1[CommentStorage.id_attribute], comment)
+        self.comment_storage.update((str(self.project_1[Project.id_attribute]),), result, comment)
+        result2 = self.comment_storage.one((comment_1[CommentStorage.id_attribute], (str(self.project_1[Project.id_attribute]))), comment)
         self.assertEqual(result, result2)
 
     '''
@@ -235,10 +235,19 @@ class TestMongoStorage(unittest.TestCase):
 
     def test_embedded_one(self):
         pass
+    '''
 
     def test_embedded_all(self):
-        pass
-    '''
+        storage_context.connection.drop_database("test_mongostorage")
+        self.prepare()
+        self.prepare_embedded()
+
+
+        results = self.comment_storage.all((str(self.project_1[Project.id_attribute]),), schema=comment)
+        count = self.comment_storage.count((str(self.project_1[Project.id_attribute]),))
+        self.assertEqual(len(results), count)
+
+
 
 
 

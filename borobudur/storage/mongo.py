@@ -121,32 +121,6 @@ class MongoStorage(Storage):
         self.collection.insert(result)
         return result
 
-    def serialize(self, obj, schema, serialize_child):
-        if type(schema)==RefSchema:
-            return obj[schema.target.id_attribute]
-        else:
-            return serializers[type(schema.typ)](obj, schema, serialize_child)
-
-    '''
-    def serialize_insert(self, obj, schema, serialize_child):
-        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
-        if storage is None:
-            return serializers[type(schema.typ)](obj, schema, serialize_child)
-        else:
-            result = storage.update(obj, schema)
-            ref = result[storage.id_attribute]
-            return ref
-    '''
-
-    def deserialize(self, obj, schema, deserialize_child):
-        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
-        if storage is None:
-            return deserializers[type(schema.typ)](obj, schema, deserialize_child)
-        else:
-            result = storage.one(obj, schema)
-            return result
-
-
     def update(self, obj, schema=None):
         serialized = mapping_serializer(obj, schema, self.serialize)
         result = self.flatten(serialized)
@@ -196,6 +170,20 @@ class MongoStorage(Storage):
     def count(self, query=None):
         return self.collection.find(spec=query).count()
 
+    def serialize(self, obj, schema, serialize_child):
+        if type(schema)==RefSchema:
+            return obj[schema.target.id_attribute]
+        else:
+            return serializers[type(schema.typ)](obj, schema, serialize_child)
+
+    def deserialize(self, obj, schema, deserialize_child):
+        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
+        if storage is None:
+            return deserializers[type(schema.typ)](obj, schema, deserialize_child)
+        else:
+            result = storage.one(obj, schema)
+            return result
+
     def flatten(self, item, prefix=""):
         result = {}
         if isinstance(item, list):
@@ -238,18 +226,74 @@ class EmbeddedMongoStorage(Storage):
 
     def __init__(self, connection):
         self.parent_storage = self.parent_storage(connection)
-        #pass
 
-    def insert(self, parent_id, obj, schema=None):
-        serialized = mapping_serializer(obj, schema, self.serialize)
+    def insert(self, id, obj, schema=None):
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_storage.one(parent_id, parent_schema)
+        parent = self.parent_one(id, parent_schema)
+
+        serialized = mapping_serializer(obj, schema, self.serialize)
         collection = parent[self.attribute_path]
         collection.append(serialized)
         index = len(collection) - 1
-        update_result = self.parent_storage.update(parent, parent_schema)
+        update_result = self.parent_update(id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
+
         return result
+
+    def update(self, id, obj, schema=None):
+        parent_schema = self.build_parent_schema(schema)
+        parent = self.parent_one(id, parent_schema)
+
+        serialized = mapping_serializer(obj, schema, self.serialize)
+        collection = parent[self.attribute_path]
+        index = self.find(obj[self.id_attribute], collection)
+        collection[index] = serialized
+        update_result = self.parent_update(id, parent, parent_schema)
+        result = update_result[self.attribute_path][index]
+
+        return result
+
+    def delete(self, id):
+        parent_schema = self.build_parent_schema()
+        parent = self.parent_one(id, parent_schema)
+
+        collection = parent[self.attribute_path]
+        index = self.find(id, collection)
+        collection.pop(index)
+        update_result = self.parent_update(parent, parent_schema)
+
+        return True
+
+    def one(self, id, schema=None):
+        parent_schema = self.build_parent_schema(schema)
+        parent = self.parent_one(id, parent_schema)
+
+        collection = parent[self.attribute_path]
+        index = self.find(id[0], collection)
+
+        return collection[index]
+
+    def all(self, id, query=None, config=None, schema=None):
+        parent_schema = self.build_parent_schema(schema)
+        parent = self.parent_one(id, parent_schema)
+
+        if not config:
+            config = SearchConfig(0, 0)
+
+        if config.limit == 0:
+            collection = parent[self.attribute_path][config.skip:len(parent[self.attribute_path])]
+        else:
+            collection = parent[self.attribute_path][config.skip:config.skip+config.limit]
+
+        return collection
+
+    def count(self, id, query=None):
+        parent_schema = self.build_parent_schema()
+        parent = self.parent_one(id, parent_schema)
+
+        collection = parent[self.attribute_path]
+
+        return len(collection)
 
     def serialize(self, obj, schema, serialize_child):
         storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
@@ -268,44 +312,19 @@ class EmbeddedMongoStorage(Storage):
             result = storage.one(obj, schema)
             return result
 
-    def update(self, parent_id, obj, schema=None):
-        serialized = mapping_serializer(obj, schema, self.serialize)
-        parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_storage.one(parent_id, parent_schema)
-        collection = parent[self.attribute_path]
-        index = self.find(obj[self.id_attribute], collection)
-        collection[index] = serialized
-        update_result = self.parent_storage.update(parent, parent_schema)
-        result = update_result[self.attribute_path][index]
+    def parent_one(self, id, schema):
+        if len(id) == 1:
+            result = self.parent_storage.one(id[0], schema)
+        else:
+            result = self.parent_storage.one(id[1], schema)
         return result
 
-    def delete(self, parent_id, id):
-        parent_schema = self.build_parent_schema()
-        parent = self.parent_storage.one(parent_id, parent_schema)
-        collection = parent[self.attribute_path]
-        index = self.find(id, collection)
-        collection.pop(index)
-        update_result = self.parent_storage.update(parent, parent_schema)
-        return True
-
-    def one(self, parent_id, id, schema=None):
-        parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_storage.one(parent_id, parent_schema)
-        collection = parent[self.attribute_path]
-        index = self.find(id, collection)
-        return collection[index]
-
-    def all(self, parent_id, query=None, config=None, schema=None):
-        parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_storage.one(parent_id, parent_schema)
-        collection = parent[self.attribute_path]
-        return collection
-
-    def count(self, parent_id, query=None):
-        parent_schema = self.build_parent_schema()
-        parent = self.parent_storage.one(parent_id, parent_schema)
-        collection = parent[self.attribute_path]
-        return len(collection)
+    def parent_update(self, id, obj, schema):
+        if len(id) == 1:
+            result = self.parent_storage.update(obj, schema)
+        else:
+            result = self.parent_storage.update(id[1], obj, schema)
+        return result
 
     def find(self, id, sequence):
         for index, item in enumerate(sequence):

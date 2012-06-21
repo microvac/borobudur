@@ -5,6 +5,8 @@ from pyramid.view import view_config
 import borobudur
 import borobudur.schema
 import borobudur.storage
+import borobudur.storage.mongo
+
 from borobudur.asset import SimplePackCalculator
 from borobudur.model import Model
 
@@ -95,6 +97,44 @@ def asset_changed_view(asset_manager, calculate, entry_point):
 
     return view
 
+def make_embedded_storage_view(model, storage):
+
+    class View(object):
+
+        def __init__(self, request):
+            self.request = request
+            self.schema = model.get_schema(request.params.get("s", ""))
+
+        def create(self):
+            appstruct = self.schema.deserialize(self.request.json_body)
+            result = storage.insert(self.request.matchdict["parent_id"], appstruct, self.schema)
+            serialized = self.schema.serialize(result)
+            return render_to_response("json", serialized)
+
+        def read(self):
+            result = storage.one(self.request.matchdict["parent_id"], self.request.matchdict["id"], self.schema)
+            serialized = self.schema.serialize(result)
+            return render_to_response("json", serialized)
+
+        def update(self):
+            appstruct = self.schema.deserialize(self.request.json_body)
+            result = storage.update(self.request.matchdict["parent_id"], appstruct, self.schema)
+            serialized = self.schema.serialize(result)
+            return render_to_response("json", serialized)
+
+        def delete(self):
+            pass
+
+        def list(self):
+            skip = self.request.params.get("ps", 0)
+            limit = self.request.params.get("pl", 0)
+            config = borobudur.storage.SearchConfig(skip, limit)
+
+            results = storage.all(self.request.matchdict["parent_id"], config=config, schema=self.schema)
+            sequence_schema = borobudur.schema.SequenceSchema(self.schema)
+            serialized = sequence_schema.serialize(results)
+            return render_to_response("json", serialized)
+
 def make_storage_view(model, storage):
 
     class View(object):
@@ -144,6 +184,32 @@ def make_storage_view(model, storage):
 
     return View
 
+def expose_storage(model, storage):
+
+    name = model.__class__.__name__
+    storage_url = model.storage_url
+
+    if type(storage) == borobudur.storage.mongo.MongoStorage:
+        storage_view = make_storage_view(model, storage)
+        config.add_route("list_"+name, app.root+app.api_root+"storages/"+storage_url)
+        config.add_route("create_"+name, app.root+app.api_root+"storages/"+storage_url)
+        config.add_route("read_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+        config.add_route("update_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+        config.add_route("delete_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+    else:
+        storage_view = make_embedded_storage_view(model, storage)
+        config.add_route("list_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
+        config.add_route("create_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
+        config.add_route("read_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
+        config.add_route("update_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
+        config.add_route("delete_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
+
+    config.add_view(storage_view, route_name="list_"+name, attr="list", request_method="GET", renderer="json")
+    config.add_view(storage_view, route_name="create_"+name, attr="create", request_method="POST", renderer="json")
+    config.add_view(storage_view, route_name="read_"+name, attr="read", request_method="GET", renderer="json")
+    config.add_view(storage_view, route_name="update_"+name, attr="update", request_method="PUT", renderer="json")
+    config.add_view(storage_view, route_name="delete_"+name, attr="delete", request_method="DELETE", renderer="json")
+
 def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point):
 
     calculator = SimplePackCalculator(app)
@@ -168,22 +234,7 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
     config.add_view(ac_view, route_name=ac_route_name)
 
     for model, storage in app.storages:
-        storage_view = make_storage_view(model, storage)
-
-        name = model.__class__.__name__
-        storage_url = model.storage_url
-
-        config.add_route("list_"+name, app.root+app.api_root+"storages/"+storage_url)
-        config.add_route("create_"+name, app.root+app.api_root+"storages/"+storage_url)
-        config.add_route("read_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
-        config.add_route("update_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
-        config.add_route("delete_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
-
-        config.add_view(storage_view, route_name="list_"+name, attr="list", request_method="GET", renderer="json")
-        config.add_view(storage_view, route_name="create_"+name, attr="create", request_method="POST", renderer="json")
-        config.add_view(storage_view, route_name="read_"+name, attr="read", request_method="GET", renderer="json")
-        config.add_view(storage_view, route_name="update_"+name, attr="update", request_method="PUT", renderer="json")
-        config.add_view(storage_view, route_name="delete_"+name, attr="delete", request_method="DELETE", renderer="json")
+        expose_storage(model, storage)
 
 def includeme(config):
     config.add_directive('add_borobudur_app', add_borobudur_app)
