@@ -5,8 +5,11 @@ class BaseLoader(object):
 
 class ModelLoader(BaseLoader):
 
-    def __init__(self, model_type):
+    def __init__(self, model_type, schema_name=None, parent=None):
         self.model_type = model_type
+        self.parent = parent
+        self.schema_name = schema_name
+
         self.attrs = {}
         self.params = {}
 
@@ -24,15 +27,15 @@ class ModelLoader(BaseLoader):
             "success":callbacks.success,
             "error": callbacks.error
         }
-        self.result = self.model_type() if self.model_type.is_collection else self.model_type(self.attrs)
+        self.result = self.model_type() if self.model_type.is_collection else self.model_type(self.attrs, self.schema_name, self.parent)
         self.result.fetch(options)
 
 class Loaders(object):
     loaders = []
     model_loaders = {}
 
-    def model(self, name, model_type):
-        result = ModelLoader(model_type)
+    def model(self, name, model_type, schema_name=None, parent=None):
+        result = ModelLoader(model_type, schema_name, parent)
         self.loaders.append(result)
         self.model_loaders[name] = result
         return result
@@ -100,6 +103,11 @@ class Page(object):
         el = self.document.el_query("#"+id)[0]
         view = view_type(el, model, self.el_rendered)
         self.views.append((id, view))
+
+    def load_model(self, model_name, model_type, schema_name, **attrs):
+        loader = self.loaders.model(model_name, model_type, schema_name, None)
+        for attr_name in attrs:
+            loader.attr(attr_name, attrs.get(attr_name))
 
     def get_view(self, id):
         for view_id, view in self.views:

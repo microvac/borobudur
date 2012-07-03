@@ -9,20 +9,29 @@ class Model(backbone.Model):
     """
     id_attribute = "_id"
     id_type = ObjectId
+
     schemas = {}
     storage_url = None
 
-    def __init__(self, attributes=None, parent=None, schema_name=None):
-        self.parent = parent
+    def __init__(self, attributes=None, schema_name=None, parent=None):
         if schema_name is not None:
             self.schema = self.__class__.get_schema(schema_name)
         else:
             self.schema = None
+        self.parent = parent
+
         super(Model, self).__init__(attributes)
 
     @classmethod
     def get_schema(cls, schema_name=""):
         return cls.schemas[schema_name]
+
+    def url(self):
+        id = self.id
+        current = self.parent
+        while current is not None:
+            id = "%s/%s" % (id, current.id)
+        return "%s/%s" % (self.storage_url, id)
 
     def validate(self, attributes):
         if self.schema is None:
