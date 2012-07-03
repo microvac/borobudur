@@ -67,6 +67,7 @@ class ProjectStorage(mongo.MongoStorage):
     db_name = "test_mongostorage"
     collection_name = "project"
 
+@storage_context.register_embedded
 class CommentStorage(mongo.EmbeddedMongoStorage):
     parent_storage = ProjectStorage
     attribute_path = "comments"
@@ -189,7 +190,7 @@ class TestMongoStorage(unittest.TestCase):
     #=============================================
 
     def prepare_embedded(self):
-        self.comment_storage = CommentStorage(storage_context.connection)
+        self.comment_storage = storage_context.get_embedded(Comment)
 
     def test_embedded_insert(self):
         storage_context.connection.drop_database("test_mongostorage")

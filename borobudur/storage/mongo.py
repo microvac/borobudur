@@ -22,34 +22,45 @@ class StorageContext(object):
 
     def __init__(self):
         self.connection = None
-        self.registry = {}
+        self.reference = {}
+        self.embedded = {}
 
     def connect(self, host=None, port=None):
         self.connection = Connection(host, port)
 
     #parent_storage in registered EmbeddedMongoStorage will be replaced
-    #by parent_storage instance in registry
+    #by parent_storage instance in reference
     def register(self, storage):
-        if getattr(storage, "parent_storage", None):
-            storage.parent_storage = self.registry[storage.parent_storage.model]
-            self.registry[storage.model] = storage()
-        else:
-            self.registry[storage.model] = storage(self.connection)
+        self.reference[storage.model] = storage(self.connection)
         storage.context = self
         return storage
+
+    def register_embedded(self, storage):
+        storage.parent_storage = self.reference[storage.parent_storage.model]
+        self.embedded[storage.model] = storage()
 
     def unregister(self, storage):
         del storage.context
         del storage.connection
-        self.registry.pop(storage.model)
+        self.reference.pop(storage.model)
         return storage
 
+    def unregister_embedded(self, storage):
+        del storage.context
+        del storage.connection
+        self.embedded.pop(storage.model)
+
     def get(self, model):
-        return self.registry[model]
+        return self.reference.get(model, None)
+
+    def get_embedded(self, model):
+        return self.embedded.get(model, None)
 
     def get_list(self):
         result = []
-        for value in self.registry.itervalues():
+        for value in self.reference.itervalues():
+            result.append(value)
+        for value in self.embedded.itervalues():
             result.append(value)
         return result
 
@@ -184,7 +195,7 @@ class MongoStorage(Storage):
             return serializers[type(schema.typ)](obj, schema, serialize_child)
 
     def deserialize(self, obj, schema, deserialize_child):
-        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
+        storage = self.context.get(schema.target) if type(schema)==RefSchema else None
         if storage is None:
             return deserializers[type(schema.typ)](obj, schema, deserialize_child)
         else:
@@ -303,7 +314,7 @@ class EmbeddedMongoStorage(Storage):
         return len(collection)
 
     def serialize(self, obj, schema, serialize_child):
-        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
+        storage = self.context.get(schema.target) if type(schema)==RefSchema else None
         if storage is None:
             return serializers[type(schema.typ)](obj, schema, serialize_child)
         else:
@@ -312,7 +323,7 @@ class EmbeddedMongoStorage(Storage):
             return ref
 
     def deserialize(self, obj, schema, deserialize_child):
-        storage = self.context.registry.get(schema.target) if type(schema)==RefSchema else None
+        storage = self.context.get(schema.target) if type(schema)==RefSchema else None
         if storage is None:
             return deserializers[type(schema.typ)](obj, schema, deserialize_child)
         else:
