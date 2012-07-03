@@ -77,11 +77,22 @@ class SequenceSchema(colander.SchemaNode):
 
 class MappingSchema(colander.SchemaNode):
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(MappingSchema, self).__init__(colander.Mapping())
+
+        children = {}
+
+        for parent in args:
+            for child in parent.children:
+                children[child.name] = child
 
         for key in kwargs:
             child = kwargs.get(key)
+            child.name = key
+            children[key] = child
+
+        for key in children:
+            child = children[key]
             child.name = key
             self.add(child)
 

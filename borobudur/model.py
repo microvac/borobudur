@@ -19,6 +19,7 @@ class Model(backbone.Model):
         else:
             self.schema = None
         self.parent = parent
+        self.idAttribute = self.id_attribute
 
         super(Model, self).__init__(attributes)
 
@@ -31,7 +32,7 @@ class Model(backbone.Model):
         current = self.parent
         while current is not None:
             id = "%s/%s" % (id, current.id)
-        return "%s/%s" % (self.storage_url, id)
+        return "/app/storages/%s/%s" % (self.storage_url, id)
 
     def validate(self, attributes):
         if self.schema is None:
@@ -60,7 +61,7 @@ class Model(backbone.Model):
                     child = child_schema.create_target(child)
             copy[key] = child
 
-        super(Model, self).set(copy, {"silent":silent})
+        return super(Model, self).set(copy, {"silent":silent})
 
     def toJSON(self):
         """
@@ -75,6 +76,7 @@ class Model(backbone.Model):
                 result[key] = value.toJSON()
         return result
 
+    """
     def fetch(self):
         if self.storage is None:
             raise RuntimeError("cannot fetch without storage")
@@ -103,6 +105,7 @@ class Model(backbone.Model):
             raise RuntimeError("model is not saved cannot delete")
 
         self.storage.delete(self.id)
+    """
 
     def __getitem__(self, name):
         return self.get(name)

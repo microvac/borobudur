@@ -1,9 +1,15 @@
 import borobudur
+import prambanan
+from prambanan.jslib import underscore
+import prambanan.jslib.underscore
 
 class BaseLoader(object):
     pass
 
 class ModelLoader(BaseLoader):
+    """
+    prambanan:type model_type c(borobudur.model:Model)
+    """
 
     def __init__(self, model_type, schema_name=None, parent=None):
         self.model_type = model_type
@@ -38,16 +44,21 @@ class Loaders(object):
         result = ModelLoader(model_type, schema_name, parent)
         self.loaders.append(result)
         self.model_loaders[name] = result
+        if prambanan.is_js:
+            self.success = underscore.bind(self.success, self)
         return result
 
-    def apply(self, load_flow):
+    def apply(self, page, load_flow):
         self.i = 0
         self.len = len(self.loaders)
+        self.page = page
         self.load_flow = load_flow
 
         if self.i < self.len:
             self.next()
         else:
+            for name in self.model_loaders:
+                page.models[name] = self.model_loaders[name].result
             load_flow.success()
 
     def success(self):
@@ -55,6 +66,8 @@ class Loaders(object):
         if self.i < self.len:
             self.next()
         else:
+            for name in self.model_loaders:
+                self.page.models[name] = self.model_loaders[name].result
             self.load_flow.success()
 
     def next(self):
@@ -91,7 +104,7 @@ class Page(object):
         return False
 
     def load(self, load_flow):
-        self.loaders.apply(load_flow)
+        self.loaders.apply(self, load_flow)
 
     def open(self ):
         pass

@@ -12,6 +12,7 @@ class BorobudurPrambananLibrary(PrambananProvider):
     modules = [
         JavascriptModule(join(pylib_dir, "translationstring.js"), "translationstring"),
         PythonModule(join(pylib_dir, "colander.py"), "colander"),
+        PythonModule(join(pylib_dir, "bson_objectid.py"), "bson.objectid"),
         JavascriptModule([join(pylib_dir, "pramlib.backbone.js")], "borobudur.jslib.backbone"),
     ]
     modules.extend(package_to_modules("borobudur"))

@@ -3,7 +3,6 @@ import time
 import translationstring
 from prambanan import JS
 
-from . import iso8601
 
 _ = translationstring.TranslationStringFactory('colander')
 
@@ -620,6 +619,8 @@ class Sequence(Positional, SchemaType):
         self.accept_scalar = accept_scalar
 
     def _validate(self, node, value, accept_scalar):
+        if isinstance(value, list):
+            return value
         if hasattr(value, '__iter__') and not hasattr(value, 'get'):
             return list(value)
         if accept_scalar:
@@ -994,7 +995,7 @@ class DateTime(SchemaType):
 
     def __init__(self, default_tzinfo=_marker):
         if default_tzinfo is _marker:
-            default_tzinfo = iso8601.Utc()
+            default_tzinfo = None #todo
         self.default_tzinfo = default_tzinfo
 
     def serialize(self, node, appstruct):
@@ -1013,6 +1014,7 @@ class DateTime(SchemaType):
         return appstruct.isoformat()
 
     def deserialize(self, node, cstruct):
+        return JS("new Date()");
         if not cstruct:
             return null
         try:
