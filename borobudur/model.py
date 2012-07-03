@@ -1,3 +1,4 @@
+from bson.objectid import ObjectId
 import prambanan.jslib.underscore as underscore
 import colander
 import borobudur.jslib.backbone as backbone
@@ -7,6 +8,7 @@ class Model(backbone.Model):
     """
     """
     id_attribute = "_id"
+    id_type = ObjectId
     schemas = {}
     storage_url = None
 

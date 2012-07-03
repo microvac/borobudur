@@ -128,7 +128,6 @@ class App(object):
         self.api_root = settings["api_root"];
         self.pages = []
         self.module_names = []
-        self.storages = []
 
         for route, page_type_id  in settings["pages"]:
             self.add_page(route, page_type_id)

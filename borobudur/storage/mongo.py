@@ -27,12 +27,10 @@ class StorageContext(object):
     def connect(self, host=None, port=None):
         self.connection = Connection(host, port)
 
-    def register(self, model):
-        def wrapper(storage):
-            storage.context = self
-            self.registry[model] = storage(self.connection)
-            return storage
-        return wrapper
+    def register(self, storage):
+        self.registry[storage.model] = storage(self.connection)
+        storage.context = self
+        return storage
 
     def unregister(self, model):
         def wrapper(storage):
@@ -108,8 +106,7 @@ class MongoStorage(Storage):
 
     db_name = None
     collection_name = None
-    id_attribute = "_id"
-    id_type = ObjectId
+    model = None
 
     def __init__(self, connection):
         self.connection = connection
@@ -124,20 +121,20 @@ class MongoStorage(Storage):
     def update(self, obj, schema=None):
         serialized = mapping_serializer(obj, schema, self.serialize)
         result = self.flatten(serialized)
-        self.collection.update({self.id_attribute: self.id_type(obj[self.id_attribute])},
+        self.collection.update({self.model.id_attribute: self.model.id_type(obj[self.model.id_attribute])},
                                {"$set": result},
                               )
-        return self.one(obj[self.id_attribute], schema)
+        return self.one(obj[self.model.id_attribute], schema)
 
     def delete(self, id):
-        result = self.collection.find_one({self.id_attribute: self.id_type(id)})
+        result = self.collection.find_one({self.model.id_attribute: self.model.id_type(id)})
         if not result:
             raise ValueError("Error in deleting - There is no such id as: %s" % id.__str__())
-        self.collection.remove({self.id_attribute: self.id_type(id)})
+        self.collection.remove({self.model.id_attribute: self.model.id_type(id)})
         return True
 
     def one(self, id, schema=None):
-        result = self.collection.find_one({self.id_attribute: self.id_type(id)})
+        result = self.collection.find_one({self.model.id_attribute: self.model.id_type(id)})
         if result:
             result = mapping_deserializer(result, schema, self.deserialize)
         return result
@@ -218,11 +215,10 @@ class MongoStorage(Storage):
 
 class EmbeddedMongoStorage(Storage):
 
+    model = None
     parent_storage = None
     attribute_path = None
     empty_schema = None
-    id_attribute = "id"
-    id_type = str
 
     def __init__(self, connection):
         self.parent_storage = self.parent_storage(connection)
@@ -246,7 +242,7 @@ class EmbeddedMongoStorage(Storage):
 
         serialized = mapping_serializer(obj, schema, self.serialize)
         collection = parent[self.attribute_path]
-        index = self.find(obj[self.id_attribute], collection)
+        index = self.find(obj[self.model.id_attribute], collection)
         collection[index] = serialized
         update_result = self.parent_update(id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
@@ -255,7 +251,7 @@ class EmbeddedMongoStorage(Storage):
 
     def delete(self, id):
         parent_schema = self.build_parent_schema()
-        parent = self.parent_one(id, parent_schema)
+        parent = self.parent_one(id[1], parent_schema)
 
         collection = parent[self.attribute_path]
         index = self.find(id, collection)
@@ -266,7 +262,7 @@ class EmbeddedMongoStorage(Storage):
 
     def one(self, id, schema=None):
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_one(id, parent_schema)
+        parent = self.parent_one(id[1], parent_schema)
 
         collection = parent[self.attribute_path]
         index = self.find(id[0], collection)
@@ -301,7 +297,7 @@ class EmbeddedMongoStorage(Storage):
             return serializers[type(schema.typ)](obj, schema, serialize_child)
         else:
             result = storage.update(obj, schema)
-            ref = result[storage.id_attribute]
+            ref = result[storage.model.id_attribute]
             return ref
 
     def deserialize(self, obj, schema, deserialize_child):
@@ -313,14 +309,14 @@ class EmbeddedMongoStorage(Storage):
             return result
 
     def parent_one(self, id, schema):
-        if len(id) == 1:
+        if id[1] is None:
             result = self.parent_storage.one(id[0], schema)
         else:
             result = self.parent_storage.one(id[1], schema)
         return result
 
     def parent_update(self, id, obj, schema):
-        if len(id) == 1:
+        if id[1] is None:
             result = self.parent_storage.update(obj, schema)
         else:
             result = self.parent_storage.update(id[1], obj, schema)
@@ -328,7 +324,7 @@ class EmbeddedMongoStorage(Storage):
 
     def find(self, id, sequence):
         for index, item in enumerate(sequence):
-            if item.get(self.id_attribute) == id:
+            if item.get(self.model.id_attribute) == id:
                 return index
         return None
 

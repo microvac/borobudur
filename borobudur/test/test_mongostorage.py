@@ -29,6 +29,10 @@ class Project(Model):
         }
     storage_url = "project"
 
+class Comment(Model):
+    id_attribute = "sender"
+    id_type = str
+
 lazy_projects = borobudur.schema.SequenceSchema(colander.SchemaNode(colander.String()))
 projects = borobudur.schema.SequenceSchema(borobudur.schema.RefSchema(Project))
 
@@ -51,26 +55,25 @@ class User(Model):
     }
     storage_url = "user"
 
-
-@storage_context.register(User)
+@storage_context.register
 class UserStorage(mongo.MongoStorage):
+    model = User
     db_name = "test_mongostorage"
     collection_name = "user"
 
-@storage_context.register(Project)
+@storage_context.register
 class ProjectStorage(mongo.MongoStorage):
+    model = Project
     db_name = "test_mongostorage"
     collection_name = "project"
 
 class CommentStorage(mongo.EmbeddedMongoStorage):
     parent_storage = ProjectStorage
     attribute_path = "comments"
-    id_attribute = "sender"
-    id_type = str
+    model = Comment
     empty_schema = borobudur.schema.MappingSchema(
         sender = colander.SchemaNode(colander.String())
     )
-
 
 class TestMongoStorage(unittest.TestCase):
 
@@ -103,19 +106,19 @@ class TestMongoStorage(unittest.TestCase):
     def test_insert(self):
         storage_context.connection.drop_database("test_mongostorage")
         self.prepare()
-        self.assertIsNotNone(self.user_a[self.user_storage.id_attribute])
+        self.assertIsNotNone(self.user_a[User.id_attribute])
 
     def test_update(self):
         storage_context.connection.drop_database("test_mongostorage")
         self.prepare()
-        obj = self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user)
+        obj = self.user_storage.one(str(self.user_a[User.id_attribute]), user)
         obj["name"] = "Tralala"
         obj["projects"][0]["comments"][0]["sender"] = "Trululu"
-        proj_obj = self.project_storage.one(str(self.project_1[self.project_storage.id_attribute]), project)
+        proj_obj = self.project_storage.one(str(self.project_1[Project.id_attribute]), project)
         proj_obj["comments"][0]["sender"] = "Trululu"
         self.project_storage.update(proj_obj, project)
         self.user_storage.update(obj, user)
-        result = self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user)
+        result = self.user_storage.one(str(self.user_a[User.id_attribute]), user)
         #pprint(result)
         #pprint(obj)
         self.assertEqual(result, obj)
@@ -123,14 +126,14 @@ class TestMongoStorage(unittest.TestCase):
     def test_delete(self):
         storage_context.connection.drop_database("test_mongostorage")
         self.prepare()
-        self.assertIsNotNone(self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user))
-        self.user_storage.delete(self.user_a[self.user_storage.id_attribute])
-        self.assertIsNone(self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user))
+        self.assertIsNotNone(self.user_storage.one(str(self.user_a[User.id_attribute]), user))
+        self.user_storage.delete(self.user_a[User.id_attribute])
+        self.assertIsNone(self.user_storage.one(str(self.user_a[User.id_attribute]), user))
 
     def test_lazy_loading(self):
         storage_context.connection.drop_database("test_mongostorage")
         self.prepare()
-        result = self.user_storage.one(str(self.user_a[self.user_storage.id_attribute]), user_lazy_projects)
+        result = self.user_storage.one(str(self.user_a[User.id_attribute]), user_lazy_projects)
         self.assertEqual(self.user_a, result)
 
     def test_all_and_count(self):
@@ -196,11 +199,13 @@ class TestMongoStorage(unittest.TestCase):
         comment_1 = dict(sender="Commentator_1", message="This is Commentator_1")
         comment_2 = dict(sender="Commentator_2", message="This is Commentator_2")
 
-        self.comment_storage.insert((str(self.project_1[Project.id_attribute]),), comment_1, comment)
-        self.comment_storage.insert((str(self.project_1[Project.id_attribute]),), comment_2, comment)
+        project_id = (str(self.project_1[Project.id_attribute]),None)
 
-        result_1 = self.comment_storage.one((comment_1[CommentStorage.id_attribute], (str(self.project_1[Project.id_attribute]))), comment)
-        result_2 = self.comment_storage.one((comment_2[CommentStorage.id_attribute], (str(self.project_1[Project.id_attribute]))), comment)
+        self.comment_storage.insert(project_id, comment_1, comment)
+        self.comment_storage.insert(project_id, comment_2, comment)
+
+        result_1 = self.comment_storage.one((comment_1[Comment.id_attribute], project_id), comment)
+        result_2 = self.comment_storage.one((comment_2[Comment.id_attribute], project_id), comment)
 
         self.assertEqual(comment_1, result_1)
         self.assertEqual(comment_2, result_2)
@@ -213,29 +218,14 @@ class TestMongoStorage(unittest.TestCase):
         comment_1 = dict(sender="Commentator_1", message="This is Commentator_1")
         comment_2 = dict(sender="Commentator_2", message="This is Commentator_2")
 
-        self.comment_storage.insert((str(self.project_1[Project.id_attribute]),), comment_1, comment)
-        result = self.comment_storage.one((comment_1[CommentStorage.id_attribute], (str(self.project_1[Project.id_attribute]))), comment)
+        project_id = (str(self.project_1[Project.id_attribute]),None)
+
+        self.comment_storage.insert(project_id, comment_1, comment)
+        result = self.comment_storage.one((comment_1[Comment.id_attribute], project_id), comment)
         result["message"] = "LALALALALALA"
-        self.comment_storage.update((str(self.project_1[Project.id_attribute]),), result, comment)
-        result2 = self.comment_storage.one((comment_1[CommentStorage.id_attribute], (str(self.project_1[Project.id_attribute]))), comment)
+        self.comment_storage.update(parent_id, result, comment)
+        result2 = self.comment_storage.one((comment_1[Comment.id_attribute], project_id), comment)
         self.assertEqual(result, result2)
-
-    '''
-    def test_embedded_delete(self):
-        storage_context.connection.drop_database("test_mongostorage")
-        self.prepare()
-        self.prepare_embedded()
-
-        comment_1 = dict(sender="Commentator_1", message="This is Commentator_1")
-        #empty_schema =
-        self.comment_storage.insert(str(self.project_1[Project.id_attribute]), comment_1, comment)
-        self.comment_storage.delete(str(self.project_1[Project.id_attribute]), comment_1[CommentStorage.id_attribute])
-        result = self.comment_storage.one(str(self.project_1[Project.id_attribute]), comment_1[CommentStorage.id_attribute], comment)
-        self.assertEqual(self.comment_storage.count(str(self.project_1[Project.id_attribute])), 2)
-
-    def test_embedded_one(self):
-        pass
-    '''
 
     def test_embedded_all(self):
         storage_context.connection.drop_database("test_mongostorage")
@@ -243,8 +233,8 @@ class TestMongoStorage(unittest.TestCase):
         self.prepare_embedded()
 
 
-        results = self.comment_storage.all((str(self.project_1[Project.id_attribute]),), schema=comment)
-        count = self.comment_storage.count((str(self.project_1[Project.id_attribute]),))
+        results = self.comment_storage.all((str(self.project_1[Project.id_attribute]),None), schema=comment)
+        count = self.comment_storage.count((str(self.project_1[Project.id_attribute]),None))
         self.assertEqual(len(results), count)
 
 

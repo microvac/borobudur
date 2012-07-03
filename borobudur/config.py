@@ -97,13 +97,22 @@ def asset_changed_view(asset_manager, calculate, entry_point):
 
     return view
 
-def make_embedded_storage_view(model, storage):
+def make_embedded_storage_view(model, storage, level):
 
     class View(object):
 
         def __init__(self, request):
             self.request = request
             self.schema = model.get_schema(request.params.get("s", ""))
+
+            id = None
+            current_id_level = 0
+            while current_id_level < level:
+                id_name = "id%d" % current_id_level
+                id = (self.matchdict[id_name], id)
+                current_id_level += 1
+
+            self.id = id
 
         def create(self):
             appstruct = self.schema.deserialize(self.request.json_body)
@@ -184,25 +193,31 @@ def make_storage_view(model, storage):
 
     return View
 
-def expose_storage(model, storage):
+def expose_storage(config, app, storage):
 
+    model = storage.model
     name = model.__class__.__name__
     storage_url = model.storage_url
 
-    if type(storage) == borobudur.storage.mongo.MongoStorage:
-        storage_view = make_storage_view(model, storage)
-        config.add_route("list_"+name, app.root+app.api_root+"storages/"+storage_url)
-        config.add_route("create_"+name, app.root+app.api_root+"storages/"+storage_url)
-        config.add_route("read_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
-        config.add_route("update_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
-        config.add_route("delete_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+    level = 0
+    current = storage
+    while getattr(storage, "parent_storage", None):
+        current = current.parent_storage
+        level += 1
+
+    if level:
+        storage_view = make_embedded_storage_view(model, storage, level)
     else:
-        storage_view = make_embedded_storage_view(model, storage)
-        config.add_route("list_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
-        config.add_route("create_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
-        config.add_route("read_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
-        config.add_route("update_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
-        config.add_route("delete_"+name, app.root+app.api_root+"storages/"+storage_url+"/{parent_id}"+"/{id}")
+        storage_view = make_storage_view(model, storage)
+
+    for i in range(level):
+        storage_url += "/id%d" % i
+
+    config.add_route("list_"+name, app.root+app.api_root+"storages/"+storage_url)
+    config.add_route("create_"+name, app.root+app.api_root+"storages/"+storage_url)
+    config.add_route("read_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+    config.add_route("update_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+    config.add_route("delete_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
 
     config.add_view(storage_view, route_name="list_"+name, attr="list", request_method="GET", renderer="json")
     config.add_view(storage_view, route_name="create_"+name, attr="create", request_method="POST", renderer="json")
@@ -210,7 +225,7 @@ def expose_storage(model, storage):
     config.add_view(storage_view, route_name="update_"+name, attr="update", request_method="PUT", renderer="json")
     config.add_view(storage_view, route_name="delete_"+name, attr="delete", request_method="DELETE", renderer="json")
 
-def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point):
+def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point, storages):
 
     calculator = SimplePackCalculator(app)
 
@@ -233,8 +248,8 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
     ac_view = asset_changed_view(asset_manager, calculator, client_entry_point)
     config.add_view(ac_view, route_name=ac_route_name)
 
-    for model, storage in app.storages:
-        expose_storage(model, storage)
+    for storage in storages:
+        expose_storage(config, app, storage)
 
 def includeme(config):
     config.add_directive('add_borobudur_app', add_borobudur_app)
