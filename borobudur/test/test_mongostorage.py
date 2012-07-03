@@ -204,8 +204,8 @@ class TestMongoStorage(unittest.TestCase):
         self.comment_storage.insert(project_id, comment_1, comment)
         self.comment_storage.insert(project_id, comment_2, comment)
 
-        result_1 = self.comment_storage.one((comment_1[Comment.id_attribute], project_id), comment)
-        result_2 = self.comment_storage.one((comment_2[Comment.id_attribute], project_id), comment)
+        result_1 = self.comment_storage.one(project_id, comment_1[Comment.id_attribute], comment)
+        result_2 = self.comment_storage.one(project_id, comment_2[Comment.id_attribute], comment)
 
         self.assertEqual(comment_1, result_1)
         self.assertEqual(comment_2, result_2)
@@ -221,17 +221,16 @@ class TestMongoStorage(unittest.TestCase):
         project_id = (str(self.project_1[Project.id_attribute]),None)
 
         self.comment_storage.insert(project_id, comment_1, comment)
-        result = self.comment_storage.one((comment_1[Comment.id_attribute], project_id), comment)
+        result = self.comment_storage.one(project_id, comment_1[Comment.id_attribute], comment)
         result["message"] = "LALALALALALA"
-        self.comment_storage.update(parent_id, result, comment)
-        result2 = self.comment_storage.one((comment_1[Comment.id_attribute], project_id), comment)
+        self.comment_storage.update(project_id, result, comment)
+        result2 = self.comment_storage.one(project_id, comment_1[Comment.id_attribute], comment)
         self.assertEqual(result, result2)
 
     def test_embedded_all(self):
         storage_context.connection.drop_database("test_mongostorage")
         self.prepare()
         self.prepare_embedded()
-
 
         results = self.comment_storage.all((str(self.project_1[Project.id_attribute]),None), schema=comment)
         count = self.comment_storage.count((str(self.project_1[Project.id_attribute]),None))

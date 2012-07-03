@@ -109,25 +109,25 @@ def make_embedded_storage_view(model, storage, level):
             current_id_level = 0
             while current_id_level < level:
                 id_name = "id%d" % current_id_level
-                id = (self.matchdict[id_name], id)
+                id = (self.request.matchdict[id_name], id)
                 current_id_level += 1
 
             self.id = id
 
         def create(self):
             appstruct = self.schema.deserialize(self.request.json_body)
-            result = storage.insert(self.request.matchdict["parent_id"], appstruct, self.schema)
+            result = storage.insert(self.id, appstruct, self.schema)
             serialized = self.schema.serialize(result)
             return render_to_response("json", serialized)
 
         def read(self):
-            result = storage.one(self.request.matchdict["parent_id"], self.request.matchdict["id"], self.schema)
+            result = storage.one(self.id, self.request.matchdict["id"], self.schema)
             serialized = self.schema.serialize(result)
             return render_to_response("json", serialized)
 
         def update(self):
             appstruct = self.schema.deserialize(self.request.json_body)
-            result = storage.update(self.request.matchdict["parent_id"], appstruct, self.schema)
+            result = storage.update(self.id, appstruct, self.schema)
             serialized = self.schema.serialize(result)
             return render_to_response("json", serialized)
 
@@ -139,10 +139,12 @@ def make_embedded_storage_view(model, storage, level):
             limit = self.request.params.get("pl", 0)
             config = borobudur.storage.SearchConfig(skip, limit)
 
-            results = storage.all(self.request.matchdict["parent_id"], config=config, schema=self.schema)
+            results = storage.all(self.id, config=config, schema=self.schema)
             sequence_schema = borobudur.schema.SequenceSchema(self.schema)
             serialized = sequence_schema.serialize(results)
             return render_to_response("json", serialized)
+
+    return View
 
 def make_storage_view(model, storage):
 
@@ -196,12 +198,12 @@ def make_storage_view(model, storage):
 def expose_storage(config, app, storage):
 
     model = storage.model
-    name = model.__class__.__name__
+    name = model.__name__
     storage_url = model.storage_url
 
     level = 0
     current = storage
-    while getattr(storage, "parent_storage", None):
+    while getattr(current, "parent_storage", None):
         current = current.parent_storage
         level += 1
 
@@ -211,7 +213,7 @@ def expose_storage(config, app, storage):
         storage_view = make_storage_view(model, storage)
 
     for i in range(level):
-        storage_url += "/id%d" % i
+        storage_url += "/{id%d}" % i
 
     config.add_route("list_"+name, app.root+app.api_root+"storages/"+storage_url)
     config.add_route("create_"+name, app.root+app.api_root+"storages/"+storage_url)

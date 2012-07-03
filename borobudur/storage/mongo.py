@@ -27,21 +27,31 @@ class StorageContext(object):
     def connect(self, host=None, port=None):
         self.connection = Connection(host, port)
 
+    #parent_storage in registered EmbeddedMongoStorage will be replaced
+    #by parent_storage instance in registry
     def register(self, storage):
-        self.registry[storage.model] = storage(self.connection)
+        if getattr(storage, "parent_storage", None):
+            storage.parent_storage = self.registry[storage.parent_storage.model]
+            self.registry[storage.model] = storage()
+        else:
+            self.registry[storage.model] = storage(self.connection)
         storage.context = self
         return storage
 
-    def unregister(self, model):
-        def wrapper(storage):
-            del storage.context
-            del storage.connection
-            self.registry.pop(model)
-            return storage
-        return wrapper
+    def unregister(self, storage):
+        del storage.context
+        del storage.connection
+        self.registry.pop(storage.model)
+        return storage
 
     def get(self, model):
         return self.registry[model]
+
+    def get_list(self):
+        result = []
+        for value in self.registry.itervalues():
+            result.append(value)
+        return result
 
 def null_converter(obj, schema=None, func=None):
     return obj
@@ -220,72 +230,73 @@ class EmbeddedMongoStorage(Storage):
     attribute_path = None
     empty_schema = None
 
-    def __init__(self, connection):
-        self.parent_storage = self.parent_storage(connection)
+    def __init__(self):
+        pass
+        #self.parent_storage = self.parent_storage(connection)
 
-    def insert(self, id, obj, schema=None):
+    def insert(self, parent_id, obj, schema=None):
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_one(id, parent_schema)
+        parent = self.parent_one(parent_id, parent_schema)
 
         serialized = mapping_serializer(obj, schema, self.serialize)
         collection = parent[self.attribute_path]
         collection.append(serialized)
         index = len(collection) - 1
-        update_result = self.parent_update(id, parent, parent_schema)
+        update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
 
         return result
 
-    def update(self, id, obj, schema=None):
+    def update(self, parent_id, obj, schema=None):
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_one(id, parent_schema)
+        parent = self.parent_one(parent_id, parent_schema)
 
         serialized = mapping_serializer(obj, schema, self.serialize)
         collection = parent[self.attribute_path]
         index = self.find(obj[self.model.id_attribute], collection)
         collection[index] = serialized
-        update_result = self.parent_update(id, parent, parent_schema)
+        update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
 
         return result
 
-    def delete(self, id):
+    def delete(self, parent_id, id):
         parent_schema = self.build_parent_schema()
-        parent = self.parent_one(id[1], parent_schema)
+        parent = self.parent_one(parent_id, parent_schema)
 
         collection = parent[self.attribute_path]
         index = self.find(id, collection)
         collection.pop(index)
-        update_result = self.parent_update(parent, parent_schema)
+        update_result = self.parent_update(parent_id, parent, parent_schema)
 
         return True
 
-    def one(self, id, schema=None):
+    def one(self, parent_id, id, schema=None):
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_one(id[1], parent_schema)
+        parent = self.parent_one(parent_id, parent_schema)
 
         collection = parent[self.attribute_path]
-        index = self.find(id[0], collection)
+        index = self.find(id, collection)
 
         return collection[index]
 
-    def all(self, id, query=None, config=None, schema=None):
+    def all(self, parent_id, query=None, config=None, schema=None):
         parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_one(id, parent_schema)
+        parent = self.parent_one(parent_id, parent_schema)
 
         if not config:
             config = SearchConfig(0, 0)
 
-        if config.limit == 0:
-            collection = parent[self.attribute_path][config.skip:len(parent[self.attribute_path])]
-        else:
+        if config.limit:
             collection = parent[self.attribute_path][config.skip:config.skip+config.limit]
+        else:
+            collection = parent[self.attribute_path][config.skip:len(parent[self.attribute_path])]
 
         return collection
 
-    def count(self, id, query=None):
+    def count(self, parent_id, query=None):
         parent_schema = self.build_parent_schema()
-        parent = self.parent_one(id, parent_schema)
+        parent = self.parent_one(parent_id, parent_schema)
 
         collection = parent[self.attribute_path]
 
@@ -308,18 +319,18 @@ class EmbeddedMongoStorage(Storage):
             result = storage.one(obj, schema)
             return result
 
-    def parent_one(self, id, schema):
-        if id[1] is None:
-            result = self.parent_storage.one(id[0], schema)
+    def parent_one(self, parent_id, schema):
+        if parent_id[1] is None:
+            result = self.parent_storage.one(parent_id[0], schema)
         else:
-            result = self.parent_storage.one(id[1], schema)
+            result = self.parent_storage.one(parent_id[1], schema)
         return result
 
-    def parent_update(self, id, obj, schema):
-        if id[1] is None:
+    def parent_update(self, parent_id, obj, schema):
+        if parent_id[1] is None:
             result = self.parent_storage.update(obj, schema)
         else:
-            result = self.parent_storage.update(id[1], obj, schema)
+            result = self.parent_storage.update(parent_id[1], obj, schema)
         return result
 
     def find(self, id, sequence):
