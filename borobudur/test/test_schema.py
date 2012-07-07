@@ -1,4 +1,5 @@
 import unittest
+from borobudur.model import ModelRefNode
 import borobudur.schema
 import colander
 
@@ -16,7 +17,7 @@ class TestRef(unittest.TestCase):
 
         class ReferencingSchema(object):
             name = colander.SchemaNode(colander.String())
-            ref = borobudur.schema.RefSchema(ReferenceHolder)
+            ref = ModelRefNode(ReferenceHolder)
 
         schema = borobudur.schema.schema_node_from_class(ReferencingSchema)
         obj = schema.deserialize({"name": "Kutumbaba", "ref": {"age": 2}})

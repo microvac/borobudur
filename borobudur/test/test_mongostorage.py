@@ -3,22 +3,23 @@ import borobudur.schema
 import borobudur.storage
 import borobudur.storage.mongo as mongo
 from borobudur.storage.mongo import StorageContext
-from borobudur.model import Model
+from borobudur.model import Model, CollectionRefNode, ModelRefNode
 
 import colander
 from pprint import pprint
+from schema import MappingNode
 
 storage_context = StorageContext()
 storage_context.connect("localhost, 27017")
 
-comment = borobudur.schema.MappingSchema(
+comment = MappingNode(
     sender=colander.SchemaNode(colander.String()),
     message=colander.SchemaNode(colander.String()),
 )
 
-comments = borobudur.schema.SequenceSchema(comment)
+comments = CollectionRefNode(comment)
 
-project = borobudur.schema.MappingSchema(
+project = MappingNode(
     name=colander.SchemaNode(colander.String()),
     comments=comments,
 )
@@ -33,16 +34,16 @@ class Comment(Model):
     id_attribute = "sender"
     id_type = str
 
-lazy_projects = borobudur.schema.SequenceSchema(colander.SchemaNode(colander.String()))
-projects = borobudur.schema.SequenceSchema(borobudur.schema.RefSchema(Project))
+lazy_projects = CollectionRefNode(colander.SchemaNode(colander.String()))
+projects = CollectionRefNode(ModelRefNode(Project))
 
-user = borobudur.schema.MappingSchema(
+user = MappingNode(
     name=colander.SchemaNode(colander.String()),
     age=colander.SchemaNode(colander.Int()),
     projects=projects,
 )
 
-user_lazy_projects = borobudur.schema.MappingSchema(
+user_lazy_projects = MappingNode(
     name=colander.SchemaNode(colander.String()),
     age=colander.SchemaNode(colander.Int()),
     projects=lazy_projects,
@@ -72,7 +73,7 @@ class CommentStorage(mongo.EmbeddedMongoStorage):
     parent_storage = ProjectStorage
     attribute_path = "comments"
     model = Comment
-    empty_schema = borobudur.schema.MappingSchema(
+    empty_schema = MappingNode(
         sender = colander.SchemaNode(colander.String())
     )
 

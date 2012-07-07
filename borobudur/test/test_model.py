@@ -1,11 +1,11 @@
 import unittest
 import borobudur
+from borobudur.model import  ModelRefNode
 import borobudur.schema
 import borobudur.storage
 import borobudur.model
 import colander
-
-from borobudur.schema import MappingSchema
+from schema import MappingNode
 
 class TestModel(unittest.TestCase):
 
@@ -53,7 +53,7 @@ class TestModel(unittest.TestCase):
 
 
 #create model that creating child by finding namespace in model registry
-PhoneSchema = MappingSchema(
+PhoneSchema = MappingNode(
     number = colander.SchemaNode(colander.String())
 )
 
@@ -62,10 +62,10 @@ class Phone(borobudur.model.Model):
         "": PhoneSchema
     }
 
-FriendSchema = MappingSchema(
+FriendSchema = MappingNode(
     rank= colander.SchemaNode(colander.Int(), validator=colander.Range(0, 9999)),
     name = colander.SchemaNode(colander.String()),
-    phone = borobudur.schema.RefSchema(Phone),
+    phone = ModelRefNode(Phone),
 )
 
 class Friend(borobudur.model.Model):

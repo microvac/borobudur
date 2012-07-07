@@ -3,10 +3,8 @@ from borobudur.storage import (
     StorageException,
     SearchConfig,
     )
+from borobudur.model import  CollectionRefNode, ModelRefNode
 import borobudur.schema
-from borobudur.schema import (
-    RefSchema,
-)
 
 from pymongo import (
     ASCENDING,
@@ -16,28 +14,25 @@ from bson.dbref import DBRef
 from bson.objectid import ObjectId
 
 import colander
+from borobudur.schema import MappingNode
 
 
 class StorageContext(object):
 
     def __init__(self):
-        self.connection = None
+        self.reference_types = []
         self.reference = {}
-        self.embedded = {}
 
-    def connect(self, host=None, port=None):
-        self.connection = Connection(host, port)
+    def connect(self, connection):
+        self.connection = connection
+        for type in self.reference_types:
+            self.reference[type.model] = type(self, connection)
 
     #parent_storage in registered EmbeddedMongoStorage will be replaced
     #by parent_storage instance in reference
-    def register(self, storage):
-        self.reference[storage.model] = storage(self.connection)
-        storage.context = self
-        return storage
-
-    def register_embedded(self, storage):
-        storage.parent_storage = self.reference[storage.parent_storage.model]
-        self.embedded[storage.model] = storage()
+    def register(self, storage_type):
+        self.reference_types.append(storage_type)
+        return storage_type
 
     def unregister(self, storage):
         del storage.context
@@ -52,17 +47,6 @@ class StorageContext(object):
 
     def get(self, model):
         return self.reference.get(model, None)
-
-    def get_embedded(self, model):
-        return self.embedded.get(model, None)
-
-    def get_list(self):
-        result = []
-        for value in self.reference.itervalues():
-            result.append(value)
-        for value in self.embedded.itervalues():
-            result.append(value)
-        return result
 
 def null_converter(obj, schema=None, func=None):
     return obj
@@ -105,7 +89,6 @@ serializers = {
     #colander.Decimal:
     colander.Sequence: sequence_converter,
     colander.Mapping: mapping_serializer,
-    borobudur.schema.Ref: null_converter,
 }
 
 deserializers = {
@@ -117,7 +100,6 @@ deserializers = {
     #colander.Decimal:
     colander.Sequence: sequence_converter,
     colander.Mapping: mapping_deserializer,
-    borobudur.schema.Ref: null_converter,
 }
 
 class MongoStorageException(StorageException):
@@ -129,8 +111,10 @@ class MongoStorage(Storage):
     collection_name = None
     model = None
 
-    def __init__(self, connection):
+    def __init__(self, context, connection):
+        self.context = context
         self.connection = connection
+
         self.db = self.connection[self.db_name]
         self.collection = self.db[self.collection_name]
 
@@ -189,13 +173,13 @@ class MongoStorage(Storage):
         return self.collection.find(spec=query).count()
 
     def serialize(self, obj, schema, serialize_child):
-        if type(schema)==RefSchema:
+        if type(schema)==ModelRefNode:
             return obj[schema.target.id_attribute]
         else:
             return serializers[type(schema.typ)](obj, schema, serialize_child)
 
     def deserialize(self, obj, schema, deserialize_child):
-        storage = self.context.get(schema.target) if type(schema)==RefSchema else None
+        storage = self.context.get(schema.target) if type(schema)==ModelRefNode else None
         if storage is None:
             return deserializers[type(schema.typ)](obj, schema, deserialize_child)
         else:
@@ -241,9 +225,9 @@ class EmbeddedMongoStorage(Storage):
     attribute_path = None
     empty_schema = None
 
-    def __init__(self):
-        pass
-        #self.parent_storage = self.parent_storage(connection)
+    def __init__(self, context, connection):
+        self.context = context
+        self.parent_storage = self.parent_storage(context, connection)
 
     def insert(self, parent_id, obj, schema=None):
         parent_schema = self.build_parent_schema(schema)
@@ -314,7 +298,7 @@ class EmbeddedMongoStorage(Storage):
         return len(collection)
 
     def serialize(self, obj, schema, serialize_child):
-        storage = self.context.get(schema.target) if type(schema)==RefSchema else None
+        storage = self.context.get(schema.target) if type(schema)==ModelRefNode else None
         if storage is None:
             return serializers[type(schema.typ)](obj, schema, serialize_child)
         else:
@@ -323,7 +307,7 @@ class EmbeddedMongoStorage(Storage):
             return ref
 
     def deserialize(self, obj, schema, deserialize_child):
-        storage = self.context.get(schema.target) if type(schema)==RefSchema else None
+        storage = self.context.get(schema.target) if type(schema)==ModelRefNode else None
         if storage is None:
             return deserializers[type(schema.typ)](obj, schema, deserialize_child)
         else:
@@ -355,6 +339,6 @@ class EmbeddedMongoStorage(Storage):
             schema = self.empty_schema
 
         structure = {
-            self.attribute_path: borobudur.schema.SequenceSchema(schema)
+            self.attribute_path: CollectionRefNode(schema)
         }
-        return borobudur.schema.MappingSchema(**structure)
+        return MappingNode(**structure)

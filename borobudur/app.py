@@ -1,5 +1,65 @@
+import prambanan.jslib.underscore as underscore
+
 import borobudur
 import prambanan
+
+class BaseLoader(object):
+    pass
+
+class ServiceModelLoader(BaseLoader):
+    def load(self, model, callbacks):
+        callbacks.success()
+
+class StorageModelLoader(BaseLoader):
+    def load(self, model, callbacks):
+        options = {
+            "data": self.params,
+            "success":callbacks.success,
+            "error": callbacks.error
+        }
+        model.fetch(options)
+
+
+class Loaders(object):
+
+    def __init__(self, page):
+        self.loaders = []
+        self.page = page
+        self.models = page.models
+        if prambanan.is_js:
+            self.success = underscore.bind(self.success, self)
+
+    def add(self, name, loader):
+        self.loaders.append((name, loader))
+
+    def fetch_models(self, *names):
+        for name in names:
+            self.loaders.append((name, StorageModelLoader()))
+
+    def apply(self, load_flow):
+        self.i = 0
+        self.len = len(self.loaders)
+        self.load_flow = load_flow
+
+        if self.i < self.len:
+            self.next()
+        else:
+            load_flow.success()
+
+    def success(self):
+        self.i += 1
+
+        if self.i < self.len:
+            self.next()
+        else:
+            self.load_flow.success()
+
+    def next(self):
+        name, loader = self.loaders[self.i]
+        model = self.models[name]
+        model.storage_root = self.page.storage_root
+        loader.load(model, self)
+
 
 def find_LCA(current_page, target_page_type):
     pages = []
@@ -28,9 +88,10 @@ class LoadFlow(object):
     prambanan:type page_types l(c(borobudur.page:Page))
     """
 
-    def __init__(self, page_type_id, app_state, matchdict):
+    def __init__(self, app, page_type_id, app_state, matchdict):
         page_type = prambanan.load_module_attr(page_type_id)
 
+        self.app = app
         self.page_type_id = page_type_id
         self.app_state = app_state
         self.matchdict = matchdict
@@ -45,7 +106,7 @@ class LoadFlow(object):
         current = persist_page
         while current is not None:
             if current.will_reload(matchdict):
-                persist_page = current
+                persist_page = current.parent_page
             current = current.parent_page
 
         current = page_type
@@ -96,13 +157,14 @@ class LoadFlow(object):
             self.finish()
         else:
             page_el_rendered = self.i < self.load_from
-            page = page_type(self.matchdict, self.document, page_el_rendered)
+            page = page_type(self.app, self.matchdict, self.document, page_el_rendered)
             page.parent_page = self.app_state.leaf_page
-            page.prepare()
 
             self.current = page
 
-            page.load(self)
+            loaders = Loaders(page)
+            page.prepare(loaders)
+            loaders.apply(self)
 
     def finish(self):
         page = self.current
@@ -147,7 +209,7 @@ class App(object):
     def make_callback(self, page_type_id):
 
         def callback(app_state, matchdict, document, callbacks):
-            load_flow = LoadFlow(page_type_id, app_state, matchdict)
+            load_flow = LoadFlow(self, page_type_id, app_state, matchdict)
             load_flow.apply(document, callbacks)
 
         return callback

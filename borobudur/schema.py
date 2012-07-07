@@ -1,7 +1,30 @@
 import colander
 from colander import (\
-    null, SchemaNode, String, Integer, Boolean, Date, DateTime
-)
+    null, Integer, String, Date, DateTime, Float, Decimal, Time, Boolean
+    )
+
+def make_schemas(default_shema, **named_schemas):
+    result = {"": default_shema}
+    for name in named_schemas:
+        result[name] = named_schemas.get(name)
+    return result
+
+def clone_node(source, target):
+    target.typ = source.typ
+    target.preparer = source.preparer
+    target.validator = source.validator
+    target.default = source.default
+    target.missing = source.missing
+    target.name = source.name
+    target.raw_title = source.raw_title
+    target.title = source.title
+    target.description = source.description
+    target.widget = source.widget
+    target._order = source._order
+
+    target.children = []
+    for child in source.children:
+        target.children.append(child)
 
 class Currency(Integer):
     pass
@@ -9,76 +32,51 @@ class Currency(Integer):
 class File(Integer):
     pass
 
-class Ref(object):
-    def serialize(self, node, appstruct):
-        from bson.dbref import DBRef
-        from bson.objectid import ObjectId
-        if appstruct is None:
-            return null
-        if not isinstance(appstruct, DBRef):
-            raise colander.Invalid(node, 'input is not DBRef')
-        return dict(collection=appstruct.collection, id=str(appstruct.id))
+class TypedNode(colander.SchemaNode):
 
-    def deserialize(self, node, cstruct):
-        from bson.dbref import DBRef
-        from bson.objectid import ObjectId
-        if cstruct is null:
-            return None
-        if not isinstance(cstruct, dict):
-            raise colander.Invalid(node, 'input is not a dict')
-        elif (cstruct.get("collection") is None) or (cstruct.get("id") is None):
-            raise colander.Invalid(node, 'input is not a correct reference')
-        result = DBRef(collection=cstruct.get("collection"), id=ObjectId(cstruct.get("id")))
-        return result
+    def __init__(self, **kwargs):
+        super(TypedNode, self).__init__(self.typ, **kwargs)
 
-class RefSchema(colander.SchemaNode):
-    """
-    prambanan:type target c(object)
-    """
-
-    def __init__(self, target, schema_name=""):
-        self.target = target
-        self.schema_name = schema_name
-
-        node = target.get_schema(schema_name).clone()
-        self.typ = node.typ
-        self.preparer = node.preparer
-        self.validator = node.validator
-        self.default = node.default
-        self.missing = node.missing
-        self.name = node.name
-        self.raw_title = node.raw_title
-        self.title = node.title
-        self.description = node.description
-        self.widget = node.widget
-        self.children = node.children
-        self.order = node._order
-
-    def create_target(self, attributes):
-        return self.target(attributes, self.schema_name)
 
     def clone(self):
-        """ Clone the schema node and return the clone.  All subnodes
-        are also cloned recursively.  Attributes present in node
-        dictionaries are preserved."""
-        cloned = self.__class__(self.target, self.schema_name)
+        cloned = self.__class__()
+        clone_node(self, cloned)
         return cloned
 
-class SequenceSchema(colander.SchemaNode):
-    def __init__(self, child):
-        super(SequenceSchema, self).__init__(colander.Sequence())
-        child = child.clone()
-        child.name = "child"
-        self.add(child)
+class StringNode(TypedNode):
+    typ = String()
 
-    def clone(self):
-        cloned = self.__class__(self.children[0])
-        return cloned
+class BooleanNode(TypedNode):
+    typ = Boolean()
 
-class MappingSchema(colander.SchemaNode):
+class IntegerNode(TypedNode):
+    typ = Integer()
+
+class FloatNode(TypedNode):
+    typ = Float()
+
+class DecimalNode(TypedNode):
+    typ = Integer()
+
+class DateTimeNode(TypedNode):
+    typ = DateTime()
+
+class DateNode(TypedNode):
+    typ = Date()
+
+class TimeNode(TypedNode):
+    typ = Time()
+
+class FileNode(TypedNode):
+    typ = File()
+
+class CurrencyNode(TypedNode):
+    typ = Currency()
+
+class MappingNode(colander.SchemaNode):
 
     def __init__(self, *args, **kwargs):
-        super(MappingSchema, self).__init__(colander.Mapping())
+        super(MappingNode, self).__init__(colander.Mapping())
 
         children = {}
 
@@ -97,6 +95,18 @@ class MappingSchema(colander.SchemaNode):
             self.add(child)
 
     def clone(self):
-        cloned = MappingSchema()
-        cloned.children = list(self.children)
+        cloned = MappingNode()
+        clone_node(self, cloned)
+        return cloned
+
+class SequenceNode(colander.SchemaNode):
+
+    def __init__(self, child):
+        super(SequenceNode, self).__init__(colander.Sequence())
+        child = child.clone()
+        child.name = "child"
+        self.add(child)
+
+    def clone(self):
+        cloned = self.__class__(self.children[0])
         return cloned

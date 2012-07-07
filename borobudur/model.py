@@ -1,23 +1,31 @@
 from bson.objectid import ObjectId
-import prambanan.jslib.underscore as underscore
 import colander
 import borobudur.jslib.backbone as backbone
-import borobudur.schema
+from borobudur.schema import clone_node
+
+class RefNode(colander.SchemaNode):
+    pass
 
 class Model(backbone.Model):
     """
     """
+
+    contains_file = False
+
     id_attribute = "_id"
     id_type = ObjectId
 
     schemas = {}
     storage_url = None
 
-    def __init__(self, attributes=None, schema_name=None, parent=None):
+    def __init__(self, attributes=None, storage_root=None, schema_name=None, parent=None):
+        self.schema_name = schema_name
+        self.storage_root = storage_root
         if schema_name is not None:
             self.schema = self.__class__.get_schema(schema_name)
         else:
             self.schema = None
+
         self.parent = parent
         self.idAttribute = self.id_attribute
 
@@ -32,7 +40,7 @@ class Model(backbone.Model):
         current = self.parent
         while current is not None:
             id = "%s/%s" % (id, current.id)
-        return "/app/storages/%s/%s" % (self.storage_url, id)
+        return "%s/%s/%s" % (self.storage_root, self.storage_url, id)
 
     def validate(self, attributes):
         if self.schema is None:
@@ -57,7 +65,7 @@ class Model(backbone.Model):
             if self.schema is not None and key in self.schema:
                 child_schema = self.schema[key]
                 child = child_schema.deserialize(child)
-                if isinstance(child_schema, borobudur.schema.RefSchema):
+                if isinstance(child_schema, RefNode):
                     child = child_schema.create_target(child)
             copy[key] = child
 
@@ -75,6 +83,15 @@ class Model(backbone.Model):
             if isinstance(value, Model) or isinstance(value, Collection):
                 result[key] = value.toJSON()
         return result
+
+    def fetch(self, options=None):
+        data  = {}
+        if self.schema_name is not None:
+            data["s"] = self.schema_name
+        if options is None:
+            options = {}
+        options["data"] = data
+        super(Model, self).fetch(options)
 
     """
     def fetch(self):
@@ -125,7 +142,58 @@ class Model(backbone.Model):
 
 class Collection(backbone.Collection):
 
+    def __init__(self, models=None, model=Model, schema_name=None):
+        options = {"model": model}
+        self.schema_name = schema_name
+        super(Collection, self).__init__(models, options)
+
     def __iter__(self):
         return self.models
 
+    def _prepareModel(self, model, options=None):
+        if type(model) != self.model:
+            return self.model(model, schema_name=self.schema_name)
+        else:
+            return model
+
+
+class ModelRefNode(RefNode):
+    """
+    prambanan:type target c(object)
+    """
+
+    def __init__(self, target, schema_name=""):
+        super(ModelRefNode, self).__init__(colander.Mapping())
+        self.target = target
+        self.schema_name = schema_name
+
+        node = target.get_schema(schema_name)
+        clone_node(node, self)
+
+    def create_target(self, attributes):
+        return self.target(attributes, self.schema_name)
+
+    def clone(self):
+        cloned = self.__class__(self.target, self.schema_name)
+        return cloned
+
+
+class CollectionRefNode(RefNode):
+
+    def __init__(self, target, schema_name=""):
+        super(CollectionRefNode, self).__init__(colander.Sequence())
+
+        self.target = target
+        self.schema_name = schema_name
+
+        child = ModelRefNode(target, schema_name)
+        child.name = "child"
+        self.add(child)
+
+    def create_target(self, attributes):
+        return Collection(attributes, model=self.target, schema_name = self.schema_name)
+
+    def clone(self):
+        cloned = self.__class__(self.target, self.schema_name)
+        return cloned
 

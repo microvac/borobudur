@@ -18,7 +18,9 @@ class View(object):
     events = {}
     children = []
     template = None
-    def __init__(self, el, model, el_rendered):
+
+    def __init__(self, app, el, model, el_rendered):
+        self.app = app
         self.model = model
         self.el = el
         self.el_query = borobudur.create_el_query(el)

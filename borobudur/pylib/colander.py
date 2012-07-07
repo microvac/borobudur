@@ -3,7 +3,6 @@ import time
 import translationstring
 from prambanan import JS
 
-
 _ = translationstring.TranslationStringFactory('colander')
 
 required = object()
@@ -946,6 +945,7 @@ class Boolean(SchemaType):
 
 Bool = Boolean
 
+jsdate = JS("this.Date")
 
 class DateTime(SchemaType):
     """ A type representing a Python ``datetime.datetime`` object.
@@ -1014,19 +1014,9 @@ class DateTime(SchemaType):
         return appstruct.isoformat()
 
     def deserialize(self, node, cstruct):
-        return JS("new Date()");
         if not cstruct:
             return null
-        try:
-            result = iso8601.parse_date(cstruct)
-        except (iso8601.ParseError, TypeError) as e:
-            try:
-                year, month, day = map(int, cstruct.split('-', 2))
-                result = datetime.datetime(year, month, day)
-            except Exception as e:
-                raise Invalid(node, _(self.err_template,
-                                      mapping={'val':cstruct, 'err':e}))
-        return result
+        return JS("new jsdate(cstruct)");
 
 class Date(SchemaType):
     """ A type representing a Python ``datetime.date`` object.

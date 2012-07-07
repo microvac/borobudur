@@ -107,11 +107,12 @@ class Model(Event):
 
 class Collection(Event):
 
+    model = Model
+
     def __init__(self, models=None, options=None):
         if options is None:
             options = {}
 
-        self.model = Model
         if options.get("model") is not None:
             self.model = options.get("model")
 
@@ -286,7 +287,7 @@ class Collection(Event):
     #For now just check model type
     def _prepareModel(self, models, options=None):
         for model in models:
-            if type(model) != type(self.model()):
+            if type(model) != self.model:
                 raise TypeError()
 
     #No comparator no sort!

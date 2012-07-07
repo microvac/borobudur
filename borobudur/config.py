@@ -8,7 +8,7 @@ import borobudur.storage
 import borobudur.storage.mongo
 
 from borobudur.asset import SimplePackCalculator
-from borobudur.model import Model
+from borobudur.model import Model, CollectionRefNode
 
 from lxml import etree
 
@@ -140,7 +140,7 @@ def make_embedded_storage_view(model, storage, level):
             config = borobudur.storage.SearchConfig(skip, limit)
 
             results = storage.all(self.id, config=config, schema=self.schema)
-            sequence_schema = borobudur.schema.SequenceSchema(self.schema)
+            sequence_schema = CollectionRefNode(self.schema)
             serialized = sequence_schema.serialize(results)
             return render_to_response("json", serialized)
 
@@ -189,7 +189,7 @@ def make_storage_view(model, storage):
             config = borobudur.storage.SearchConfig(skip, limit, sorts)
 
             results = storage.all(schema=self.schema, config=config)
-            sequence_schema = borobudur.schema.SequenceSchema(self.schema)
+            sequence_schema = CollectionRefNode(self.schema)
             serialized = sequence_schema.serialize(results)
             return render_to_response("json", serialized)
 
