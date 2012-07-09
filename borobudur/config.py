@@ -1,3 +1,4 @@
+import inspect
 from pyramid.response import Response
 from pyramid.renderers import render_to_response
 from pyramid.view import view_config
@@ -227,7 +228,22 @@ def expose_storage(config, app, storage):
     config.add_view(storage_view, route_name="update_"+name, attr="update", request_method="PUT", renderer="json")
     config.add_view(storage_view, route_name="delete_"+name, attr="delete", request_method="DELETE", renderer="json")
 
-def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point, storages):
+def expose_service(config, app, service):
+    exposed_methods = []
+    for name in dir(service):
+        if not name.startswith("__"):
+            method = getattr(service, name)
+            if inspect.ismethod(method):
+                exposed_methods.append(name)
+
+    for method_name in exposed_methods:
+        method = getattr(service, method_name)
+
+        route_name = "service_%s_%s" % (service.id, method_name)
+        config.add_route(route_name, app.root+app.api_root+"services/"+service.id+"/"+method_name)
+        config.add_view(method, route_name=route_name, renderer="json")
+
+def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point, storages, services):
 
     calculator = SimplePackCalculator(app)
 
@@ -252,6 +268,9 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
 
     for storage in storages:
         expose_storage(config, app, storage)
+
+    for service in services:
+        expose_service(config, app, service)
 
 def includeme(config):
     config.add_directive('add_borobudur_app', add_borobudur_app)

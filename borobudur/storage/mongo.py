@@ -19,13 +19,9 @@ from borobudur.schema import MappingNode
 
 class StorageContext(object):
 
-    def __init__(self):
-        self.reference_types = []
+    def __init__(self, connection, reference_types):
         self.reference = {}
-
-    def connect(self, connection):
-        self.connection = connection
-        for type in self.reference_types:
+        for type in reference_types:
             self.reference[type.model] = type(self, connection)
 
     #parent_storage in registered EmbeddedMongoStorage will be replaced
