@@ -1016,7 +1016,11 @@ class DateTime(SchemaType):
     def deserialize(self, node, cstruct):
         if not cstruct:
             return null
-        return JS("new jsdate(cstruct)");
+        if not isinstance(cstruct, datetime.datetime):
+            d=JS("new jsdate(cstruct)");
+            return datetime.datetime(0, 0, 0, 0, 0, 0, 0, None, d)
+        else:
+            return cstruct
 
 class Date(SchemaType):
     """ A type representing a Python ``datetime.date`` object.
