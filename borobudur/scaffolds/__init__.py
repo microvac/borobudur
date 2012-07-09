@@ -1,8 +1,6 @@
 from pyramid.scaffolds import PyramidTemplate
 import os
 
-__author__ = 'h'
-
 class MongoProjectTemplate(PyramidTemplate):
     _template_dir = 'mongo'
     summary = 'Borobudur with mongo'
