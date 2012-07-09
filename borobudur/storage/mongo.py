@@ -1,21 +1,10 @@
-from borobudur.storage import (
-    Storage,
-    StorageException,
-    SearchConfig,
-    )
-from borobudur.model import  CollectionRefNode, ModelRefNode
-import borobudur.schema
+from borobudur.storage import Storage, StorageException, SearchConfig
+from borobudur.model import CollectionRefNode, ModelRefNode
+from borobudur.schema import ObjectId, MappingNode
 
-from pymongo import (
-    ASCENDING,
-    DESCENDING,
-    Connection)
-from bson.dbref import DBRef
-from bson.objectid import ObjectId
+from pymongo import ASCENDING, DESCENDING
 
 import colander
-from borobudur.schema import MappingNode
-
 
 class StorageContext(object):
 
@@ -23,23 +12,6 @@ class StorageContext(object):
         self.reference = {}
         for type in reference_types:
             self.reference[type.model] = type(self, connection)
-
-    #parent_storage in registered EmbeddedMongoStorage will be replaced
-    #by parent_storage instance in reference
-    def register(self, storage_type):
-        self.reference_types.append(storage_type)
-        return storage_type
-
-    def unregister(self, storage):
-        del storage.context
-        del storage.connection
-        self.reference.pop(storage.model)
-        return storage
-
-    def unregister_embedded(self, storage):
-        del storage.context
-        del storage.connection
-        self.embedded.pop(storage.model)
 
     def get(self, model):
         return self.reference.get(model, None)
@@ -56,8 +28,8 @@ def sequence_converter(obj, schema, converter):
 
 def mapping_serializer(obj, schema, serialize_child):
     result = {}
-    if "_id" in obj:
-        result["_id"] = obj["_id"]
+    #if "_id" in obj:
+    #    result["_id"] = obj["_id"]
     for child_schema in schema.children:
         child_obj = obj[child_schema.name]
         result[child_schema.name] = serialize_child(child_obj, child_schema, serialize_child)
@@ -65,8 +37,8 @@ def mapping_serializer(obj, schema, serialize_child):
 
 def mapping_deserializer(obj, schema, deserialize_child):
     result = {}
-    if "_id" in obj:
-        result["_id"] = obj["_id"]
+    #if "_id" in obj:
+    #    result["_id"] = obj["_id"]
     for child_schema in schema.children:
         if child_schema.name in obj:
             child_obj = obj[child_schema.name]
@@ -85,6 +57,7 @@ serializers = {
     #colander.Decimal:
     colander.Sequence: sequence_converter,
     colander.Mapping: mapping_serializer,
+    ObjectId: null_converter,
 }
 
 deserializers = {
@@ -96,6 +69,7 @@ deserializers = {
     #colander.Decimal:
     colander.Sequence: sequence_converter,
     colander.Mapping: mapping_deserializer,
+    ObjectId: null_converter,
 }
 
 class MongoStorageException(StorageException):

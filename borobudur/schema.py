@@ -26,6 +26,28 @@ def clone_node(source, target):
     for child in source.children:
         target.children.append(child)
 
+class ObjectId(object):
+    def serialize(self, node, appstruct):
+        from bson.objectid import ObjectId as OID
+        if appstruct is None:
+            return null
+        if not isinstance(appstruct, OID):
+            raise colander.Invalid(node, 'Input is not ObjectId')
+        return appstruct.__str__()
+
+    def deserialize(self, node, cstruct):
+        from bson.objectid import ObjectId
+        from bson.objectid import InvalidId
+        if cstruct is null:
+            return None
+        try:
+            result = ObjectId(cstruct)
+        except TypeError:
+            raise colander.Invalid(node, 'input is not a string')
+        except InvalidId:
+            raise colander.Invalid(node, 'input is not a valid id')
+        return result
+
 class Currency(Integer):
     pass
 
@@ -72,6 +94,9 @@ class FileNode(TypedNode):
 
 class CurrencyNode(TypedNode):
     typ = Currency()
+
+class ObjectIdNode(TypedNode):
+    typ = ObjectId()
 
 class MappingNode(colander.SchemaNode):
 
