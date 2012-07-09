@@ -108,9 +108,11 @@ def find_templates_dependencies(templates):
         except KeyError:
             print "Cannot find template provider '%s' in module '%s' for templates %s" % (type, templates[type])
             continue
-        for dependency in provider.template_dependencies():
-            if not dependency in results:
-                results.append(dependency)
+        for template in templates[type]:
+            dependencies = provider.get_imports(template)
+            for dependency in dependencies:
+                if not dependency in results:
+                    results.append(dependency)
     return results
 
 def find_modules_and_templates(module_names, available_modules):

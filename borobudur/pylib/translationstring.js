@@ -1,5 +1,5 @@
 (function(prambanan) {
-    var TranslationString, TranslationStringFactory,  __keyword_default, _get_arg, _init_args, _make_kwargs;
+    var TranslationString, Translator, TranslationStringFactory,  __keyword_default, _get_arg, _init_args, _make_kwargs;
 
     _init_args = prambanan.helpers.init_args;
     _make_kwargs = prambanan.helpers.make_kwargs;
@@ -128,5 +128,14 @@
         };
         return create;
     };
-    prambanan.exports('translationstring', {TranslationString: TranslationString,TranslationStringFactory: TranslationStringFactory});
+
+    Translator = function(){
+        var translator = function(tstring){
+            return tstring.interpolate();
+        }
+        return translator;
+    }
+
+
+    prambanan.exports('translationstring', {TranslationString: TranslationString,TranslationStringFactory: TranslationStringFactory, Translator: Translator});
 })(prambanan);
