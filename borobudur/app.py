@@ -7,8 +7,18 @@ class BaseLoader(object):
     pass
 
 class ServiceModelLoader(BaseLoader):
+
+    def __init__(self, service_id, service_attr):
+        self.service_id = service_id
+        self.service_attr = service_attr
+
     def load(self, model, callbacks):
-        callbacks.success()
+        def success(attrs):
+            model.set(attrs)
+            callbacks.success()
+
+        url = "/app/services/%s/%s" % (self.service_id, self.service_attr)
+        borobudur.query_el.getJSON(url, success)
 
 class StorageModelLoader(BaseLoader):
     def load(self, model, callbacks):
