@@ -156,9 +156,14 @@ bootstrap_template = """
 class SimplePackCalculator(object):
     def __init__(self, app, manager):
         self.app = app
+        self.cached_results = {}
         self.available_modules = get_available_modules(manager)
 
     def __call__(self, page_type_id, entry_point):
+        if entry_point in self.cached_results:
+            yield self.cached_results[entry_point]
+            return
+
         entry_module = entry_point.split(":")[0]
         result = Pack()
         result.name = self.app.name
@@ -170,6 +175,8 @@ class SimplePackCalculator(object):
         result.modules = RUNTIME_MODULES + main_modules.values()
         result.templates_position = main_templates_position+len(RUNTIME_MODULES)
         result.templates = main_templates
+
+        self.cached_results[entry_point] = result
 
         yield result
 

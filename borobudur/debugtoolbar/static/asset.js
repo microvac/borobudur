@@ -196,6 +196,8 @@
      */
     $(function () {
         app = window.app;
+        if (_.isUndefined(app))
+            return
         page_type_id = app.state_info.current_page;
 
         function assetLoaded() {

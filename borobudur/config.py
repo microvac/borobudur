@@ -31,6 +31,7 @@ def wrap_pyramid_view(page_callback, base_template, asset_manager, calculator, e
     """
 
     def view(request):
+
         el = etree.Element("div")
         base_template.render(el, Model())
         el = el[0]
