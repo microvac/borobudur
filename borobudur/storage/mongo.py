@@ -1,6 +1,7 @@
 from borobudur.storage import Storage, StorageException, SearchConfig
 from borobudur.model import CollectionRefNode, ModelRefNode
-from borobudur.schema import ObjectId, MappingNode
+from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode
+from datetime import datetime, date
 
 from pymongo import ASCENDING, DESCENDING
 
@@ -48,6 +49,12 @@ def mapping_deserializer(obj, schema, deserialize_child):
             result[child_schema.name] = None
     return result
 
+def date_serializer(obj, schema=None, func=None):
+    return datetime(year=obj.year, month=obj.month, day=obj.day)
+
+def date_deserializer(obj, schema=None, func=None):
+    return date(year=obj.year, month=obj.month, day=obj.day)
+
 serializers = {
     colander.String: null_converter,
     colander.Int: null_converter,
@@ -58,6 +65,8 @@ serializers = {
     colander.Sequence: sequence_converter,
     colander.Mapping: mapping_serializer,
     ObjectId: null_converter,
+    Date: date_serializer,
+    Currency: null_converter,
 }
 
 deserializers = {
@@ -70,6 +79,8 @@ deserializers = {
     colander.Sequence: sequence_converter,
     colander.Mapping: mapping_deserializer,
     ObjectId: null_converter,
+    Date: date_deserializer,
+    Currency: null_converter,
 }
 
 class MongoStorageException(StorageException):
@@ -109,6 +120,7 @@ class MongoStorage(Storage):
         return True
 
     def one(self, id, schema=None):
+        test = {self.model.id_attribute: self.model.id_type(id)}
         result = self.collection.find_one({self.model.id_attribute: self.model.id_type(id)})
         if result:
             result = mapping_deserializer(result, schema, self.deserialize)
@@ -309,6 +321,6 @@ class EmbeddedMongoStorage(Storage):
             schema = self.empty_schema
 
         structure = {
-            self.attribute_path: CollectionRefNode(schema)
+            self.attribute_path: SequenceNode(schema)
         }
         return MappingNode(**structure)

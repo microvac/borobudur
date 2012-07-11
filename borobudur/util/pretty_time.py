@@ -55,11 +55,11 @@ def pretty_time(time, translator):
         time_string = time.strftime(time_format)
         date_string = time.strftime(date_format)
         if past:
-            one_day_msg = _("Kemarin pada ${time}", mapping={"time": time_string})
+            one_day_msg = _("Kemarin pukul ${time}", mapping={"time": time_string})
         else:
-            one_day_msg = _("Besok pada ${time}", mapping={"time": time_string})
-        a_year_msg = _("${date} pada ${time}", mapping={"date": time.strftime(date_format), "time": time_string})
-        more_year_msg = _("${date} pada ${time}", mapping={"date": time.strftime(year_format), "time": time_string})
+            one_day_msg = _("Besok pukul ${time}", mapping={"time": time_string})
+        a_year_msg = _("${date} pukul ${time}", mapping={"date": time.strftime(date_format), "time": time_string})
+        more_year_msg = _("${date} pukul ${time}", mapping={"date": time.strftime(year_format), "time": time_string})
 
         if      days == 1:      result = one_day_msg
         elif    days  < 365:    result = a_year_msg
