@@ -1082,19 +1082,11 @@ class Date(SchemaType):
     def deserialize(self, node, cstruct):
         if not cstruct:
             return null
-        try:
-            result = iso8601.parse_date(cstruct)
-            result = result.date()
-        except (iso8601.ParseError, TypeError):
-            try:
-                year, month, day = map(int, cstruct.split('-', 2))
-                result = datetime.date(year, month, day)
-            except Exception as e:
-                raise Invalid(node,
-                              _(self.err_template,
-                                mapping={'val':cstruct, 'err':e})
-                              )
-        return result
+        if not isinstance(cstruct, datetime.datetime):
+            d=JS("new jsdate(cstruct)");
+            return datetime.datetime(0, 0, 0, 0, 0, 0, 0, None, d)
+        else:
+            return cstruct
 
 class Time(SchemaType):
     """ A type representing a Python ``datetime.time`` object.
@@ -1158,21 +1150,11 @@ class Time(SchemaType):
     def deserialize(self, node, cstruct):
         if not cstruct:
             return null
-        try:
-            result = iso8601.parse_date(cstruct)
-            result = result.time()
-        except (iso8601.ParseError, TypeError):
-            try:
-                result = timeparse(cstruct, '%H:%M:%S')
-            except ValueError:
-                try:
-                    result = timeparse(cstruct, '%H:%M')
-                except Exception as e:
-                    raise Invalid(node,
-                                  _(self.err_template,
-                                    mapping={'val':cstruct, 'err':e})
-                                  )
-        return result
+        if not isinstance(cstruct, datetime.datetime):
+            d=JS("new jsdate(cstruct)");
+            return datetime.datetime(0, 0, 0, 0, 0, 0, 0, None, d)
+        else:
+            return cstruct
 
 def timeparse(t, format):
     return datetime.datetime(*time.strptime(t, format)[0:6]).time()
