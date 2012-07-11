@@ -1,4 +1,5 @@
 from pyquery import PyQuery
+import colander_patch
 
 def create_el_query(el):
     def dom_query(selector=None):

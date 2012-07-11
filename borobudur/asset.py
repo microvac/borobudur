@@ -12,7 +12,7 @@ from webassets.updater import SKIP_CACHE
 from webassets.version import TimestampVersion
 from borobudur.less_import_parser import get_all_less
 
-from prambanan.cmd import generate_modules, create_args, translate_parser, show_parse_error,walk_imports, get_available_modules, modules_changed
+from prambanan.cmd import generate_modules, create_args, translate_parser, show_parse_error,walk_imports, get_available_modules, modules_changed, get_overridden_types
 from prambanan.output import DirectoryOutputManager
 from prambanan.compiler import RUNTIME_MODULES
 from prambanan.compiler.utils import ParseError
@@ -29,11 +29,12 @@ class SelfCheckingBundle(Bundle):
 
 class PrambananModuleBundle(SelfCheckingBundle):
 
-    def __init__(self, target_dir, manager, pack, target="", **options):
+    def __init__(self, target_dir, manager, pack, overridden_types, target="", **options):
         self.target_dir = target_dir
         self.manager = manager
         self.pack = pack
         self.target = target
+        self.overridden_types = overridden_types
 
         Bundle.__init__(self, **options)
 
@@ -41,7 +42,7 @@ class PrambananModuleBundle(SelfCheckingBundle):
         if len(modules) == 0:
             return
         try:
-            generate_modules(args, output_manager, self.manager, modules)
+            generate_modules(args, output_manager, self.manager, modules, self.overridden_types)
         except ParseError as e:
             err_out = StringIO()
             show_parse_error(err_out, e)
@@ -153,15 +154,16 @@ bootstrap_template = """
     });
 """
 class SimplePackCalculator(object):
-    def __init__(self, app):
+    def __init__(self, app, manager):
         self.app = app
+        self.available_modules = get_available_modules(manager)
 
     def __call__(self, page_type_id, entry_point):
         entry_module = entry_point.split(":")[0]
         result = Pack()
         result.name = self.app.name
 
-        available_modules = get_available_modules()
+        available_modules = self.available_modules
 
         main_modules, main_templates, main_templates_position = find_modules_and_templates([entry_module]+self.app.module_names, available_modules)
 
@@ -180,6 +182,7 @@ class AssetManager(object):
 
         self.target_dir = prambanan_dir
         self.manager = PrambananManager([], prambanan_cache_file)
+        self.overridden_types = get_overridden_types(self.manager)
 
         updater = self.env.updater
         prev_needs_rebuild = updater.needs_rebuild
@@ -250,7 +253,7 @@ class AssetManager(object):
             if not pack.modules and not templates_count:
                 continue
 
-            yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name), self.manager, pack)
+            yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name), self.manager, pack, self.overridden_types)
 
     def styles_to_bundles(self, ids):
         for id in ids:

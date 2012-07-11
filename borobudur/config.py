@@ -245,7 +245,7 @@ def expose_service(config, app, service):
 
 def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point, storages, services):
 
-    calculator = SimplePackCalculator(app)
+    calculator = SimplePackCalculator(app, asset_manager.manager)
 
     for  route, page_type_id, callback in app.get_leaf_pages():
         route_name = app.name+"."+page_type_id.replace(":", ".")

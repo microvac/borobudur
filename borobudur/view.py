@@ -2,6 +2,7 @@ from borobudur.model import Collection, Model
 import prambanan
 import borobudur
 import prambanan.jslib.underscore as underscore
+from borobudur.form.form import Form
 
 delegate_event_splitter = prambanan.JS("/^(\S+)\s*(.*)$/")
 
@@ -13,10 +14,10 @@ def on_element(key):
 
 class View(object):
     """
-    prambanan:type children l(t(i(str), c(borobudur.view:View)))
+    todorambanan:type children d(i(str), c(borobudur.view:View))
     """
     events = {}
-    children = []
+    children = {}
     template = None
 
     def __init__(self, app, el, model, el_rendered):
@@ -27,31 +28,32 @@ class View(object):
         self.q_el = borobudur.query_el(el)
         self.child_views = []
 
+        self.render_dict = {}
+        self.render_dict["view"] = self
+
         self.delegate_events()
 
         if not el_rendered:
             self.render()
 
-        self.initialize_children(el_rendered)
+    def render_form(self, el, model, schema_name=""):
+        form = Form(model.__class__.get_schema(schema_name))
+        form.render(el, model.as_dict())
 
-
-    def initialize_children(self, el_rendered):
-        return
-        for child_name, child_type in self.children:
-            child_el = self.el_query("[data-child=%s]" % child_name)[0]
-            child_model = self.get_child_model(child_name)
-            child_view = child_type(child_el, child_model, el_rendered)
-            self.child_views.append(child_view)
+    def render_child(self, el, model, name):
+        child_view_type = self.children[name]
+        child_view = prambanan.JS("new child_view_type(self.app, el, model, false)")
+        self.child_views.append(child_view)
 
     def get_child_model(self, child_name):
         return self.model[child_name]
 
     def render(self):
-        self.template.render(self.el, self.model)
+        self.template.render(self.el, self.model, self.render_dict)
         return self
 
     def remove(self):
-        for child_view in self.child_views:
+        for child_view in self.chld_views:
             child_view.remove()
         self.child_views = []
         self.q_el.remove()

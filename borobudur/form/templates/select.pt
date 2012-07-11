@@ -1,0 +1,6 @@
+<select name="${field.name}"
+        id="${field.oid}"
+        tal:attributes="size field.widget.size"
+        tal:attributes="class field.widget.css_class">
+    todo
+</select>

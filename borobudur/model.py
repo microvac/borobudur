@@ -147,6 +147,10 @@ class Collection(backbone.Collection):
         self.schema_name = schema_name
         super(Collection, self).__init__(models, options)
 
+    def create(self):
+        return self.model(schema_name=self.schema_name)
+
+
     def __iter__(self):
         return self.models
 
@@ -162,26 +166,30 @@ class ModelRefNode(RefNode):
     prambanan:type target c(object)
     """
 
-    def __init__(self, target, schema_name=""):
-        super(ModelRefNode, self).__init__(colander.Mapping())
+    def __init__(self, target, schema_name="", **kwargs):
+        super(ModelRefNode, self).__init__(colander.Mapping(), **kwargs)
         self.target = target
         self.schema_name = schema_name
 
         node = target.get_schema(schema_name)
-        clone_node(node, self)
+        for child in node.children:
+            self.children.append(child)
 
     def create_target(self, attributes):
+        if attributes is None:
+            return None
         return self.target(attributes, self.schema_name)
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)
+        clone_node(self, cloned)
         return cloned
 
 
 class CollectionRefNode(RefNode):
 
-    def __init__(self, target, schema_name=""):
-        super(CollectionRefNode, self).__init__(colander.Sequence())
+    def __init__(self, target, schema_name="", **kwargs):
+        super(CollectionRefNode, self).__init__(colander.Sequence(), **kwargs)
 
         self.target = target
         self.schema_name = schema_name
@@ -191,9 +199,12 @@ class CollectionRefNode(RefNode):
         self.add(child)
 
     def create_target(self, attributes):
+        if attributes is None:
+            return None
         return Collection(attributes, model=self.target, schema_name = self.schema_name)
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)
+        clone_node(self, cloned)
         return cloned
 

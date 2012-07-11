@@ -15,7 +15,7 @@ class _null(object):
     def __reduce__(self):
         return 'null' # when unpickled, refers to "null" below (singleton)
 
-null = _null()
+null = None
 def is_nonstr_iter(item):
     return JS("typeof item == Array")
 
@@ -398,7 +398,7 @@ class Mapping(SchemaType):
 
     def serialize(self, node, appstruct):
         if appstruct is null:
-            appstruct = {}
+            return None
 
         def callback(subnode, subappstruct):
             return subnode.serialize(subappstruct)
