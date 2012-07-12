@@ -103,6 +103,9 @@ var Router = (function(){
         },
 
         navigate: function(fragment, options) {
+            if (fragment == "#"){
+                return;
+            }
             options = options || {trigger: true}
             this.app_state.load_info = false;
             history.navigate(fragment, options);

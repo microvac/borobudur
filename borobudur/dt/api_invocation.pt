@@ -1,6 +1,7 @@
 <?python
         import prambanan
         stringify = prambanan.window.JSON.stringify
+        parse = prambanan.window.JSON.parse
         import borobudur
         query_el = borobudur.query_el
 ?>
@@ -24,7 +25,7 @@
         <div tal:condition="#.status == 'success'">
             <b>Response Text</b>
             <br />
-            <pre style="background-color: white; padding: 10px; font-family: monospace;">${#.xhr.responseText}</pre>
+            <pre style="background-color: white; padding: 10px; font-family: monospace;">${stringify(parse(#.xhr.responseText), null, 4)}</pre>
          </div>
 
         <div tal:condition="#.status == 'error'" style="background-color: white; padding: 10px;">

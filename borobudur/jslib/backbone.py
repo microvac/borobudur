@@ -271,19 +271,6 @@ class Collection(Event):
         self.length = 0
         self.models = []
 
-    #If key > len(self.models) append at the end
-    def __setitem__(self, key, value):
-        if type(value) != type(self.model()):
-            raise TypeError()
-        try:
-            self.models[key] = value
-        except IndexError:
-            options = {"at": key}
-            self.add(value, options)
-
-    def __getitem__(self, key):
-        return self.at(key)
-
     #For now just check model type
     def _prepareModel(self, models, options=None):
         for model in models:

@@ -199,6 +199,9 @@ class MongoStorage(Storage):
             result.append(child.name)
         return result
 
+    def extract_query(self, params):
+        return {}
+
     def __str__(self):
         return "%s mongo storage on %s - %s" % (self.model.__class__.__name__, self.db_name, self.collection_name)
 

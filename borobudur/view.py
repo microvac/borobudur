@@ -37,6 +37,11 @@ class View(object):
         if not el_rendered:
             self.render()
 
+        self.initialize()
+
+    def initialize(self):
+        pass
+
     def render_form(self, el, model, schema_name=""):
         form = Form(model.__class__.get_schema(schema_name))
         form.render(el, model.as_dict())
