@@ -368,7 +368,7 @@ class Mapping(SchemaType):
         self.unknown = unknown
 
     def _validate(self, node, value):
-        if not isinstance(value, dict):
+        if not isinstance(value, dict) and value.asdict:
             raise Invalid(node,
                           _('"${val}" is not a mapping type',
                           mapping = {'val':value})

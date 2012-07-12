@@ -458,12 +458,14 @@ class DateInputWidget(Widget):
     template = get_template('zpt', ('borobudur', 'form/templates/dateinput.pt'))
     readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/textinput.pt'))
     size = None
-    default_options = (('dateFormat', 'yy-mm-dd'),)
+    default_options = [('dateFormat', 'yy-mm-dd'),]
 
 
     def __init__(self, *args, **kwargs):
-        self.options = dict(self.default_options)
-        Widget.__init__(self, *args, **kwargs)
+        self.options = {}
+        for key, value in self.default_options:
+            self.options[key] = value
+        super(Widget, self).__init__(self, *args, **kwargs)
 
     def serialize(self, element, field, cstruct, readonly=False):
         if cstruct in (null, None):
@@ -506,9 +508,11 @@ class DateTimeInputWidget(DateInputWidget):
     template = get_template('zpt', ('borobudur', 'form/templates/datetimeinput.pt'))
     readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/textinput.pt'))
     size = None
-    default_options = (DateInputWidget.default_options +
-                       (('timeFormat', 'hh:mm:ss'),
-                        ('separator', ' ')))
+    default_options = DateInputWidget.default_options
+    default_options.extend(
+                       [('timeFormat', 'hh:mm:ss'),
+                        ('separator', ' ')]
+    )
 
     def serialize(self, element, field, cstruct, readonly=False):
         if cstruct in (null, None):
@@ -522,7 +526,7 @@ class DateTimeInputWidget(DateInputWidget):
             element,
             field=field,
             cstruct=cstruct,
-            options=json.dumps(self.options),
+            options="",
             )
 
     def deserialize(self, field, pstruct):
@@ -1093,15 +1097,15 @@ class SequenceWidget(Widget):
     min_len = None
     max_len = None
 
-    def prototype(self, field):
+    def field_prototype(self, el, field):
         # we clone the item field to bump the oid (for easier
         # automated testing; finding last node)
         item_field = field.children[0].clone()
-        proto = field.renderer(self.item_template, field=item_field,
+        proto = field.renderer(self.item_template, el, field=item_field,
                                cstruct=null, parent=field)
         if isinstance(proto, string_types):
             proto = proto.encode('utf-8')
-        proto = url_quote(proto)
+        #proto = url_quote(proto)
         return proto
 
     def serialize(self, element, field, cstruct, readonly=False):
@@ -1134,10 +1138,9 @@ class SequenceWidget(Widget):
             subfields = [ (val, item_field.clone()) for val in cstruct ]
 
         template = readonly and self.readonly_template or self.template
-        translate = field.translate
         add_template_mapping = dict(
-            subitem_title=translate(item_field.title),
-            subitem_description=translate(item_field.description),
+            subitem_title=field.translate(item_field.title),
+            subitem_description=field.translate(item_field.description),
             subitem_name=item_field.name)
         if isinstance(self.add_subitem_text_template, TranslationString):
             add_subitem_text = self.add_subitem_text_template % \

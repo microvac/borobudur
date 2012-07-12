@@ -7,10 +7,9 @@
         id="${field.oid}-close"
         tal:condition="not field.widget.hidden"
         title="Remove"
-        i18n:attributes="title"
-        onclick="javascript:deform.removeSequenceItem(this);"></span>
+        ></span>
 
-  <span tal:replace="structure field.serialize(cstruct)"/>
+  <span tal:replace="structure field.serialize(el, cstruct)"/>
 
   <tal:errors
      condition="field.error and not field.widget.hidden"

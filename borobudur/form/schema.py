@@ -22,8 +22,10 @@ def get_widget(typ):
         return widget.DateInputWidget
     elif typ == colander.DateTime:
         return widget.DateTimeInputWidget
+    elif typ == borobudur.schema.Currency:
+        return widget.TextInputWidget
     elif typ == borobudur.schema.ObjectId:
         return widget.HiddenWidget
     else:
-        raise Exception("cannot find widget")
+        raise Exception("cannot find widget %s" % typ)
 

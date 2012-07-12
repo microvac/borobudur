@@ -175,6 +175,8 @@ class Field(object):
         """ Use the translator passed to the renderer of this field to
         translate the msgid into a term.  If the renderer does not have a
         translator, this method will return the msgid."""
+        if self.renderer is None:
+            return None
         translate = getattr(self.renderer, 'translate', None)
         if translate is not None:
             return translate(msgid)
@@ -205,11 +207,21 @@ class Field(object):
         attribute of the node is not cloned; instead the field
         receives a new order attribute; it will be a number larger
         than the last renderered field of this set."""
+
         cloned = self.__class__(self.schema)
-        cloned.__dict__.update(self.__dict__)
+        cloned.schema = self.schema
+        cloned.typ = self.typ # required by Invalid exception
+        cloned.renderer = self.renderer
+        cloned.resource_registry = self.resource_registry
+        cloned.name = self.name
+        cloned.title = self.title
+        cloned.description = self.description
+        cloned.required = self.required
+        cloned.widget = self.widget
         cloned.order = next(cloned.counter)
         cloned.oid = 'deformField%s' % cloned.order
         cloned.children = [ field.clone() for field in self.children ]
+
         return cloned
 
     def make_widget(self):
@@ -327,6 +339,8 @@ class Field(object):
         """ Return the ``msg`` attribute of the ``error`` attached to
         this field.  If the ``error`` attribute is ``None``,
         the return value will be ``None``."""
+        if self.error is None:
+            return None
         return getattr(self.error, 'msg', None)
 
     def serialize(self, element, cstruct, readonly=False):

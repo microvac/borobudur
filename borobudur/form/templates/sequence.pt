@@ -5,7 +5,7 @@
                  min_len field.widget.min_len or 0;
                  max_len field.widget.max_len or 100000;
                  now_len len(subfields);
-                 prototype field.widget.prototype(field)">
+                 prototype field.widget.field_prototype(el, field)">
 
   <!-- sequence -->
 
