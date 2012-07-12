@@ -1,0 +1,35 @@
+<?python
+        import prambanan
+        stringify = prambanan.window.JSON.stringify
+        import borobudur
+        query_el = borobudur.query_el
+?>
+<div pramtal:bind-change="#" style="padding-left: 10px;">
+    <h3>${#.settings.url}
+    <small class="pull-right">${#.type} ${#.status}</small>
+    </h3>
+    <b>Settings</b>
+    <br />
+    <pre style="background-color: white; padding: 10px; font-family: monospace;">${stringify(#.settings)}</pre>
+
+    <div tal:condition="#.status != 'loading'">
+        <br />
+        <h3>${#.xhr.status} ${#.xhr.statusText}</h3>
+
+        <b>Response Headers</b>
+        <br />
+        <pre style="background-color: white; padding: 10px; font-family: monospace;">${#.xhr.getAllResponseHeaders().replace("\\n", "\n", "g")}</pre>
+
+        <br />
+        <div tal:condition="#.status == 'success'">
+            <b>Response Text</b>
+            <br />
+            <pre style="background-color: white; padding: 10px; font-family: monospace;">${#.xhr.responseText}</pre>
+         </div>
+
+        <div tal:condition="#.status == 'error'" style="background-color: white; padding: 10px;">
+            <div tal:replace="structure query_el(el).append(query_el(#.xhr.responseText))"></div>
+        </div>
+
+    </div>
+</div>

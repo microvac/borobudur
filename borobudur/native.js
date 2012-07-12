@@ -5,10 +5,10 @@ if (console && console.error){
     $.ajax = function(settings){
         if(settings && settings.success){
             settings.success = $lib.helpers.wrap_on_error(settings.success);
-            prevAjax(settings);
+            return  prevAjax(settings);
         }
         else {
-            prevAjax.call(this, arguments);
+            return prevAjax.call(this, arguments);
         }
     }
 }
@@ -72,6 +72,9 @@ var Router = (function(){
         },
 
         bootstrap: function(server_state){
+            if($lib.on_bootstrap){
+                $lib.on_bootstrap();
+            }
             this.app_state = {
                 leaf_page: null,
                 active_pages:  [],

@@ -1,0 +1,28 @@
+<div id="pDebugStorages">
+    <div class="container-fluid">
+        <div class="row-fluid">
+            <div class="span6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>__str__</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                            % for i, storage in enumerate(app.storages):
+                            <tr style="cursor: pointer;">
+                                <td>${storage.model.__module__}:${storage.model.__name__}</td>
+                                <td>${storage}</td>
+                            </tr>
+                            % endfor
+                    </tbody>
+                </table>
+            </div>
+            <div class="span6 storage">
+                <div></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript" src="/_debug_toolbar_borobudur/static/storages.js"></script>

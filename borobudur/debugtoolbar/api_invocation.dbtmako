@@ -1,0 +1,9 @@
+<div id="pDebugAPIInvocation">
+</div>
+<!--
+<script type="text/javascript" src="/_debug_toolbar_borobudur/static/zpt.borobudur.dt.api_invocation.js"></script>
+<script type="text/javascript" src="/_debug_toolbar_borobudur/static/zpt.borobudur.dt.api_invocations.js"></script>
+<script type="text/javascript" src="/_debug_toolbar_borobudur/static/borobudur.dt.api_invocation.js"></script>
+-->
+<script type="text/javascript" src="/_debug_toolbar_borobudur/static/api_invocation.js"></script>
+

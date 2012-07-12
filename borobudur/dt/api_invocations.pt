@@ -1,0 +1,25 @@
+<div class="container-fluid">
+    <div class="row-fluid">
+        <div class="span4">
+            <table class="table table-condensed table-bordered table-striped">
+                <thead>
+                    <th>Type</th>
+                    <th>URL</th>
+                    <th>Status</th>
+                </thead>
+                <tbody>
+                    <div pramtal:bind-repeat="#invocation #" tal:omit-tag="">
+                        <tr pramtal:bind-change="#invocation" data-key="${#invocation.cid}" style="cursor: pointer;">
+                            <td>${#invocation.type}</td>
+                            <td>${#invocation.settings.url}</td>
+                            <td style="color: ${'red' if #invocation.status == 'error' else 'green' if #invocation.status == 'success' else 'black'}">${#invocation.status}</td>
+                        </tr>
+                    </div>
+                </tbody>
+            </table>
+        </div>
+        <div class="span8 invocation">
+            <div></div>
+        </div>
+    </div>
+</div>

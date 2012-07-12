@@ -128,7 +128,9 @@ class Model(backbone.Model):
         return self.get(name)
 
     def __setitem__(self, name, value):
-        self.set({"name":value})
+        attrs = {}
+        attrs[name] = value
+        self.set(attrs)
 
     def __delitem__(self, key):
         raise NotImplementedError()

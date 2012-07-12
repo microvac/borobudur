@@ -80,6 +80,8 @@ class View(object):
             method = underscore.bind(method, self)
             event_name += '.delegateEvents' + self.cid
 
+            method = prambanan.wrap_on_error(method)
+
             if selector is None:
                 self.q_el.bind(event_name, method)
             else:
