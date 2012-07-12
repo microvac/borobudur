@@ -3,7 +3,6 @@
      class="control-group ${field.error and 'error' or ''}"
      id="item-${field.oid}"
      title="${field.description}"
-     tal:omit-tag="structural"
      i18n:domain="deform">
 
     <label for="${field.oid}"
@@ -22,7 +21,6 @@
                      input_append field.widget.input_append  | None;
                      prepend_class input_prepend and 'input-prepend' or '';
                      append_class input_append and 'input-append' or ''"
-             tal:omit-tag="not (input_prepend or input_append)"
              class="${prepend_class + ' ' + append_class}">
 
             <span class="add-on" tal:condition="input_prepend">${input_prepend}</span>

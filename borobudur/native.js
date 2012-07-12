@@ -1,3 +1,18 @@
+var $lib = this.prambanan;
+
+if (console && console.error){
+    var prevAjax = $.ajax;
+    $.ajax = function(settings){
+        if(settings && settings.success){
+            settings.success = $lib.helpers.wrap_on_error(settings.success);
+            prevAjax(settings);
+        }
+        else {
+            prevAjax.call(this, arguments);
+        }
+    }
+}
+
 function create_el_query(el){
     return function(selector){
         if (!_.isUndefined(selector))
@@ -8,6 +23,7 @@ function create_el_query(el){
 }
 
 query_el = window.$
+
 
 var Router = (function(){
 

@@ -220,6 +220,9 @@ class TextInputWidget(Widget):
     mask = None
     mask_placeholder = "_"
 
+    input_prepend = None
+    input_append = None
+
     def serialize(self, element, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''

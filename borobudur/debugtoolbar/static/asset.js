@@ -46,8 +46,8 @@
 
         // loads all local css and js resources upon first activation
         loadResources:function () {
-            changesAPI = app.root+app.api_root+"assets/changed/"
-            listAPI = app.root+app.api_root+"assets/list/"
+            changesAPI = app.root + app.api_root + "assets/changed/"
+            listAPI = app.root + app.api_root + "assets/list/"
             resources = app.state_info.loaded_assets;
             // add rule for morphing between old and new css files
             var head = document.getElementsByTagName("head")[0],
@@ -61,23 +61,23 @@
             var documentLinks = document.getElementsByTagName("link")
             var linksMap = {};
             var linkMatcher = /stylesheet/i
-            for (var i = 0, len = documentLinks.length; i < len; i++){
+            for (var i = 0, len = documentLinks.length; i < len; i++) {
                 var documentLink = documentLinks[i];
                 var href = documentLink.getAttribute("href", 2);
                 var rel = documentLink.getAttribute("rel");
-                if(rel.match(linkMatcher)){
+                if (rel.match(linkMatcher)) {
                     linksMap[href] = documentLink;
                 }
             }
 
             var cssPacks = app.state_info.loaded_assets.css;
-            for (var packName in cssPacks){
+            for (var packName in cssPacks) {
                 var linksUrl = cssPacks[packName];
                 var currentLinks = currentLinkElements[packName] = {}
-                for (var i = 0, len = linksUrl.length; i < len; i++){
+                for (var i = 0, len = linksUrl.length; i < len; i++) {
                     var linkUrl = linksUrl[i];
                     var linkElement = linksMap[linkUrl];
-                    if (linkElement){
+                    if (linkElement) {
                         currentLinks[linkUrl] = linkElement;
                     }
                 }
@@ -89,19 +89,19 @@
 
         // check all tracking resources for changes
         checkForChanges:function () {
-            if (!active.js && !active.css){
+            if (!active.js && !active.css) {
                 setTimeout(Live.heartbeat, interval);
                 return;
             }
 
-            $.getJSON(changesAPI+page_type_id, function(data){
-                if(active.js){
-                    if (data.js.length > 0){
+            $.getJSON(changesAPI + page_type_id, function (data) {
+                if (active.js) {
+                    if (data.js.length > 0) {
                         Live.refreshResource("js");
                     }
                 }
-                if(active.css){
-                    for(var i = 0, len =  data.css.length; i < len; i++){
+                if (active.css) {
+                    for (var i = 0, len = data.css.length; i < len; i++) {
                         Live.refreshResource("css", data.css[i]);
                     }
                 }
@@ -113,24 +113,24 @@
             switch (type.toLowerCase()) {
                 // css files can be reloaded dynamically by replacing the link element
                 case "css":
-                    $.getJSON(listAPI+page_type_id, function(data){
+                    $.getJSON(listAPI + page_type_id, function (data) {
                         setTimeout(Live.heartbeat, 10);
-                        oldLinkElements[name]=currentLinkElements[name];
+                        oldLinkElements[name] = currentLinkElements[name];
                         var link, html, head, next;
-                        for (var linkUrl in currentLinkElements[name]){
+                        for (var linkUrl in currentLinkElements[name]) {
                             link = currentLinkElements[name][linkUrl],
-                            html = document.body.parentNode,
-                            head = link.parentNode,
-                            next = link.nextSibling
+                                html = document.body.parentNode,
+                                head = link.parentNode,
+                                next = link.nextSibling
                             break;
                         }
                         var cssPacks = data.css;
-                        for (var packName in cssPacks){
+                        for (var packName in cssPacks) {
                             var linksUrl = cssPacks[packName];
                             var currentLinks = currentLinkElements[packName] = {}
-                            for (var i = 0, len = linksUrl.length; i < len; i++){
+                            for (var i = 0, len = linksUrl.length; i < len; i++) {
                                 var
-                                    linkUrl=linksUrl[i],
+                                    linkUrl = linksUrl[i],
                                     newLink = document.createElement("link");
 
                                 html.className = html.className.replace(/\s*livejs\-loading/gi, '') + ' livejs-loading';
@@ -160,7 +160,7 @@
         // removes the old stylesheet rules only once the new one has finished loading
         removeoldLinkElements:function () {
             var pending = 0;
-            for (var name in oldLinkElements){
+            for (var name in oldLinkElements) {
                 var oldLinks = oldLinkElements[name];
                 var currentLinks = currentLinkElements[name];
                 for (var url in oldLinks) {
@@ -196,12 +196,13 @@
      */
     $(function () {
         app = window.app;
-        if (_.isUndefined(app))
+        if (!app)
             return
         page_type_id = app.state_info.current_page;
 
         function assetLoaded() {
-            var template = _.template($("#pDebugAssetTemplate").html());
+            var assetTemplate = "<tr> <th colspan='2'><%= type %></th> </tr> <% _.each(_.keys(assets[type]), function(id){ var i = 0; _.each(assets[type][id], function(url){ %> <tr> <% if(i === 0) { %><td><%= id %></td> <% }else{ %> <td>&nbsp;</td> <% } %> <td><%= url %></td> </tr> <% i+=1; }); }); %> ";
+            var template = _.template(assetTemplate);
             var $tbody = $("#pDebugAssetTable tbody")
 
             var html = "";

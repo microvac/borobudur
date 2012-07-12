@@ -6,9 +6,9 @@ from borobudur.form.form import Form
 
 delegate_event_splitter = prambanan.JS("/^(\S+)\s*(.*)$/")
 
-def on_element(key):
+def on_element(event, selector=None):
     def decorate(fn):
-        fn._on_element = key
+        fn._on_element = (event, selector)
         return fn
     return  decorate
 
@@ -30,6 +30,7 @@ class View(object):
 
         self.render_dict = {}
         self.render_dict["view"] = self
+        self.render_dict["app"] = app
 
         self.delegate_events()
 
@@ -53,7 +54,7 @@ class View(object):
         return self
 
     def remove(self):
-        for child_view in self.chld_views:
+        for child_view in self.child_views:
             child_view.remove()
         self.child_views = []
         self.q_el.remove()
@@ -68,17 +69,18 @@ class View(object):
 
         self.undelegate_events()
 
-        for key, method in events:
+        for pair, method in events:
+            event_name, selector = pair
+
             if not underscore.isFunction(method):
+                if not self[method]:
+                    raise Exception('Method "' + method + '" does not exist');
                 method = self[method]
 
-            if not method:
-                raise Exception('Method "' + events[key] + '" does not exist');
-
-            __, event_name, selector = key.match(delegate_event_splitter)
             method = underscore.bind(method, self)
             event_name += '.delegateEvents' + self.cid
-            if selector == '':
+
+            if selector is None:
                 self.q_el.bind(event_name, method)
             else:
                 self.q_el.delegate(selector, event_name, method)
