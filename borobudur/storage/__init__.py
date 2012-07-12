@@ -5,7 +5,7 @@ class SearchSort(object):
     """
     configuration for sorting, see SearchConfig
     """
-    def __init__(self, criteria, order="asc" ):
+    def __init__(self, criteria, order="asc"):
         self.criteria = criteria
         self.order = order
 

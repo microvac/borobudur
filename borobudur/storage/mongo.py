@@ -120,7 +120,6 @@ class MongoStorage(Storage):
         return True
 
     def one(self, id, schema=None):
-        test = {self.model.id_attribute: self.model.id_type(id)}
         result = self.collection.find_one({self.model.id_attribute: self.model.id_type(id)})
         if result:
             result = mapping_deserializer(result, schema, self.deserialize)

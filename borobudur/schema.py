@@ -1,4 +1,5 @@
 import colander
+import prambanan
 from colander import (\
     null, Integer, String, Date, DateTime, Float, Decimal, Time, Boolean
     )
@@ -47,6 +48,9 @@ class ObjectId(object):
         except InvalidId:
             raise colander.Invalid(node, 'input is not a valid id')
         return result
+
+if prambanan.is_js:
+    ObjectId = String
 
 class Currency(Integer):
     pass
