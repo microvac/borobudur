@@ -199,6 +199,9 @@ class MongoStorage(Storage):
             result.append(child.name)
         return result
 
+    def __str__(self):
+        return "%s mongo storage on %s - %s" % (self.model.__class__.__name__, self.db_name, self.collection_name)
+
 class EmbeddedMongoStorage(Storage):
 
     model = None
@@ -323,3 +326,7 @@ class EmbeddedMongoStorage(Storage):
             self.attribute_path: SequenceNode(schema)
         }
         return MappingNode(**structure)
+
+    def __str__(self):
+        return "%s mongo embedded storage with parent %s on %s" % (self.model.__name__, self.parent_storage.__class__.__name__, self.attribute_path)
+

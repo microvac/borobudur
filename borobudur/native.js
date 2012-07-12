@@ -1,3 +1,18 @@
+var $lib = this.prambanan;
+
+if (console && console.error){
+    var prevAjax = $.ajax;
+    $.ajax = function(settings){
+        if(settings && settings.success){
+            settings.success = $lib.helpers.wrap_on_error(settings.success);
+            return  prevAjax(settings);
+        }
+        else {
+            return prevAjax.call(this, arguments);
+        }
+    }
+}
+
 function create_el_query(el){
     return function(selector){
         if (!_.isUndefined(selector))
@@ -8,6 +23,7 @@ function create_el_query(el){
 }
 
 query_el = window.$
+
 
 var Router = (function(){
 
@@ -56,6 +72,9 @@ var Router = (function(){
         },
 
         bootstrap: function(server_state){
+            if($lib.on_bootstrap){
+                $lib.on_bootstrap();
+            }
             this.app_state = {
                 leaf_page: null,
                 active_pages:  [],

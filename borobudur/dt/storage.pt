@@ -1,0 +1,12 @@
+<div pramtal:bind-change="#" style="padding-left: 10px;">
+    <h3>${#.model_type_name}</h3>
+    Schema :
+    <select class="schema-chooser">
+        <option tal:repeat="schema #.model_type.schemas">${schema}</option>
+    </select>
+    <br />
+    <br />
+    <h5>Form</h5>
+    <div class="schema-form">
+    </div>
+</div>

@@ -2,6 +2,7 @@ import inspect
 from pyramid.response import Response
 from pyramid.renderers import render_to_response
 from pyramid.view import view_config
+from zope.interface.interface import Interface
 
 import borobudur
 import borobudur.schema
@@ -244,6 +245,18 @@ def expose_service(config, app, service):
         config.add_route(route_name, app.root+app.api_root+"services/"+service.id+"/"+method_name)
         config.add_view(method, route_name=route_name, renderer="json")
 
+
+class IBorobudurApp(Interface):
+    pass
+
+class BorobudurApp(object):
+
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+def get_borobudur_app(request):
+    return request.registry.queryUtility(IBorobudurApp)
+
 def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point, storages, services):
 
     calculator = SimplePackCalculator(app, asset_manager.manager)
@@ -273,5 +286,9 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
     for service in services:
         expose_service(config, app, service)
 
+    borobudur_app = BorobudurApp(app=app, storages=storages, services=services)
+    config.registry.registerUtility(borobudur_app, IBorobudurApp)
+
 def includeme(config):
     config.add_directive('add_borobudur_app', add_borobudur_app)
+

@@ -2,6 +2,7 @@ import datetime
 import time
 import translationstring
 from prambanan import JS
+import prambanan.jslib.underscore as underscore
 
 _ = translationstring.TranslationStringFactory('colander')
 
@@ -24,7 +25,7 @@ def interpolate(msgs):
     for s in msgs:
         if hasattr(s, 'interpolate'):
             res.append(s.interpolate())
-        else:
+        elif isinstance(s, basestring):
             res.append(s)
     return res
 
@@ -49,6 +50,7 @@ class Invalid(Exception):
 
     def __init__(self, node, msg=None, value=None):
         super(Exception, self).__init__(node, msg)
+        JS("msg = msg && msg.interpolate ? msg.interpolate() : msg")
         self.node = node
         self.msg = msg
         self.value = value
@@ -84,6 +86,12 @@ class Invalid(Exception):
             exc.positional = True
         if pos is not None:
             exc.pos = pos
+        if not self.msg:
+            self.msg = {}
+        key = pos
+        if self.node.children[pos] and self.node.children[pos].name:
+            key = self.node.children[pos].name
+        self.msg[key]=exc.msg
         self.children.append(exc)
 
     def __setitem__(self, name, msg):
@@ -121,14 +129,15 @@ class Invalid(Exception):
             res = []
             stack.append(node)
 
-            if not node.children:
-                res.append(tuple(stack))
+            if len(node.children) == 0:
+                res.append(stack[:])
 
             for child in node.children:
                 for path in traverse(child, stack):
                     res.append(path)
 
             stack.pop()
+            return res
 
         return traverse(self, [])
 
@@ -149,8 +158,11 @@ class Invalid(Exception):
                 exc.msg and msgs.extend(exc.messages())
                 keyname = exc._keyname()
                 keyname and keyparts.append(keyname)
-            errors['.'.join(keyparts)] = '; '.join(interpolate(msgs))
+            errors['.'.join(keyparts)] = ";".join(interpolate(msgs))
         return errors
+
+    def __str__(self):
+        return self.asdict()
 
 
 def All(*validators):
@@ -356,13 +368,12 @@ class Mapping(SchemaType):
         self.unknown = unknown
 
     def _validate(self, node, value):
-        try:
-            return dict(value)
-        except Exception as e:
+        if not isinstance(value, dict):
             raise Invalid(node,
-                          _('"${val}" is not a mapping type: ${err}',
-                          mapping = {'val':value, 'err':e})
+                          _('"${val}" is not a mapping type',
+                          mapping = {'val':value})
                           )
+        return dict(value)
 
     def _impl(self, node, value, callback):
         value = self._validate(node, value)
@@ -856,13 +867,14 @@ class Number(SchemaType):
         if appstruct is null:
             return null
 
-        try:
-            return str(self.num(appstruct))
-        except Exception:
+        res = self.num(appstruct)
+        if underscore.isNaN(res):
             raise Invalid(node,
                           _('"${val}" is not a number',
                             mapping={'val':appstruct}),
                           )
+        return res
+
     def deserialize(self, node, cstruct):
         if cstruct != 0 and not cstruct:
             return null
