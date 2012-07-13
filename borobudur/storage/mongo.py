@@ -40,6 +40,8 @@ def mapping_deserializer(obj, schema, deserialize_child):
     result = {}
     #if "_id" in obj:
     #    result["_id"] = obj["_id"]
+    if obj is None:
+        return None
     for child_schema in schema.children:
         if child_schema.name in obj:
             child_obj = obj[child_schema.name]
