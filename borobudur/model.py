@@ -18,6 +18,8 @@ class Model(backbone.Model):
     schemas = {}
     storage_url = None
 
+    has_json_body = False
+
     def __init__(self, attributes=None, storage_root=None, schema_name=None, parent=None):
         self.schema_name = schema_name
         self.storage_root = storage_root
@@ -36,11 +38,20 @@ class Model(backbone.Model):
         return cls.schemas[schema_name]
 
     def url(self):
-        id = self.id
+        id = None if self.isNew() else self.id
         current = self.parent
         while current is not None:
-            id = "%s/%s" % (id, current.id)
-        return "%s/%s/%s" % (self.storage_root, self.storage_url, id)
+            if id is not None:
+                id = "%s/%s" % (id, current.id)
+            else:
+                id = current
+
+        result = "%s/%s" % (self.storage_root, self.storage_url)
+        if id is not None:
+            result = "%s/%s" % (result, id)
+        if self.has_json_body and self.schema_name is not None:
+            result += "?s="+self.schema_name
+        return result
 
     def validate(self, attributes):
         if self.schema is None:
@@ -93,28 +104,14 @@ class Model(backbone.Model):
         options["data"] = data
         super(Model, self).fetch(options)
 
+    def save(self, options=None):
+        #todo hack
+        self.has_json_body = True
+        super(Model, self).save(options)
+        self.has_json_body = False
+
     """
-    def fetch(self):
-        if self.storage is None:
-            raise RuntimeError("cannot fetch without storage")
 
-        if self.id is None:
-            raise RuntimeError("cannot fetch without id")
-
-        self.set(self.storage.one(self.id. self.schema))
-
-    def save(self, value=None):
-        if self.storage is None:
-            raise RuntimeError("cannot save without storage")
-
-        obj = self.as_dict()
-        if self.is_new():
-            self.storage.insert(obj, self.schema)
-        else:
-            self.storage.update(obj, self.schema)
-        self.set(obj)
-
-    def destroy(self):
         if self.storage is None:
             raise RuntimeError("cannot destroy without storage")
 

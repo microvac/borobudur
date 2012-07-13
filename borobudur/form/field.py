@@ -1,6 +1,7 @@
 import itertools
 import colander
 import peppercorn
+import borobudur
 
 import borobudur.form.decorator as decorator
 import borobudur.form.exception as exception
@@ -373,7 +374,7 @@ class Field(object):
         cstruct = self.schema.serialize(appstruct)
         return self.serialize(element, cstruct, readonly=readonly)
 
-    def validate(self, controls):
+    def validate(self, el):
         """
         Validate the set of controls returned by a form submission
         against the schema associated with this field or form.
@@ -440,6 +441,10 @@ class Field(object):
           else:
               return {'form':form.render()} # the form just needs rendering
         """
+        fstruct = borobudur.query_el("form", el).serializeArray()
+        controls = []
+        for obj in fstruct:
+            controls.append([obj.name,obj.value])
         pstruct = peppercorn.parse(controls)
         exc = None
 

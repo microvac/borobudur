@@ -1,0 +1,11 @@
+objectid -> string on client
+colander_patch
+
+dictionary get on prambanan
+tal:i18n_attributes on template
+
+MappingNode constructor with missing, etc
+model storage_root
+model has_json_body (POST with schema_name on query_string)
+
+from module import submodule doesnt works (must be changed to import module.submodule as submodule)

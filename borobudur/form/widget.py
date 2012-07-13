@@ -16,6 +16,8 @@ from borobudur.form.compat import (
     )
 
 from prambanan import get_template
+import prambanan
+from prambanan.jslib import underscore
 
 def _normalize_choices(values):
     result = []
@@ -24,6 +26,15 @@ def _normalize_choices(values):
             value = str(value)
         result.append((value, description))
     return result
+
+def get_dict_item(d, key, dft):
+    if prambanan.is_js:
+        res = d[key]
+        if underscore.isUndefined(res):
+            return dft
+        return res
+    else:
+        return d.get(key, dft)
 
 class Widget(object):
     """
@@ -910,8 +921,8 @@ class CheckedInputWidget(Widget):
     def deserialize(self, field, pstruct):
         if pstruct is null:
             return null
-        value = pstruct.get(field.name) or ''
-        confirm = pstruct.get('%s-confirm' % (field.name,)) or ''
+        value = get_dict_item(pstruct, field.name,'')
+        confirm = get_dict_item(pstruct, '%s-confirm' % (field.name,), '')
         setattr(field, '%s-confirm' % (field.name,), confirm)
         if (value or confirm) and (value != confirm):
             raise Invalid(field.schema, self.mismatch_message, value)
@@ -991,7 +1002,7 @@ class MappingWidget(Widget):
 
         for num, subfield in enumerate(field.children):
             name = subfield.name
-            subval = pstruct.get(name, null)
+            subval = get_dict_item(pstruct, name, null)
 
             try:
                 result[name] = subfield.deserialize(subval)

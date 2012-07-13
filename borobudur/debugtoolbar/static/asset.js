@@ -194,6 +194,9 @@
      else if (window.console)
      console.log("Live.js doesn't support the file protocol. It needs http.");
      */
+    if (!window.$){
+        return;
+    }
     $(function () {
         app = window.app;
         if (!app)

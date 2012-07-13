@@ -1,5 +1,4 @@
-import re
-
+import borobudur
 import borobudur.form.widget as widget
 import borobudur.form.field as field
 
@@ -7,6 +6,7 @@ from borobudur.form.compat import (
     string_types,
     text_type,
 )
+from prambanan.jslib import underscore
 
 
 class Form(field.Field):
@@ -139,16 +139,22 @@ class Button(object):
     disabled
         Render the button as disabled if True.
     """
+    css_class = "btn"
+    handler = None
     def __init__(self, name='submit', title=None, type='submit', value=None,
                  disabled=False):
         if title is None:
             title = name.capitalize()
-        name = re.sub(r'\s', '_', name)
         if value is None:
             value = name
+
         self.name = name
         self.title = title
         self.type = type
         self.value = value
         self.disabled = disabled
+
+    def on_render(self, el):
+        if self.handler is not None:
+            borobudur.query_el(el).bind("click", self.handler)
         

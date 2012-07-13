@@ -1,4 +1,5 @@
 import colander
+import borobudur.form.widget as widget
 import prambanan
 from colander import (\
     null, Integer, String, Date, DateTime, Float, Decimal, Time, Boolean
@@ -101,6 +102,9 @@ class CurrencyNode(TypedNode):
 
 class ObjectIdNode(TypedNode):
     typ = ObjectId()
+
+    def __init__(self):
+        super(ObjectIdNode, self).__init__(widget=widget.HiddenWidget(), missing=None)
 
 class MappingNode(colander.SchemaNode):
 

@@ -35,12 +35,13 @@
         <div class="form-actions">
             <tal:block repeat="button field.buttons">
                 <button
-                        tal:attributes="disabled button.disabled"
                         id="${field.formid+button.name}"
                         name="${button.name}"
                         type="${button.type}"
-                        class="btn ${repeat.button.start and 'btn-primary' or ''}"
-                        value="${button.value}">
+                        class="${button.css_class}"
+                        value="${button.value}"
+                        data-test="${button.on_render(el)}"
+                        >
                     ${button.title}
                 </button>
             </tal:block>

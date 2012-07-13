@@ -2,7 +2,7 @@ from borobudur.model import Collection, Model
 import prambanan
 import borobudur
 import prambanan.jslib.underscore as underscore
-from borobudur.form.form import Form
+from borobudur.form.form import Form, Button
 
 delegate_event_splitter = prambanan.JS("/^(\S+)\s*(.*)$/")
 
@@ -12,12 +12,22 @@ def on_element(event, selector=None):
         return fn
     return  decorate
 
+def form_button(name, title, css_class="btn"):
+    def decorate(fn):
+        button = Button(title=title)
+        button.css_class=css_class
+        fn._form_button = (name, Button(title=title))
+
+        return fn
+    return decorate
+
 class View(object):
     """
     todorambanan:type children d(i(str), c(borobudur.view:View))
     """
     events = {}
     children = {}
+    forms = {}
     template = None
 
     def __init__(self, app, el, model, el_rendered):
@@ -26,7 +36,9 @@ class View(object):
         self.el = el
         self.el_query = borobudur.create_el_query(el)
         self.q_el = borobudur.query_el(el)
+
         self.child_views = []
+        self.child_forms = {}
 
         self.render_dict = {}
         self.render_dict["view"] = self
@@ -37,9 +49,19 @@ class View(object):
         if not el_rendered:
             self.render()
 
-    def render_form(self, el, model, schema_name=""):
-        form = Form(model.__class__.get_schema(schema_name))
+    def render_form(self, el, model, name):
+        form = Form(self.forms[name])
+
+        buttons_config = self.find_decorated_buttons(name)
+        buttons = []
+        for button, handler in buttons_config:
+            button.handler = lambda ev: handler(ev, model, form, el)
+            buttons.append(button)
+
+        form.buttons = buttons
         form.render(el, model.as_dict())
+
+        self.child_forms[name] = form
 
     def render_child(self, el, model, name):
         child_view_type = self.children[name]
@@ -104,4 +126,16 @@ class View(object):
                 results.append([value._on_element, value])
         return results
 
+    def find_decorated_buttons(self, name):
+        if borobudur.is_server:
+            return {}
+
+        results = []
+        for attr in underscore.functions(self):
+            value = self[attr]
+            if value._form_button:
+                form_name, button = value._form_button
+                if name == form_name:
+                    results.append([button, value])
+        return results
 

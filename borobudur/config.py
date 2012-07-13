@@ -218,17 +218,14 @@ def expose_storage(config, app, storage):
     for i in range(level):
         storage_url += "/{id%d}" % i
 
-    config.add_route("list_"+name, app.root+app.api_root+"storages/"+storage_url)
-    config.add_route("create_"+name, app.root+app.api_root+"storages/"+storage_url)
-    config.add_route("read_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
-    config.add_route("update_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
-    config.add_route("delete_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+    config.add_route("non_id"+name, app.root+app.api_root+"storages/"+storage_url)
+    config.add_route("id_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
 
-    config.add_view(storage_view, route_name="list_"+name, attr="list", request_method="GET", renderer="json")
-    config.add_view(storage_view, route_name="create_"+name, attr="create", request_method="POST", renderer="json")
-    config.add_view(storage_view, route_name="read_"+name, attr="read", request_method="GET", renderer="json")
-    config.add_view(storage_view, route_name="update_"+name, attr="update", request_method="PUT", renderer="json")
-    config.add_view(storage_view, route_name="delete_"+name, attr="delete", request_method="DELETE", renderer="json")
+    config.add_view(storage_view, route_name="non_id"+name, attr="list", request_method="GET", renderer="json")
+    config.add_view(storage_view, route_name="non_id"+name, attr="create", request_method="POST", renderer="json")
+    config.add_view(storage_view, route_name="id_"+name, attr="read", request_method="GET", renderer="json")
+    config.add_view(storage_view, route_name="id_"+name, attr="update", request_method="PUT", renderer="json")
+    config.add_view(storage_view, route_name="id_"+name, attr="delete", request_method="DELETE", renderer="json")
 
 def expose_service(config, app, service):
     exposed_methods = []
