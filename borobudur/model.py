@@ -141,17 +141,28 @@ class Model(backbone.Model):
 
 class Collection(backbone.Collection):
 
-    def __init__(self, models=None, model=Model, schema_name=None):
+    def __init__(self, models=None, model=Model, storage_root=None, schema_name=None):
         options = {"model": model}
         self.schema_name = schema_name
+        self.query = {}
         super(Collection, self).__init__(models, options)
+
+    def url(self):
+        return "%s/%s" % (self.storage_root, self.model.storage_url)
 
     def create(self):
         return self.model(schema_name=self.schema_name)
 
-
-    def __iter__(self):
-        return self.models
+    def fetch(self, options=None):
+        data  = {}
+        if self.schema_name is not None:
+            data["s"] = self.schema_name
+        for key in self.query:
+            data[key] = self.query[key]
+        if options is None:
+            options = {}
+        options["data"] = data
+        super(Collection, self).fetch(options)
 
     def _prepareModel(self, model, options=None):
         if type(model) != self.model:
@@ -159,6 +170,21 @@ class Collection(backbone.Collection):
         else:
             return model
 
+    def __iter__(self):
+        return self.models
+
+    #If key > len(self.models) append at the end
+    def __setitem__(self, key, value):
+        if type(value) != type(self.model()):
+            raise TypeError()
+        try:
+            self.models[key] = value
+        except IndexError:
+            options = {"at": key}
+            self.add(value, options)
+
+    def __getitem__(self, key):
+        return self.at(key)
 
 class ModelRefNode(RefNode):
     """

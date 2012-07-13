@@ -46,8 +46,12 @@ class View(object):
 
         self.delegate_events()
 
+        self.initialize()
         if not el_rendered:
             self.render()
+
+    def initialize(self):
+        pass
 
     def render_form(self, el, model, name):
         form = Form(self.forms[name])
@@ -59,7 +63,6 @@ class View(object):
             buttons.append(button)
 
         form.buttons = buttons
-        form.render(el, model.as_dict())
 
         self.child_forms[name] = form
 
