@@ -65,6 +65,7 @@ class View(object):
         form.buttons = buttons
 
         self.child_forms[name] = form
+        form.render(el, model.as_dict())
 
     def render_child(self, el, model, name):
         child_view_type = self.children[name]
