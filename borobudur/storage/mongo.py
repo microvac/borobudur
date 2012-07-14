@@ -1,3 +1,4 @@
+import bson
 from borobudur.storage import Storage, StorageException, SearchConfig
 from borobudur.model import CollectionRefNode, ModelRefNode
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode
@@ -57,6 +58,9 @@ def date_serializer(obj, schema=None, func=None):
 def date_deserializer(obj, schema=None, func=None):
     return date(year=obj.year, month=obj.month, day=obj.day)
 
+def object_id_serializer(obj, schema=None, func=None):
+    return obj if obj is not None else bson.ObjectId()
+
 serializers = {
     colander.String: null_converter,
     colander.Int: null_converter,
@@ -66,7 +70,7 @@ serializers = {
     #colander.Decimal:
     colander.Sequence: sequence_converter,
     colander.Mapping: mapping_serializer,
-    ObjectId: null_converter,
+    ObjectId: object_id_serializer,
     Date: date_serializer,
     Currency: null_converter,
 }

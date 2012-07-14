@@ -21,7 +21,7 @@ class ValidationFailure(Exception):
        this exception to need to be raised.
     """
     def __init__(self, field, cstruct, error):
-        Exception.__init__(self)
+        super(ValidationFailure, self).__init__(self)
         self.field = field
         self.cstruct = cstruct
         self.error = error
