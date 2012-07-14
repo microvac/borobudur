@@ -14,8 +14,11 @@
         </span>
     </label>
 
-    <div class="controls"
-         tal:omit-tag="structural">
+    <div class="controls">
+
+        <?python
+                e = el if True else el
+        ?>
 
         <div tal:define="input_prepend field.widget.input_prepend | None;
                      input_append field.widget.input_append  | None;
@@ -43,6 +46,10 @@
                 ${field.description}
             </span>
         </div>
+        <?python
+                if el != e:
+                    print 'ea'
+        ?>
 
     </div>
 </div>

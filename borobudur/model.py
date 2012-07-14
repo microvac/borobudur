@@ -1,7 +1,9 @@
 from bson.objectid import ObjectId
 import colander
 import borobudur.jslib.backbone as backbone
+from borobudur.form.widget import Widget
 from borobudur.schema import clone_node
+from prambanan import get_template
 
 class RefNode(colander.SchemaNode):
     pass
@@ -76,8 +78,6 @@ class Model(backbone.Model):
             if self.schema is not None and key in self.schema:
                 child_schema = self.schema[key]
                 child = child_schema.deserialize(child)
-                if isinstance(child_schema, RefNode):
-                    child = child_schema.create_target(child)
             copy[key] = child
 
         return super(Model, self).set(copy, {"silent":silent})
@@ -92,7 +92,14 @@ class Model(backbone.Model):
         for key in iter(result):
             value = result[key]
             if isinstance(value, Model) or isinstance(value, Collection):
-                result[key] = value.toJSON()
+                converted = False
+                if self.schema is not None and key in self.schema:
+                    child_schema = self.schema[key]
+                    if isinstance(child_schema, RefNode):
+                        result[key] = child_schema.serialize_ref(value)
+                        converted = True
+                if not converted:
+                    result[key] = value.toJSON()
         return result
 
     def fetch(self, options=None):
@@ -131,6 +138,9 @@ class Model(backbone.Model):
 
     def __delitem__(self, key):
         raise NotImplementedError()
+
+    def clone(self):
+        return self.__class__(self.attributes, self.storage_root, self.schema_name, self.parent)
 
     # Methods converted to python underscore-separated style
     def is_new(self): return self.isNew()
@@ -205,11 +215,43 @@ class ModelRefNode(RefNode):
             return None
         return self.target(attributes, self.schema_name)
 
+    def serialize_ref(self, attributes):
+        if attributes is None:
+            return None
+        return attributes[self.target.id_attribute]
+
+    def serialize(self, appstruct):
+        if appstruct is None:
+            return None
+        if not isinstance(appstruct, dict):
+            return appstruct
+        return super(ModelRefNode, self).serialize(appstruct)
+
+    def deserialize(self, cstruct=colander.null):
+        if isinstance(cstruct, Model):
+            return cstruct
+        if not isinstance(cstruct, dict):
+            return cstruct
+        return self.target(cstruct, self.schema_name)
+
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)
         clone_node(self, cloned)
         return cloned
 
+class ModelRefWidget(Widget):
+    template = get_template('zpt', ('borobudur', 'form/templates/model_ref.pt'))
+    hidden = True
+
+    def serialize(self, element, field, cstruct, readonly=False):
+        if cstruct in (colander.null, None):
+            cstruct = colander.null
+        return field.renderer(self.template, element, field=field, cstruct=cstruct)
+
+    def deserialize(self, field, pstruct):
+        if not pstruct:
+            return colander.null
+        return pstruct
 
 class CollectionRefNode(RefNode):
 
@@ -227,6 +269,11 @@ class CollectionRefNode(RefNode):
         if attributes is None:
             return None
         return Collection(attributes, model=self.target, schema_name = self.schema_name)
+
+    def deserialize(self, cstruct=colander.null):
+        if isinstance(cstruct, Collection):
+            return cstruct
+        return Collection(cstruct, model=self.target, schema_name = self.schema_name)
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)

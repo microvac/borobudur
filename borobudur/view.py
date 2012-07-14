@@ -16,8 +16,7 @@ def form_button(name, title, css_class="btn"):
     def decorate(fn):
         button = Button(title=title)
         button.css_class=css_class
-        fn._form_button = (name, Button(title=title))
-
+        fn._form_button = (name, button)
         return fn
     return decorate
 
@@ -59,7 +58,10 @@ class View(object):
         buttons_config = self.find_decorated_buttons(name)
         buttons = []
         for button, handler in buttons_config:
-            button.handler = lambda ev: handler(ev, model, form, el)
+            handler = underscore.bind(handler, self)
+            def make_handler(h):
+                return prambanan.wrap_on_error(lambda ev: h(ev, model, form, el))
+            button.handler = make_handler(handler)
             buttons.append(button)
 
         form.buttons = buttons

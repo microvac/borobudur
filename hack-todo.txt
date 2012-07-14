@@ -9,3 +9,6 @@ model storage_root
 model has_json_body (POST with schema_name on query_string)
 
 from module import submodule doesnt works (must be changed to import module.submodule as submodule)
+
+form button's order
+view access to parent, look new_inquiry
