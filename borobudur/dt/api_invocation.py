@@ -56,6 +56,8 @@ def bind_ajax_request(app, col):
                 model["xhr"] = xhr
                 print xhr
                 return xhr
+            else:
+                return prev_ajax(settings)
         else:
             return prev_ajax(settings)
     jQuery.ajax = ajax
