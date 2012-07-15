@@ -51,6 +51,9 @@ class ServiceInvoker(object):
             }
         borobudur.query_el.ajax(settings)
 
+class StopLoadException(Exception):
+    pass
+
 class Loaders(object):
 
     def __init__(self, page):
@@ -169,14 +172,18 @@ class LoadFlow(object):
 
     def success(self):
         page = self.current
-        page.open()
+        stop_load = False
+        try:
+            page.open()
+        except StopLoadException as e:
+            stop_load = True
 
         app_state = self.app_state
         app_state.leaf_page = page
         app_state.active_pages.append(page)
 
         self.i += 1
-        if self.i < len(self.page_types):
+        if not stop_load and self.i < len(self.page_types):
             self.next()
         else:
             self.finish()

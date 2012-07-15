@@ -88,18 +88,32 @@ var Router = (function(){
             route = this._routeToRegExp(route);
             if (!callback) callback = this[name];
             history.route(route, _.bind(function(fragment) {
-                var match_dict = this._extractParameters(route, fragment);
+                var matchdict = this._extractParameters(route, fragment);
                 var document = {
                     el: document,
                     el_query: create_el_query(document),
                     q_el: $(document)
                 }
                 var callbacks = {"success": function(){}};
-                callback && callback(this.app_state, match_dict, document, callbacks);
-                this.trigger.call(this, ['route:' + name], match_dict);
-                history.trigger('route', this, name, match_dict);
+                this.last_route = {
+                    "matchdict": matchdict,
+                    "callback": callback,
+                    "document": document,
+                    "callbacks": callbacks
+                }
+                callback && callback(this.app_state, matchdict, document, callbacks);
+                this.trigger.call(this, ['route:' + name], matchdict);
+                history.trigger('route', this, name, matchdict);
             }, this));
             return this;
+        },
+
+        refresh: function(){
+            if (this.last_route){
+                var last_route = this.last_route;
+                var callback = last_route.callback;
+                callback && callback(this.app_state, last_route.matchdict, last_route.document, last_route.callbacks);
+            }
         },
 
         navigate: function(fragment, options) {
