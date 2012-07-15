@@ -29,6 +29,27 @@ class StorageModelLoader(BaseLoader):
         }
         model.fetch(options)
 
+class ServiceInvoker(object):
+
+    def __init__(self, service_id, service_attr, on_success, on_error):
+        self.service_id = service_id
+        self.service_attr = service_attr
+        self.on_success = on_success
+        self.on_error = on_error
+
+    def invoke(self, *args):
+        json = prambanan.window.JSON
+        url = "/app/services/%s/%s" % (self.service_id, self.service_attr)
+        settings = {
+            "data": json.stringify(args),
+            "type": "POST",
+            "contentType": "application/json; charset=utf-8",
+            "dataType": "json",
+            "success": self.on_success,
+            "error": self.on_error,
+            "url": url,
+            }
+        borobudur.query_el.ajax(settings)
 
 class Loaders(object):
 
