@@ -246,7 +246,7 @@ class ModelRefWidget(Widget):
     def serialize(self, element, field, cstruct, readonly=False):
         if cstruct in (colander.null, None):
             cstruct = colander.null
-        return field.renderer(self.template, element, field=field, cstruct=cstruct)
+        return field.renderer(self.template, element, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if not pstruct:

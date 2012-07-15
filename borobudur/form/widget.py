@@ -166,13 +166,18 @@ class Widget(object):
           has an error (as per the ``error`` argument's ``children``
           attribute).
         """
-        if field.error is None:
-            field.error = error
+        if field.model["error"] is None:
+            field.model["error"] = error
         # XXX exponential time
         for e in error.children:
             for num, subfield in enumerate(field.children):
                 if e.pos == num:
                     subfield.widget.handle_error(subfield, e)
+
+    def clear_error(self, field):
+        field.model["error"] = None
+        for subfield in field.children:
+            subfield.widget.clear_error(subfield)
 
 
 class TextInputWidget(Widget):
@@ -238,7 +243,7 @@ class TextInputWidget(Widget):
         if cstruct in (null, None):
             cstruct = ''
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field=field, cstruct=cstruct)
+        return field.renderer(template, element, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if pstruct is null:
@@ -319,7 +324,7 @@ class MoneyInputWidget(Widget):
         if options is None:
             options = {}
         options = json.dumps(dict(options))
-        return field.renderer(template, element, mask_options=options, field=field,
+        return field.renderer(template, element, field, mask_options=options,
                               cstruct=cstruct)
     
     def deserialize(self, field, pstruct):
@@ -425,9 +430,8 @@ class AutocompleteInputWidget(Widget):
         options = json.dumps(options)
         values = json.dumps(self.values)
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element,
+        return field.renderer(template, element, field,
                               cstruct=cstruct,
-                              field=field,
                               options=options,
                               values=values)
 
@@ -482,8 +486,7 @@ class DateInputWidget(Widget):
         if cstruct in (null, None):
             cstruct = ''
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element,
-                              field=field,
+        return field.renderer(template, element, field,
                               cstruct=cstruct,
                               options=self.options)
 
@@ -535,7 +538,7 @@ class DateTimeInputWidget(DateInputWidget):
         return field.renderer(
             template,
             element,
-            field=field,
+            field,
             cstruct=cstruct,
             options="",
             )
@@ -676,7 +679,7 @@ class HiddenWidget(Widget):
     def serialize(self, element, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''
-        return field.renderer(self.template, element, field=field, cstruct=cstruct)
+        return field.renderer(self.template, element, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if not pstruct:
@@ -714,7 +717,7 @@ class CheckboxWidget(Widget):
 
     def serialize(self, element, field, cstruct, readonly=False):
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field=field, cstruct=cstruct)
+        return field.renderer(template, element, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if pstruct is null:
@@ -764,7 +767,7 @@ class SelectWidget(Widget):
         if cstruct in (null, None):
             cstruct = self.null_value
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field=field, cstruct=cstruct,
+        return field.renderer(template, element, field, cstruct=cstruct,
                               values=_normalize_choices(self.values))
 
     def deserialize(self, field, pstruct):
@@ -839,7 +842,7 @@ class CheckboxChoiceWidget(Widget):
         if cstruct in (null, None):
             cstruct = ()
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field=field, cstruct=cstruct,
+        return field.renderer(template, element, field, cstruct=cstruct,
                               values=_normalize_choices(self.values))
 
     def deserialize(self, field, pstruct):
@@ -913,7 +916,7 @@ class CheckedInputWidget(Widget):
             cstruct = ''
         confirm = getattr(field, '%s-confirm' % (field.name,), cstruct)
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field=field, cstruct=cstruct,
+        return field.renderer(template, element, field, cstruct=cstruct,
                               confirm=confirm, subject=self.subject,
                               confirm_subject=self.confirm_subject,
                               )
@@ -989,7 +992,7 @@ class MappingWidget(Widget):
         if cstruct in (null, None):
             cstruct = {}
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field=field, cstruct=cstruct,
+        return field.renderer(template, element, field, cstruct=cstruct,
                               null=null)
 
     def deserialize(self, field, pstruct):
@@ -1112,7 +1115,7 @@ class SequenceWidget(Widget):
         # we clone the item field to bump the oid (for easier
         # automated testing; finding last node)
         item_field = field.children[0].clone()
-        proto = field.renderer(self.item_template, el, field=item_field,
+        proto = field.renderer(self.item_template, el, item_field,
                                cstruct=null, parent=field)
         if isinstance(proto, string_types):
             proto = proto.encode('utf-8')
@@ -1159,8 +1162,7 @@ class SequenceWidget(Widget):
         else:
             add_subitem_text = _(self.add_subitem_text_template,
                                  mapping=add_template_mapping)
-        return field.renderer(template, element,
-                              field=field,
+        return field.renderer(template, element, field,
                               cstruct=cstruct,
                               subfields=subfields,
                               item_field=item_field,
@@ -1195,14 +1197,20 @@ class SequenceWidget(Widget):
         return result
 
     def handle_error(self, field, error):
-        if field.error is None:
-            field.error = error
+        if field.model["error"] is None:
+            field.model["error"] = error
         # XXX exponential time
         sequence_fields = getattr(field, 'sequence_fields', [])
         for e in error.children:
             for num, subfield in enumerate(sequence_fields):
                 if e.pos == num:
                     subfield.widget.handle_error(subfield, e)
+
+    def clear_error(self, field):
+        field.model["error"] = None
+        sequence_fields = getattr(field, 'sequence_fields', [])
+        for subfield in sequence_fields:
+            subfield.widget.clear_error(subfield)
 
 
 class DatePartsWidget(Widget):
@@ -1248,7 +1256,7 @@ class DatePartsWidget(Widget):
         else:
             year, month, day = cstruct.split('-', 2)
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field=field, cstruct=cstruct,
+        return field.renderer(template, element, field, cstruct=cstruct,
                               year=year, month=month, day=day)
 
     def deserialize(self, field, pstruct):

@@ -36,8 +36,10 @@ def ZPTRendererFactory():
        an interpolated translation.  Default: ``None`` (no translation
        performed).
     """
-    def __call__(template, element, **kw):
-        return template.render(element, None, dict(kw))
+    def __call__(template, element, field, **kw):
+        vars = dict(kw)
+        vars["field"] = field
+        return template.render(element, field.model, vars)
     return __call__
 
 

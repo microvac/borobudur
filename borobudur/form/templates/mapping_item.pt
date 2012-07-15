@@ -16,10 +16,6 @@
 
     <div class="controls">
 
-        <?python
-                e = el if True else el
-        ?>
-
         <div tal:define="input_prepend field.widget.input_prepend | None;
                      input_append field.widget.input_append  | None;
                      prepend_class input_prepend and 'input-prepend' or '';
@@ -30,15 +26,24 @@
             <span tal:replace="structure field.serialize(el, cstruct)"/>
             <span class="add-on" tal:condition="input_append">${input_append}</span>
 
-            <span class="help-inline"
-                  tal:condition="field.error and not field.widget.hidden and not field.typ.__class__.__name__=='Mapping'">
-                <span
-                        tal:define="errstr 'error-%s' % field.oid"
-                        tal:repeat="msg field.error.messages()"
-                        tal:attributes="id repeat.msg.index==0 and errstr or
-                            ('%s-%s' % (errstr, repeat.msg.index))"
-                        class="${field.widget.error_class}">
-                    ${msg}
+            <span pramtal:bind-change="# error">
+                <?python
+                        import borobudur
+                        if field.model["error"] is None:
+                            borobudur.query_el("#item-%s" % field.oid).removeClass("error")
+                        else:
+                            borobudur.query_el("#item-%s" % field.oid).addClass("error")
+                ?>
+                <span class="help-inline"
+                      tal:condition="#.error and not field.widget.hidden">
+                    <span
+                            tal:define="errstr 'error-%s' % field.oid"
+                            tal:repeat="msg #.error.messages()"
+                            tal:attributes="id repeat.msg.index==0 and errstr or
+                                ('%s-%s' % (errstr, repeat.msg.index))"
+                            class="${field.widget.error_class}">
+                        ${msg}
+                    </span>
                 </span>
             </span>
 
@@ -46,10 +51,5 @@
                 ${field.description}
             </span>
         </div>
-        <?python
-                if el != e:
-                    print 'ea'
-        ?>
-
     </div>
 </div>

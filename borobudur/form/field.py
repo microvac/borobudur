@@ -8,6 +8,7 @@ import borobudur.form.exception as exception
 import borobudur.form.template as template
 import borobudur.form.widget as widget
 import borobudur.form.schema as schema
+from borobudur.model import Model
 
 def _counter():
     return {
@@ -119,10 +120,11 @@ class Field(object):
 
     error = None
     default_renderer = template.default_renderer
+    counter = _counter()
 
     def __init__(self, schema, renderer=None, counter=None,
                  resource_registry=None, **kw):
-        self.counter = counter or _counter()
+        self.counter = counter or self.counter
         self.order = next(self.counter)
         self.oid = 'deformField%s' % self.order
         self.schema = schema
@@ -136,6 +138,7 @@ class Field(object):
         self.description = schema.description
         self.required = schema.required
         self.children = []
+        self.model = Model({"error":None})
         self.widget = self.make_widget()
 
         for child in schema.children:
@@ -221,6 +224,7 @@ class Field(object):
         cloned.widget = self.widget
         cloned.order = next(cloned.counter)
         cloned.oid = 'deformField%s' % cloned.order
+        cloned.model = self.model
         cloned.children = [ field.clone() for field in self.children ]
 
         return cloned
@@ -441,6 +445,7 @@ class Field(object):
           else:
               return {'form':form.render()} # the form just needs rendering
         """
+        self.widget.clear_error(self)
         fstruct = borobudur.query_el("form", el).serializeArray()
         controls = []
         for obj in fstruct:

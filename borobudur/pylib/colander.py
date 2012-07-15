@@ -879,13 +879,13 @@ class Number(SchemaType):
         if cstruct != 0 and not cstruct:
             return null
 
-        try:
-            return self.num(cstruct)
-        except Exception:
+        res = self.num(cstruct)
+        if underscore.isNaN(res):
             raise Invalid(node,
-                          _('"${val}" is not a number',
-                            mapping={'val':cstruct})
-                          )
+                _('"${val}" is not a number',
+                    mapping={'val':cstruct}),
+            )
+        return res
 
 class Integer(Number):
     """ A type representing an integer.
