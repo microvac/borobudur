@@ -1,6 +1,6 @@
 import bson
 from borobudur.storage import Storage, StorageException, SearchConfig
-from borobudur.model import CollectionRefNode, ModelRefNode
+from borobudur.model import CollectionRefNode, ModelRefNode, RefNode
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode
 from datetime import datetime, date
 
@@ -10,10 +10,10 @@ import colander
 
 class StorageContext(object):
 
-    def __init__(self, connection, reference_types):
-        self.reference = {}
-        for type in reference_types:
-            self.reference[type.model] = type(self, connection)
+    reference = {}
+
+    def set(self, model, storage):
+        self.reference[model] = storage
 
     def get(self, model):
         return self.reference.get(model, None)
@@ -160,8 +160,11 @@ class MongoStorage(Storage):
         return self.collection.find(spec=query).count()
 
     def serialize(self, obj, schema, serialize_child):
-        if type(schema)==ModelRefNode:
-            return obj[schema.target.id_attribute]
+        if isinstance(schema, RefNode):
+            if schema.is_ref:
+                return obj
+            else:
+                return serializers[type(schema.typ)](obj.as_dict(), schema, serialize_child)
         else:
             return serializers[type(schema.typ)](obj, schema, serialize_child)
 

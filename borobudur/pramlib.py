@@ -18,6 +18,7 @@ class BorobudurPrambananLibrary(PrambananLibrary):
             PythonModule(join(pylib_dir, "peppercorn.py"), "peppercorn", self.import_cache),
             PythonModule(join(pylib_dir, "bson_objectid.py"), "bson.objectid", self.import_cache),
             JavascriptModule([join(pylib_dir, "pramlib.backbone.js")], "borobudur.jslib.backbone"),
+            JavascriptModule([join(pylib_dir, "fileuploader.js"), join(pylib_dir, "pramlib.qq.js")], "borobudur.jslib.qq"),
             ]
         modules.extend(package_to_modules("borobudur", self.import_cache))
         for m in modules:

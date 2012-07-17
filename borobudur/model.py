@@ -1,6 +1,8 @@
+import bson.objectid
 from bson.objectid import ObjectId
 import colander
 import borobudur.jslib.backbone as backbone
+import borobudur.schema as schema
 from borobudur.form.widget import Widget
 from borobudur.schema import clone_node
 from prambanan import get_template
@@ -18,7 +20,7 @@ class Model(backbone.Model):
     id_type = ObjectId
 
     schemas = {}
-    storage_url = None
+    model_url = None
 
     has_json_body = False
 
@@ -48,7 +50,7 @@ class Model(backbone.Model):
             else:
                 id = current
 
-        result = "%s/%s" % (self.storage_root, self.storage_url)
+        result = "%s/%s" % (self.storage_root, self.model_url)
         if id is not None:
             result = "%s/%s" % (result, id)
         if self.has_json_body and self.schema_name is not None:
@@ -87,24 +89,15 @@ class Model(backbone.Model):
         overrides with deep toJSON
         ie. if a child is a borobudur.Model, convert that thing to JSON too
         """
+        if self.schema is not None:
+            return self.schema.serialize(self.attributes)
+        else:
+            return super(Model, self).toJSON()
 
-        result =  super(Model, self).toJSON()
-        for key in iter(result):
-            value = result[key]
-            if isinstance(value, Model) or isinstance(value, Collection):
-                converted = False
-                if self.schema is not None and key in self.schema:
-                    child_schema = self.schema[key]
-                    if isinstance(child_schema, RefNode):
-                        result[key] = child_schema.serialize_ref(value)
-                        converted = True
-                if not converted:
-                    result[key] = value.toJSON()
-        return result
 
     def fetch(self, options=None):
         data  = {}
-        if self.schema_name is not None:
+        if self.schema_name is not None and self.schema_name != "":
             data["s"] = self.schema_name
         if options is None:
             options = {}
@@ -158,7 +151,7 @@ class Collection(backbone.Collection):
         super(Collection, self).__init__(models, options)
 
     def url(self):
-        return "%s/%s" % (self.storage_root, self.model.storage_url)
+        return "%s/%s" % (self.storage_root, self.model.model_url)
 
     def create(self):
         return self.model(schema_name=self.schema_name)
@@ -183,6 +176,9 @@ class Collection(backbone.Collection):
     def __iter__(self):
         return self.models
 
+    def __len__(self):
+        return self.length
+
     #If key > len(self.models) append at the end
     def __setitem__(self, key, value):
         if type(value) != type(self.model()):
@@ -201,10 +197,11 @@ class ModelRefNode(RefNode):
     prambanan:type target c(object)
     """
 
-    def __init__(self, target, schema_name="", **kwargs):
+    def __init__(self, target, schema_name="", is_ref=True, **kwargs):
         super(ModelRefNode, self).__init__(colander.Mapping(), **kwargs)
         self.target = target
         self.schema_name = schema_name
+        self.is_ref = is_ref
 
         node = target.get_schema(schema_name)
         for child in node.children:
@@ -213,7 +210,7 @@ class ModelRefNode(RefNode):
     def create_target(self, attributes):
         if attributes is None:
             return None
-        return self.target(attributes, self.schema_name)
+        return self.target(attributes, schema_name=self.schema_name)
 
     def serialize_ref(self, attributes):
         if attributes is None:
@@ -224,7 +221,10 @@ class ModelRefNode(RefNode):
         if appstruct is None:
             return None
         if not isinstance(appstruct, dict):
-            return appstruct
+            if isinstance(appstruct, bson.objectid.ObjectId):
+                return str(appstruct)
+            else:
+                return appstruct
         return super(ModelRefNode, self).serialize(appstruct)
 
     def deserialize(self, cstruct=colander.null):
@@ -232,7 +232,7 @@ class ModelRefNode(RefNode):
             return cstruct
         if not isinstance(cstruct, dict):
             return cstruct
-        return self.target(cstruct, self.schema_name)
+        return self.target(cstruct, schema_name=self.schema_name)
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)
@@ -255,24 +255,42 @@ class ModelRefWidget(Widget):
 
 class CollectionRefNode(RefNode):
 
-    def __init__(self, target, schema_name="", **kwargs):
+    def __init__(self, target, schema_name="", is_ref=True, **kwargs):
         super(CollectionRefNode, self).__init__(colander.Sequence(), **kwargs)
 
         self.target = target
         self.schema_name = schema_name
+        self.is_ref = is_ref
 
-        child = ModelRefNode(target, schema_name)
+        child = ModelRefNode(target, schema_name, is_ref)
         child.name = "child"
+        self.child = child
         self.add(child)
+
+    def serialize_ref(self, attributes):
+        if attributes is None:
+            return None
+        results = []
+        for i in range(0, len(attributes)):
+            results.append(self.child.serialize_ref(attributes[i]))
+        return results
 
     def create_target(self, attributes):
         if attributes is None:
             return None
+
+        if self.is_ref:
+            return attributes
+
         return Collection(attributes, model=self.target, schema_name = self.schema_name)
 
     def deserialize(self, cstruct=colander.null):
         if isinstance(cstruct, Collection):
             return cstruct
+
+        if self.is_ref:
+            return cstruct
+
         return Collection(cstruct, model=self.target, schema_name = self.schema_name)
 
     def clone(self):

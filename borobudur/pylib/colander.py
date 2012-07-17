@@ -2,12 +2,22 @@ import datetime
 import time
 import translationstring
 from prambanan import JS
+import prambanan
 import prambanan.jslib.underscore as underscore
 
 _ = translationstring.TranslationStringFactory('colander')
 
 required = object()
 _marker = required # bw compat
+
+def get_dict_item(d, key, dft):
+    if prambanan.is_js:
+        res = d[key]
+        if underscore.isUndefined(res):
+            return dft
+        return res
+    else:
+        return d.get(key, dft)
 
 class _null(object):
     def __repr__(self):
@@ -383,7 +393,7 @@ class Mapping(SchemaType):
 
         for num, subnode in enumerate(node.children):
             name = subnode.name
-            subval = value[name]
+            subval = get_dict_item(value, name, null)
             try:
                 result[name] = callback(subnode, subval)
             except Invalid as e:

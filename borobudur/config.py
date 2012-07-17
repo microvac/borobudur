@@ -1,6 +1,7 @@
 import inspect
 from pyramid.response import Response
 from pyramid.renderers import render_to_response
+from pyramid.security import authenticated_userid
 from pyramid.view import view_config
 from zope.interface.interface import Interface
 
@@ -199,11 +200,32 @@ def make_storage_view(model, storage):
 
     return View
 
+def make_file_storage_view(model, storage):
+
+    class View(object):
+
+        def __init__(self, request):
+            self.request = request
+            self.schema = model.get_schema(request.params.get("s", ""))
+
+        def upload(self):
+            user_id = authenticated_userid(self.request)
+            file = self.request.body_file
+            params = self.request.params
+            result = storage.upload(file, user_id, params, self.schema)
+            serialized = self.schema.serialize(result)
+            return render_to_response("json", {"success":True, "file": serialized})
+
+        def download(self):
+            pass
+
+    return View
+
 def expose_storage(config, app, storage):
 
     model = storage.model
     name = model.__name__
-    storage_url = model.storage_url
+    storage_url = model.model_url
 
     level = 0
     current = storage
@@ -227,6 +249,20 @@ def expose_storage(config, app, storage):
     config.add_view(storage_view, route_name="id_"+name, attr="read", request_method="GET", renderer="json")
     config.add_view(storage_view, route_name="id_"+name, attr="update", request_method="PUT", renderer="json")
     config.add_view(storage_view, route_name="id_"+name, attr="delete", request_method="DELETE", renderer="json")
+
+def expose_file_storage(config, app, storage):
+
+    model = storage.model
+    name = model.__name__
+    storage_url = model.model_url
+
+    storage_view = make_file_storage_view(model, storage)
+
+    config.add_route("upload_"+name, app.root+app.api_root+"uploads/"+storage_url)
+    config.add_route("download_"+name, app.root+app.api_root+"files/"+storage_url+"/{id}")
+
+    config.add_view(storage_view, route_name="upload_"+name, attr="upload", request_method="POST", renderer="json")
+    config.add_view(storage_view, route_name="download_"+name, attr="download", request_method="GET")
 
 def expose_service(config, app, service):
     exposed_methods = []
@@ -255,7 +291,7 @@ class BorobudurApp(object):
 def get_borobudur_app(request):
     return request.registry.queryUtility(IBorobudurApp)
 
-def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point, storages, services):
+def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point, storages, file_storages, services):
 
     calculator = SimplePackCalculator(app, asset_manager.manager)
 
@@ -280,6 +316,9 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
 
     for storage in storages:
         expose_storage(config, app, storage)
+
+    for storage in file_storages:
+        expose_file_storage(config, app, storage)
 
     for service in services:
         expose_service(config, app, service)
