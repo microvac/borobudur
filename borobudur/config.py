@@ -184,7 +184,7 @@ def make_storage_view(model, storage):
             limit = self.request.params.get("pl", 0)
             sort_order = self.request.params.get("so")
             sort_criteria = self.request.params.get("sc")
-            query = storage.extract_query(self.request.params)
+            query = storage.model.deserialize_queries(self.request.params)
             sorts = None
             if sort_criteria and sort_order:
                 sorts = borobudur.storage.SearchSort(sort_criteria, sort_order)

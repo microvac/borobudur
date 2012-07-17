@@ -71,7 +71,6 @@ class Model(backbone.Model):
         """
         Performs model creation if child attribute schema are colander.Mapping or colander.Sequence
         """
-
         copy = {}
 
         for key in iter(attrs):
@@ -80,6 +79,7 @@ class Model(backbone.Model):
             if self.schema is not None and key in self.schema:
                 child_schema = self.schema[key]
                 child = child_schema.deserialize(child)
+
             copy[key] = child
 
         return super(Model, self).set(copy, {"silent":silent})
@@ -110,16 +110,13 @@ class Model(backbone.Model):
         super(Model, self).save(options)
         self.has_json_body = False
 
-    """
+    @staticmethod
+    def serialize_queries(queries):
+        return {}
 
-        if self.storage is None:
-            raise RuntimeError("cannot destroy without storage")
-
-        if self.is_new():
-            raise RuntimeError("model is not saved cannot delete")
-
-        self.storage.delete(self.id)
-    """
+    @staticmethod
+    def deserialize_queries(params):
+        return {}
 
     def __getitem__(self, name):
         return self.get(name)
@@ -207,16 +204,6 @@ class ModelRefNode(RefNode):
         for child in node.children:
             self.children.append(child)
 
-    def create_target(self, attributes):
-        if attributes is None:
-            return None
-        return self.target(attributes, schema_name=self.schema_name)
-
-    def serialize_ref(self, attributes):
-        if attributes is None:
-            return None
-        return attributes[self.target.id_attribute]
-
     def serialize(self, appstruct):
         if appstruct is None:
             return None
@@ -266,23 +253,6 @@ class CollectionRefNode(RefNode):
         child.name = "child"
         self.child = child
         self.add(child)
-
-    def serialize_ref(self, attributes):
-        if attributes is None:
-            return None
-        results = []
-        for i in range(0, len(attributes)):
-            results.append(self.child.serialize_ref(attributes[i]))
-        return results
-
-    def create_target(self, attributes):
-        if attributes is None:
-            return None
-
-        if self.is_ref:
-            return attributes
-
-        return Collection(attributes, model=self.target, schema_name = self.schema_name)
 
     def deserialize(self, cstruct=colander.null):
         if isinstance(cstruct, Collection):
