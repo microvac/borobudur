@@ -84,13 +84,22 @@ class Model(backbone.Model):
 
         return super(Model, self).set(copy, {"silent":silent})
 
+    def get(self, name, dft=None):
+        if name in self.attributes:
+            return self.attributes[name]
+        return dft
+
+
     def toJSON(self):
         """
         overrides with deep toJSON
         ie. if a child is a borobudur.Model, convert that thing to JSON too
         """
         if self.schema is not None:
-            return self.schema.serialize(self.attributes)
+            result = {}
+            for child in self.schema.children:
+                result[child.name]=child.serialize(self.get(child.name, None))
+            return result
         else:
             return super(Model, self).toJSON()
 
@@ -205,14 +214,19 @@ class ModelRefNode(RefNode):
             self.children.append(child)
 
     def serialize(self, appstruct):
+        result = {}
         if appstruct is None:
             return None
         if not isinstance(appstruct, dict):
             if isinstance(appstruct, bson.objectid.ObjectId):
-                return str(appstruct)
+                result = str(appstruct)
+            elif isinstance(appstruct, Model):
+                result = super(ModelRefNode, self).serialize(appstruct)
             else:
-                return appstruct
-        return super(ModelRefNode, self).serialize(appstruct)
+                result = result
+        else :
+            result = super(ModelRefNode, self).serialize(appstruct)
+        return result
 
     def deserialize(self, cstruct=colander.null):
         if isinstance(cstruct, Model):

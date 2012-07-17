@@ -47,11 +47,6 @@ class Model(Event):
     def isNew(self):
         return self.id is None
 
-    def get(self, name):
-        if name in self.attributes:
-            return self.attributes[name]
-        return None
-
     def set(self, attrs, options=None):
         if options is None:
             options = {}
