@@ -641,7 +641,7 @@ class Sequence(Positional, SchemaType):
     def _validate(self, node, value, accept_scalar):
         if isinstance(value, list):
             return value
-        if hasattr(value, '__iter__') and not hasattr(value, 'get'):
+        if hasattr(value, '__iter__'):
             return list(value)
         if accept_scalar:
             return [value]
