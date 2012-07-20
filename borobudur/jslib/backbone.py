@@ -54,11 +54,14 @@ class Model(Event):
         changes = {}
         for key in iter(attrs):
             value = attrs[key]
-            if value != self.get(key):
+            if key not in self.attributes or value != self.get(key):
                 changes[key] = value
                 self.attributes[key] = value
                 if not options.get("silent"):
                     self.trigger("change:"+key, self, value)
+
+        if self.idAttribute is not None and self.idAttribute in attrs:
+            self.id = attrs[self.idAttribute]
 
         if len(changes) > 0:
             if not options.get("silent"):
@@ -123,7 +126,7 @@ class Collection(Event):
             options = {}
 
         models = list(models) if type(models) is list else [models]
-        self._prepareModel(models)
+        models = [self._prepareModel(model) for model in models]
 
         #not checking for duplicates
         at = options.get("at") if options.get("at") is not None else self.length

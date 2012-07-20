@@ -178,6 +178,15 @@ class LoadFlow(object):
         except StopLoadException as e:
             stop_load = True
 
+        el_query = self.document.el_query
+        if page is not None:
+            if page.title is not None:
+                el_query("title").html(page.title)
+            if page.keywords is not None:
+                el_query("meta[name='keywords']").attr("content", page.keywords)
+            if page.description is not None:
+                el_query("meta[name='description']").attr("content", page.description)
+
         app_state = self.app_state
         app_state.leaf_page = page
         app_state.active_pages.append(page)
@@ -205,15 +214,6 @@ class LoadFlow(object):
             loaders.apply(self)
 
     def finish(self):
-        page = self.current
-        el_query = self.document.el_query
-        if page is not None:
-            if page.title is not None:
-                el_query("title").html(page.title)
-            if page.keywords is not None:
-                el_query("meta[name='keywords']").attr("content", page.keywords)
-            if page.description is not None:
-                el_query("meta[name='description']").attr("content", page.description)
         self.callbacks["success"](self)
 
 class AppPart(object):

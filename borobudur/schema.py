@@ -40,8 +40,10 @@ class ObjectId(object):
     def deserialize(self, node, cstruct):
         from bson.objectid import ObjectId
         from bson.objectid import InvalidId
+
         if cstruct is null:
             return None
+
         try:
             result = ObjectId(cstruct)
         except TypeError:
@@ -119,8 +121,11 @@ class MappingNode(colander.SchemaNode):
 
         for key in kwargs:
             child = kwargs.get(key)
-            child.name = key
-            children[key] = child
+            if child is not None:
+                child.name = key
+                children[key] = child
+            else:
+                del children[key]
 
         for key in children:
             child = children[key]
@@ -134,12 +139,13 @@ class MappingNode(colander.SchemaNode):
 
 class SequenceNode(colander.SchemaNode):
 
-    def __init__(self, child):
-        super(SequenceNode, self).__init__(colander.Sequence())
+    def __init__(self, child, **kwargs):
+        super(SequenceNode, self).__init__(colander.Sequence(), **kwargs)
         child = child.clone()
         child.name = "child"
         self.add(child)
 
     def clone(self):
         cloned = self.__class__(self.children[0])
+        clone_node(self, cloned)
         return cloned

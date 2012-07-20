@@ -267,7 +267,8 @@ qq.FileUploaderBasic = function(o){
         onProgress: function(id, fileName, loaded, total){},
         onComplete: function(id, fileName, responseJSON){},
         onCancel: function(id, fileName){},
-        // messages                
+        onRemove: function(id){},
+        // messages
         messages: {
             typeError: "{file} has invalid extension. Only {extensions} are allowed.",
             sizeError: "{file} is too large, maximum file size is {sizeLimit}.",
@@ -484,10 +485,10 @@ qq.FileUploader = function(o){
         // if set, will be used instead of qq-upload-list in template
         listElement: null,
                 
-        template: '<div class="qq-uploader">' + 
-                '<div class="qq-upload-drop-area"><span>Drop files here to upload</span></div>' +
-                '<div class="qq-upload-button">Upload a file</div>' +
-                '<ul class="qq-upload-list"></ul>' + 
+        template: '<div class="qq-uploader">' +
+                '<ul class="qq-upload-list"></ul>' +
+                '<div class="qq-upload-drop-area"><span>Drop file di sini untuk mengupload</span></div>' +
+                '<div class="qq-upload-button">Upload file</div>' +
              '</div>',
 
         // template for one item in file list
@@ -495,8 +496,9 @@ qq.FileUploader = function(o){
                 '<span class="qq-upload-file"></span>' +
                 '<span class="qq-upload-spinner"></span>' +
                 '<span class="qq-upload-size"></span>' +
-                '<a class="qq-upload-cancel" href="#">Cancel</a>' +
-                '<span class="qq-upload-failed-text">Failed</span>' +
+                '<a class="qq-upload-remove" href="#">Hapus</a>' +
+                '<a class="qq-upload-cancel" href="#">Batal</a>' +
+                '<span class="qq-upload-failed-text">Gagal</span>' +
             '</li>',        
         
         classes: {
@@ -505,11 +507,12 @@ qq.FileUploader = function(o){
             drop: 'qq-upload-drop-area',
             dropActive: 'qq-upload-drop-area-active',
             list: 'qq-upload-list',
-                        
+
             file: 'qq-upload-file',
             spinner: 'qq-upload-spinner',
             size: 'qq-upload-size',
             cancel: 'qq-upload-cancel',
+            remove: 'qq-upload-remove',
 
             // added to list item when upload completes
             // used in css to hide progress spinner
@@ -523,12 +526,13 @@ qq.FileUploader = function(o){
     this._element = this._options.element;
     this._element.innerHTML = this._options.template;        
     this._listElement = this._options.listElement || this._find(this._element, 'list');
-    
+
     this._classes = this._options.classes;
         
     this._button = this._createUploadButton(this._find(this._element, 'button'));        
     
     this._bindCancelEvent();
+    this._bindRemoveEvent();
     this._setupDragDrop();
 };
 
@@ -660,7 +664,25 @@ qq.extend(qq.FileUploader.prototype, {
                 qq.remove(item);
             }
         });
-    }    
+    },
+    _bindRemoveEvent: function(){
+        var self = this,
+            list = this._listElement;
+
+        qq.attach(list, 'click', function(e){
+            e = e || window.event;
+            var target = e.target || e.srcElement;
+
+            if (qq.hasClass(target, self._classes.remove)){
+                qq.preventDefault(e);
+
+                var item = target.parentNode;
+                self._options.onRemove(item.qqFileId)
+                qq.remove(item);
+            }
+        });
+    }
+
 });
     
 qq.UploadDropZone = function(o){
@@ -860,7 +882,8 @@ qq.UploadHandlerAbstract = function(o){
         maxConnections: 999,
         onProgress: function(id, fileName, loaded, total){},
         onComplete: function(id, fileName, response){},
-        onCancel: function(id, fileName){}
+        onCancel: function(id, fileName){},
+        onRemove: function(id){}
     };
     qq.extend(this._options, o);    
     

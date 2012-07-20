@@ -10,26 +10,25 @@
   <!-- sequence -->
 
   <input type="hidden" name="__start__" value="${field.name}:sequence"
-         class="deformProto" 
+         class="deformProto"
          tal:attributes="prototype prototype"/>
 
-  <ul>
+    <div class="deformSeqContainer">
+        <div tal:repeat="tup subfields"
+             tal:replace="structure rndr(item_tmpl, field=tup[1], cstruct=tup[0],
+                          parent=field)"/>
 
-    <div tal:repeat="tup subfields"
-         tal:replace="structure rndr(item_tmpl, field=tup[1], cstruct=tup[0],
-                      parent=field)"/>
+        <span class="deformInsertBefore"
+              tal:attributes="min_len min_len;
+                              max_len max_len;
+                              now_len now_len"></span>
+      </div>
 
-    <span class="deformInsertBefore" 
-          tal:attributes="min_len min_len; 
-                          max_len max_len; 
-                          now_len now_len"></span>
+  <br />
 
-  </ul>
-  
   <a href="#"
-     class="deformSeqAdd"
-     id="${field.oid}-seqAdd"
-     onclick="javascript: return deform.appendSequenceItem(this);">
+     class="btn deformSeqAdd"
+     id="${field.oid}-seqAdd">
     <small id="${field.oid}-addtext">${add_subitem_text}</small>
   </a>
 

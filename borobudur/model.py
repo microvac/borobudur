@@ -27,10 +27,14 @@ class Model(backbone.Model):
     def __init__(self, attributes=None, storage_root=None, schema_name=None, parent=None):
         self.schema_name = schema_name
         self.storage_root = storage_root
+
         if schema_name is not None:
             self.schema = self.__class__.get_schema(schema_name)
         else:
             self.schema = None
+
+        self.save_schema_name = None
+        self.serialize_schema = None
 
         self.parent = parent
         self.idAttribute = self.id_attribute
@@ -53,8 +57,8 @@ class Model(backbone.Model):
         result = "%s/%s" % (self.storage_root, self.model_url)
         if id is not None:
             result = "%s/%s" % (result, id)
-        if self.has_json_body and self.schema_name is not None:
-            result += "?s="+self.schema_name
+        if self.has_json_body and self.save_schema_name is not None:
+            result += "?s="+self.save_schema_name
         return result
 
     def validate(self, attributes):
@@ -78,6 +82,17 @@ class Model(backbone.Model):
 
             if self.schema is not None and key in self.schema:
                 child_schema = self.schema[key]
+
+                #special case for setting id on ref
+                if not isinstance(child, Model) and not isinstance(child, dict) and isinstance(child_schema, RefNode):
+                    if key in self.attributes:
+                        current_child = self[key]
+                        if isinstance(current_child, Model):
+                            if current_child.id == child:
+                                continue
+                            else:
+                                raise ValueError("cannot change model attr to different id. attr %s. current %s set to %s" % (key, current_child.id, child))
+
                 child = child_schema.deserialize(child)
 
             copy[key] = child
@@ -95,9 +110,13 @@ class Model(backbone.Model):
         overrides with deep toJSON
         ie. if a child is a borobudur.Model, convert that thing to JSON too
         """
-        if self.schema is not None:
+        schema = self.schema
+        if self.serialize_schema is not None:
+            schema = self.serialize_schema
+
+        if schema is not None:
             result = {}
-            for child in self.schema.children:
+            for child in schema.children:
                 result[child.name]=child.serialize(self.get(child.name, None))
             return result
         else:
@@ -113,11 +132,17 @@ class Model(backbone.Model):
         options["data"] = data
         super(Model, self).fetch(options)
 
-    def save(self, options=None):
-        #todo hack
+    def save(self, schema_name=None, options=None):
+        if schema_name is not None:
+            self.serialize_schema = self.__class__.get_schema(schema_name)
         self.has_json_body = True
+        self.save_schema_name = schema_name
+
         super(Model, self).save(options)
+
         self.has_json_body = False
+        self.serialize_schema = None
+        self.save_schema_name = None
 
     @staticmethod
     def serialize_queries(queries):
@@ -141,10 +166,20 @@ class Model(backbone.Model):
     def clone(self):
         return self.__class__(self.attributes, self.storage_root, self.schema_name, self.parent)
 
+    def as_dict(self, schema_name=None):
+        if schema_name is not None:
+            self.serialize_schema = self.__class__.get_schema(schema_name)
+
+        result = self.toJSON()
+
+        self.serialize_schema = None
+
+        return result
+
     # Methods converted to python underscore-separated style
     def is_new(self): return self.isNew()
     def is_valid(self):return self.isValid()
-    def as_dict(self):return self.toJSON()
+
     def has_changed(self, attr=None):return self.hasChanged(attr)
     def changed_attributes(self, diff=None):return self.changedAttributes(diff)
 
@@ -214,18 +249,18 @@ class ModelRefNode(RefNode):
             self.children.append(child)
 
     def serialize(self, appstruct):
-        result = {}
         if appstruct is None:
             return None
-        if not isinstance(appstruct, dict):
-            if isinstance(appstruct, bson.objectid.ObjectId):
-                result = str(appstruct)
-            elif isinstance(appstruct, Model):
-                result = super(ModelRefNode, self).serialize(appstruct)
-            else:
-                result = result
-        else :
+
+        if self.is_ref:
+            if isinstance(appstruct, Model):
+                appstruct = appstruct.id
+            result = str(appstruct)
+        else:
+            if isinstance(appstruct, Model):
+                appstruct = appstruct.attributes
             result = super(ModelRefNode, self).serialize(appstruct)
+
         return result
 
     def deserialize(self, cstruct=colander.null):
@@ -254,6 +289,33 @@ class ModelRefWidget(Widget):
             return colander.null
         return pstruct
 
+    def to_pstruct(self, name, cstruct):
+        def process_dict(process, name, item):
+            results = []
+            results.append(["__start__", "%s:mapping" % name])
+            for child in item:
+                results.extend(process(child, item[child]))
+            results.append(["__end__", "%s:mapping" % name])
+            return results
+
+        def process_list(process, name, item):
+            results.append(["__start__", "%s:sequence" % name])
+            for child in item:
+                results.extend(process("", child))
+            results.append(["__end__", "%s:sequence" % name])
+            return results
+
+        def process(name, item):
+            if isinstance(item, dict):
+                return process_dict(process, name, item)
+            elif isinstance(item, list):
+                return process_list(process, name, item)
+            else:
+                return [[name, '' if item is None else str(item)]]
+
+        return process(name, cstruct)
+
+
 class CollectionRefNode(RefNode):
 
     def __init__(self, target, schema_name="", is_ref=True, **kwargs):
@@ -276,6 +338,21 @@ class CollectionRefNode(RefNode):
             return cstruct
 
         return Collection(cstruct, model=self.target, schema_name = self.schema_name)
+
+    def serialize(self, appstruct=colander.null):
+        if appstruct is None:
+            return None
+
+        if self.is_ref:
+            if isinstance(appstruct, Collection):
+                appstruct = [m.id for m in appstruct]
+            result = [str(id) for id in appstruct]
+        else:
+            if isinstance(appstruct, Collection):
+                appstruct = appstruct.models
+            return super(CollectionRefNode, self).serialize(appstruct)
+
+        return result
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)

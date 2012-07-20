@@ -1,6 +1,6 @@
 <form
         id="${field.formid}"
-        class="form-horizontal"
+        class="form-deform form-horizontal"
         action="${field.action}"
         method="${field.method}"
         enctype="multipart/form-data"

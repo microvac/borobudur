@@ -1,5 +1,6 @@
 import inspect
-from pyramid.response import Response
+import os
+from pyramid.response import Response, FileResponse
 from pyramid.renderers import render_to_response
 from pyramid.security import authenticated_userid
 from pyramid.view import view_config
@@ -162,22 +163,22 @@ def make_storage_view(model, storage):
             appstruct = self.schema.deserialize(self.request.json_body)
             result = storage.insert(appstruct, self.schema)
             serialized = self.schema.serialize(result)
-            return render_to_response("json", serialized)
+            return serialized
 
         def read(self):
             result = storage.one(self.request.matchdict["id"], self.schema)
             serialized = self.schema.serialize(result)
-            return render_to_response("json", serialized)
+            return serialized
 
         def update(self):
             appstruct = self.schema.deserialize(self.request.json_body)
             result = storage.update(appstruct, self.schema)
             serialized = self.schema.serialize(result)
-            return render_to_response("json", serialized)
+            return serialized
 
         def delete(self):
             result = storage.delete(self.request.matchdict["id"])
-            return render_to_response("json", result)
+            return result
 
         def list(self):
             skip = self.request.params.get("ps", 0)
@@ -196,7 +197,7 @@ def make_storage_view(model, storage):
             results = storage.all(query=query, schema=self.schema, config=config)
             sequence_schema = borobudur.schema.SequenceNode(self.schema)
             serialized = sequence_schema.serialize(results)
-            return render_to_response("json", serialized)
+            return serialized
 
     return View
 
@@ -217,7 +218,12 @@ def make_file_storage_view(model, storage):
             return render_to_response("json", {"success":True, "file": serialized})
 
         def download(self):
-            pass
+            id = self.request.matchdict["id"]
+            item = storage.one(id, self.schema)
+            path = os.path.join(storage.directory, id)
+            response = FileResponse(path, request=self.request)
+            response.content_disposition = 'attachment; filename="%s"' % item["filename"]
+            return response
 
     return View
 

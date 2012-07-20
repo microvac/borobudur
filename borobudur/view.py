@@ -53,7 +53,8 @@ class View(object):
         pass
 
     def render_form(self, el, model, name):
-        form = Form(self.forms[name])
+        schema = self.forms[name]
+        form = Form(schema)
 
         buttons_config = self.find_decorated_buttons(name)
         buttons = []
@@ -67,7 +68,7 @@ class View(object):
         form.buttons = buttons
 
         self.child_forms[name] = form
-        form.render(el, {}) #hack todo
+        form.render(el, model.attributes)
 
     def render_child(self, el, model, name):
         child_view_type = self.children[name]

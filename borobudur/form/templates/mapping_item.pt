@@ -1,6 +1,6 @@
 <div tal:define="structural field.widget.hidden or
                             field.widget.category == 'structural'"
-     class="control-group ${field.error and 'error' or ''}"
+     class="${'control-group' if not structural else ''} ${field.error and 'error' or ''}"
      id="item-${field.oid}"
      title="${field.description}"
      i18n:domain="deform">
@@ -14,7 +14,16 @@
         </span>
     </label>
 
-    <div class="controls">
+    <?python
+            import __builtin__
+            import colander
+            flat_mapping = __builtin__.getattr(field.widget, 'flat_mapping', False)
+            cls = 'mapping' if __builtin__.isinstance(field.typ, colander.Mapping) and not flat_mapping else 'controls'
+            if cls == 'mapping' and not field.title:
+                cls = ''
+    ?>
+
+    <div class="${cls}">
 
         <div tal:define="input_prepend field.widget.input_prepend | None;
                      input_append field.widget.input_append  | None;

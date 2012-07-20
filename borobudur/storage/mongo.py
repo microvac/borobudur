@@ -1,6 +1,6 @@
 import bson
 from borobudur.storage import Storage, StorageException, SearchConfig
-from borobudur.model import CollectionRefNode, ModelRefNode, RefNode
+from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode
 from datetime import datetime, date
 
@@ -107,8 +107,14 @@ class MongoStorage(Storage):
 
     def insert(self, obj, schema=None):
         result = mapping_serializer(obj, schema, self.serialize)
+        self.pre_insert(result)
         self.collection.insert(result)
+        if result:
+            result = mapping_deserializer(result, schema, self.deserialize)
         return result
+
+    def pre_insert(self, appstruct):
+        pass
 
     def update(self, obj, schema=None):
         serialized = mapping_serializer(obj, schema, self.serialize)
@@ -161,20 +167,35 @@ class MongoStorage(Storage):
 
     def serialize(self, obj, schema, serialize_child):
         if isinstance(schema, RefNode):
-            if schema.is_ref:
-                return obj
-            else:
-                return serializers[type(schema.typ)](obj.as_dict(), schema, serialize_child)
-        else:
-            return serializers[type(schema.typ)](obj, schema, serialize_child)
+            storage = self.context.get(schema.target)
+            if storage is not None:
+                id = obj
+                if isinstance(obj, Model):
+                    id = obj.id
+                if isinstance(obj, Collection):
+                    id = [m.id for m in obj.models]
+                return id
+
+        if isinstance(obj, Model):
+            obj = obj.attributes
+        if isinstance(obj, Collection):
+            obj = obj.models
+
+        return serializers[type(schema.typ)](obj, schema, serialize_child)
 
     def deserialize(self, obj, schema, deserialize_child):
-        storage = self.context.get(schema.target) if type(schema)==ModelRefNode else None
-        if storage is None:
-            return deserializers[type(schema.typ)](obj, schema, deserialize_child)
-        else:
-            result = storage.one(obj, schema)
-            return result
+        if isinstance(schema, RefNode):
+            storage = self.context.get(schema.target)
+            if schema.is_ref:
+                return obj
+            if storage is not None:
+                if isinstance(schema, CollectionRefNode):
+                    result = [storage.one(item, schema.child) for item in obj]
+                else:
+                    result = storage.one(obj, schema)
+                return result
+
+        return deserializers[type(schema.typ)](obj, schema, deserialize_child)
 
     def flatten(self, item, prefix=""):
         result = {}

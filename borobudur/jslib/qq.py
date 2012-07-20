@@ -1,3 +1,6 @@
 class FileUploader:
     def __init__(self, element, action, debug):
-        pass
+        raise ValueError("only in js")
+
+def getUniqueId():
+    raise ValueError("only in js")
