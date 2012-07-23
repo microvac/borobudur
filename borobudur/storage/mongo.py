@@ -89,6 +89,31 @@ deserializers = {
     Currency: null_converter,
 }
 
+def merge_array(source, target):
+    result = []
+    for index, value in enumerate(source):
+        if isinstance(value, dict):
+            target_value = target[index] if len(target) > index else {}
+            result.append(merge_document(value, target_value))
+        elif isinstance(value, list):
+            target_value = target[index] if len(target) > index else []
+            result.append(merge_document(value, target_value))
+        else:
+            result.append(value)
+    return result
+
+def merge_document(source, target):
+    for key, value in source.items():
+        if isinstance(value, dict):
+            target_value = target[key] if key in target else {}
+            target[key] = merge_document(value, target_value)
+        elif isinstance(value, list):
+            target_value = target[key] if key in target else []
+            target[key] = merge_array(value, target_value)
+        else:
+            target[key] = value
+    return target
+
 class MongoStorageException(StorageException):
     pass
 
@@ -124,32 +149,6 @@ class BaseStorage(object):
                 return result
 
         return deserializers[type(schema.typ)](obj, schema, deserialize_child)
-
-def merge_array(source, target):
-    result = []
-    for index, value in enumerate(source):
-        if isinstance(value, dict):
-            target_value = target[index] if len(target) > index else {}
-            result.append(merge_document(value, target_value))
-        elif isinstance(value, list):
-            target_value = target[index] if len(target) > index else []
-            result.append(merge_document(value, target_value))
-        else:
-            result.append(value)
-    return result
-
-def merge_document(source, target):
-    for key, value in source.items():
-        if isinstance(value, dict):
-            target_value = target[key] if key in target else {}
-            target[key] = merge_document(value, target_value)
-        elif isinstance(value, list):
-            target_value = target[key] if key in target else []
-            target[key] = merge_array(value, target_value)
-        else:
-            target[key] = value
-    return target
-
 
 class MongoStorage(Storage, BaseStorage):
 
