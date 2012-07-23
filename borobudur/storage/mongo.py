@@ -125,6 +125,32 @@ class BaseStorage(object):
 
         return deserializers[type(schema.typ)](obj, schema, deserialize_child)
 
+def merge_array(source, target):
+    result = []
+    for index, value in enumerate(source):
+        if isinstance(value, dict):
+            target_value = target[index] if len(target) > index else {}
+            result.append(merge_document(value, target_value))
+        elif isinstance(value, list):
+            target_value = target[index] if len(target) > index else []
+            result.append(merge_document(value, target_value))
+        else:
+            result.append(value)
+    return result
+
+def merge_document(source, target):
+    for key, value in source.items():
+        if isinstance(value, dict):
+            target_value = target[key] if key in target else {}
+            target[key] = merge_document(value, target_value)
+        elif isinstance(value, list):
+            target_value = target[key] if key in target else []
+            target[key] = merge_array(value, target_value)
+        else:
+            target[key] = value
+    return target
+
+
 class MongoStorage(Storage, BaseStorage):
 
     db_name = None
@@ -151,16 +177,18 @@ class MongoStorage(Storage, BaseStorage):
 
     def update(self, obj, schema=None):
         serialized = mapping_serializer(obj, schema, self.serialize)
-        result = self.flatten(serialized)
+        previous = self.collection.find_one({self.model.id_attribute: self.model.id_type(obj[self.model.id_attribute])})
+        result = merge_document(serialized, previous)
 
         #mongo doesn't receive set _id
         if "_id" in result:
             del result["_id"]
 
         self.collection.update({self.model.id_attribute: self.model.id_type(obj[self.model.id_attribute])},
-                               {"$set": result},
+                               result
                               )
-        return self.one(obj[self.model.id_attribute], schema)
+        deserialized = mapping_deserializer(result, schema, self.deserialize)
+        return deserialized
 
     def delete(self, id):
         result = self.collection.find_one({self.model.id_attribute: self.model.id_type(id)})
@@ -259,7 +287,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
 
-        return result
+        return mapping_deserializer(result, schema, self.deserialize)
 
     def update(self, parent_id, obj, schema=None):
         parent_schema = self.build_parent_schema(schema)
@@ -272,7 +300,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
 
-        return result
+        return mapping_deserializer(result, schema, self.deserialize)
 
     def delete(self, parent_id, id):
         parent_schema = self.build_parent_schema()
@@ -292,7 +320,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         collection = parent[self.attribute_path]
         index = self.find(self.model.id_type(id), collection)
 
-        return collection[index]
+        return mapping_deserializer(collection[index], schema, self.deserialize)
 
     def all(self, parent_id, query=None, config=None, schema=None):
         parent_schema = self.build_parent_schema(schema)
@@ -343,9 +371,17 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         parent_id_attribute = self.parent_storage.model.id_attribute
         parent_id_node = filter(lambda c: c.name==parent_id_attribute, self.parent_storage.model.get_schema("").children)[0]
 
+        schema_name = None
+        for name,value in self.model.schemas.items():
+            if value == schema:
+                schema_name = name
+                break
+        else:
+            raise ValueError("cannot find schema")
+
         structure = {
             parent_id_attribute: parent_id_node,
-            self.attribute_path: SequenceNode(schema),
+            self.attribute_path: CollectionRefNode(self.model, schema_name),
         }
         return MappingNode(**structure)
 
