@@ -1,3 +1,4 @@
+from borobudur.jslib.backbone import Model
 import prambanan.jslib.underscore as underscore
 
 import borobudur
@@ -14,9 +15,12 @@ class ServiceModelLoader(BaseLoader):
 
     def load(self, model, callbacks):
         def success(attrs):
-            model.set(attrs)
-            callbacks.success()
 
+            if isinstance(model, Model):
+                model.set(attrs)
+            else:
+                model.reset(attrs)
+            callbacks.success()
         url = "/app/services/%s/%s" % (self.service_id, self.service_attr)
         borobudur.query_el.getJSON(url, success)
 

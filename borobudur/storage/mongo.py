@@ -119,6 +119,7 @@ class MongoStorage(Storage):
     def update(self, obj, schema=None):
         serialized = mapping_serializer(obj, schema, self.serialize)
         result = self.flatten(serialized)
+
         self.collection.update({self.model.id_attribute: self.model.id_type(obj[self.model.id_attribute])},
                                {"$set": result},
                               )
@@ -216,8 +217,7 @@ class MongoStorage(Storage):
                     subprefix = prefix+"."+key if prefix else key
                     result[subprefix] = value
         else:
-            if prefix != "_id":
-                result[prefix] = item
+            result[prefix] = item
         return result
 
     def get_field_list(self, schema):
