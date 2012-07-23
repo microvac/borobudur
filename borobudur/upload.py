@@ -10,6 +10,10 @@ class FileStorage(Storage):
     model=None
     directory=None
 
+    def __init__(self):
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
+
     def upload(self, file, user_id, params, schema):
         file_id = ObjectId()
 

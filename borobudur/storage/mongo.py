@@ -92,7 +92,40 @@ deserializers = {
 class MongoStorageException(StorageException):
     pass
 
-class MongoStorage(Storage):
+class BaseStorage(object):
+    def serialize(self, obj, schema, serialize_child):
+        if isinstance(schema, RefNode):
+            storage = self.context.get(schema.target)
+            if storage is not None:
+                id = obj
+                if isinstance(obj, Model):
+                    id = obj.id
+                if isinstance(obj, Collection):
+                    id = [m.id for m in obj.models]
+                return id
+
+        if isinstance(obj, Model):
+            obj = obj.attributes
+        if isinstance(obj, Collection):
+            obj = obj.models
+
+        return serializers[type(schema.typ)](obj, schema, serialize_child)
+
+    def deserialize(self, obj, schema, deserialize_child):
+        if isinstance(schema, RefNode):
+            storage = self.context.get(schema.target)
+            if schema.is_ref:
+                return obj
+            if storage is not None:
+                if isinstance(schema, CollectionRefNode):
+                    result = [storage.one(item, schema.child) for item in obj]
+                else:
+                    result = storage.one(obj, schema)
+                return result
+
+        return deserializers[type(schema.typ)](obj, schema, deserialize_child)
+
+class MongoStorage(Storage, BaseStorage):
 
     db_name = None
     collection_name = None
@@ -119,6 +152,10 @@ class MongoStorage(Storage):
     def update(self, obj, schema=None):
         serialized = mapping_serializer(obj, schema, self.serialize)
         result = self.flatten(serialized)
+
+        #mongo doesn't receive set _id
+        if "_id" in result:
+            del result["_id"]
 
         self.collection.update({self.model.id_attribute: self.model.id_type(obj[self.model.id_attribute])},
                                {"$set": result},
@@ -166,37 +203,6 @@ class MongoStorage(Storage):
     def count(self, query=None):
         return self.collection.find(spec=query).count()
 
-    def serialize(self, obj, schema, serialize_child):
-        if isinstance(schema, RefNode):
-            storage = self.context.get(schema.target)
-            if storage is not None:
-                id = obj
-                if isinstance(obj, Model):
-                    id = obj.id
-                if isinstance(obj, Collection):
-                    id = [m.id for m in obj.models]
-                return id
-
-        if isinstance(obj, Model):
-            obj = obj.attributes
-        if isinstance(obj, Collection):
-            obj = obj.models
-
-        return serializers[type(schema.typ)](obj, schema, serialize_child)
-
-    def deserialize(self, obj, schema, deserialize_child):
-        if isinstance(schema, RefNode):
-            storage = self.context.get(schema.target)
-            if schema.is_ref:
-                return obj
-            if storage is not None:
-                if isinstance(schema, CollectionRefNode):
-                    result = [storage.one(item, schema.child) for item in obj]
-                else:
-                    result = storage.one(obj, schema)
-                return result
-
-        return deserializers[type(schema.typ)](obj, schema, deserialize_child)
 
     def flatten(self, item, prefix=""):
         result = {}
@@ -217,7 +223,8 @@ class MongoStorage(Storage):
                     subprefix = prefix+"."+key if prefix else key
                     result[subprefix] = value
         else:
-            result[prefix] = item
+            if prefix != "_id":
+                result[prefix] = item
         return result
 
     def get_field_list(self, schema):
@@ -230,7 +237,7 @@ class MongoStorage(Storage):
     def __str__(self):
         return "%s mongo storage on %s - %s" % (self.model.__class__.__name__, self.db_name, self.collection_name)
 
-class EmbeddedMongoStorage(Storage):
+class EmbeddedMongoStorage(Storage, BaseStorage):
 
     model = None
     parent_storage = None
@@ -308,23 +315,6 @@ class EmbeddedMongoStorage(Storage):
         collection = parent[self.attribute_path]
 
         return len(collection)
-
-    def serialize(self, obj, schema, serialize_child):
-        storage = self.context.get(schema.target) if type(schema)==ModelRefNode else None
-        if storage is None:
-            return serializers[type(schema.typ)](obj, schema, serialize_child)
-        else:
-            result = storage.update(obj, schema)
-            ref = result[storage.model.id_attribute]
-            return ref
-
-    def deserialize(self, obj, schema, deserialize_child):
-        storage = self.context.get(schema.target) if type(schema)==ModelRefNode else None
-        if storage is None:
-            return deserializers[type(schema.typ)](obj, schema, deserialize_child)
-        else:
-            result = storage.one(obj, schema)
-            return result
 
     def parent_one(self, parent_id, schema):
         if parent_id[1] is None:
