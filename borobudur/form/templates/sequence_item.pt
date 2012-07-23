@@ -6,6 +6,7 @@
     <a
             id="${field.oid}-close"
             tal:condition="not field.widget.hidden"
+            class="deformSeqRemove"
             title="Remove"
             href="#"
             ><i class="icon-remove"></i></a>

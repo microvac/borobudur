@@ -1,4 +1,5 @@
 import json
+import borobudur
 
 from colander import Invalid
 from colander import null
@@ -1162,11 +1163,22 @@ class SequenceWidget(Widget):
         else:
             add_subitem_text = _(self.add_subitem_text_template,
                                  mapping=add_template_mapping)
-        return field.renderer(template, element, field,
+        result = field.renderer(template, element, field,
                               cstruct=cstruct,
                               subfields=subfields,
                               item_field=item_field,
                               add_subitem_text=add_subitem_text)
+
+        q_prototype = borobudur.query_el(borobudur.query_el(".deformSeqPrototype", element).children()[0])
+        q_container = borobudur.query_el(".deformSeqContainer")
+        def add_click():
+            q_container.append(q_prototype.clone())
+        borobudur.query_el(".deformSeqAdd", element).click(add_click)
+        def remove_click(ev):
+            borobudur.query_el(ev.currentTarget).parent().remove()
+        borobudur.query_el(element).delegate(".deformSeqRemove", "click", remove_click)
+
+        return result
 
     def deserialize(self, field, pstruct):
         result = []

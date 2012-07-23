@@ -205,8 +205,6 @@ class MongoStorage(Storage):
                 result.update(self.flatten(it, subprefix))
         elif isinstance(item, dict):
             for key, value in item.items():
-                if key == "_id":
-                    continue
                 if isinstance(value, list):
                     for index, it in enumerate(value):
                         subprefix = prefix+"."+key+"."+str(index) if prefix else key+"."+str(index)
@@ -285,7 +283,7 @@ class EmbeddedMongoStorage(Storage):
         parent = self.parent_one(parent_id, parent_schema)
 
         collection = parent[self.attribute_path]
-        index = self.find(id, collection)
+        index = self.find(self.model.id_type(id), collection)
 
         return collection[index]
 
@@ -352,8 +350,12 @@ class EmbeddedMongoStorage(Storage):
         if schema is None:
             schema = self.empty_schema
 
+        parent_id_attribute = self.parent_storage.model.id_attribute
+        parent_id_node = filter(lambda c: c.name==parent_id_attribute, self.parent_storage.model.get_schema("").children)[0]
+
         structure = {
-            self.attribute_path: SequenceNode(schema)
+            parent_id_attribute: parent_id_node,
+            self.attribute_path: SequenceNode(schema),
         }
         return MappingNode(**structure)
 

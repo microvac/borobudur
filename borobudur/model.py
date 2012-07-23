@@ -50,15 +50,20 @@ class Model(backbone.Model):
         current = self.parent
         while current is not None:
             if id is not None:
-                id = "%s/%s" % (id, current.id)
+                id = "%s/%s" % (current.id, id)
             else:
-                id = current
+                id = current.id
+            current = current.parent
 
         result = "%s/%s" % (self.storage_root, self.model_url)
         if id is not None:
             result = "%s/%s" % (result, id)
-        if self.has_json_body and self.save_schema_name is not None:
-            result += "?s="+self.save_schema_name
+        if self.has_json_body:
+            schema_name = self.schema_name
+            if self.save_schema_name is not None:
+                schema_name = self.save_schema_name
+            if schema_name is not None:
+                result += "?s="+schema_name
         return result
 
     def validate(self, attributes):
@@ -94,6 +99,16 @@ class Model(backbone.Model):
                                 raise ValueError("cannot change model attr to different id. attr %s. current %s set to %s" % (key, current_child.id, child))
 
                 child = child_schema.deserialize(child)
+
+                #if new and old model have the id, use the old one by setting all new attributes to it
+                #this make all callbacks not lost
+                if isinstance(child, Model):
+                    if key in self.attributes:
+                        current_child = self[key]
+                        if isinstance(current_child, Model) and current_child.id == child.id:
+                            current_child.set(child.attributes)
+                            child = current_child
+
 
             copy[key] = child
 
@@ -138,7 +153,7 @@ class Model(backbone.Model):
         self.has_json_body = True
         self.save_schema_name = schema_name
 
-        super(Model, self).save(options)
+        super(Model, self).save({}, options)
 
         self.has_json_body = False
         self.serialize_schema = None
@@ -299,6 +314,7 @@ class ModelRefWidget(Widget):
             return results
 
         def process_list(process, name, item):
+            results = []
             results.append(["__start__", "%s:sequence" % name])
             for child in item:
                 results.extend(process("", child))
