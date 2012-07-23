@@ -54,7 +54,6 @@ def bind_ajax_request(app, col):
                 settings.error = error
                 xhr = prev_ajax(settings)
                 model["xhr"] = xhr
-                print xhr
                 return xhr
             else:
                 return prev_ajax(settings)

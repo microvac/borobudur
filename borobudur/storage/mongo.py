@@ -286,7 +286,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
 
-        return mapping_deserializer(result, schema, self.deserialize)
+        return result
 
     def update(self, parent_id, obj, schema=None):
         parent_schema = self.build_parent_schema(schema)
@@ -299,7 +299,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
 
-        return mapping_deserializer(result, schema, self.deserialize)
+        return result
 
     def delete(self, parent_id, id):
         parent_schema = self.build_parent_schema()
@@ -319,7 +319,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         collection = parent[self.attribute_path]
         index = self.find(self.model.id_type(id), collection)
 
-        return mapping_deserializer(collection[index], schema, self.deserialize)
+        return collection[index]
 
     def all(self, parent_id, query=None, config=None, schema=None):
         parent_schema = self.build_parent_schema(schema)
@@ -380,7 +380,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
 
         structure = {
             parent_id_attribute: parent_id_node,
-            self.attribute_path: CollectionRefNode(self.model, schema_name),
+            self.attribute_path: CollectionRefNode(self.model, schema_name, is_ref=False),
         }
         return MappingNode(**structure)
 
