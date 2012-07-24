@@ -103,6 +103,8 @@ def merge_array(source, target):
     return result
 
 def merge_document(source, target):
+    if target is None:
+        target = {}
     for key, value in source.items():
         if isinstance(value, dict):
             target_value = target[key] if key in target else {}
@@ -146,6 +148,8 @@ class BaseStorage(object):
                     obj = [storage.one(item, schema.child) for item in obj]
                     return Collection(obj, schema.target, schema_name=schema.schema_name)
                 else:
+                    if obj is None and schema.nullable:
+                        return None
                     obj = storage.one(obj, schema)
                     return schema.target(obj, schema_name=schema.schema_name)
 
