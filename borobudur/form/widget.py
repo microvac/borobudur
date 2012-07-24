@@ -474,7 +474,7 @@ class DateInputWidget(Widget):
     template = get_template('zpt', ('borobudur', 'form/templates/dateinput.pt'))
     readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/textinput.pt'))
     size = None
-    default_options = [('dateFormat', 'yy-mm-dd'),]
+    default_options = [('dateFormat', 'yyyy-mm-dd'),]
 
 
     def __init__(self, **kwargs):
@@ -487,9 +487,16 @@ class DateInputWidget(Widget):
         if cstruct in (null, None):
             cstruct = ''
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field,
-                              cstruct=cstruct,
-                              options=self.options)
+        result =  field.renderer(
+            template,
+            element,
+            field,
+            cstruct=cstruct,
+            options=self.options,
+        )
+        from borobudur.jslib.bootstrap.datepicker import datepicker
+        datepicker(borobudur.query_el("input", element), {"format": self.options["dateFormat"]})
+        return result
 
     def deserialize(self, field, pstruct):
         if pstruct in ('', null):
