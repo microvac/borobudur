@@ -70,13 +70,6 @@ class Model(backbone.Model):
         return result
 
     def validate(self, attributes):
-        if self.schema is None:
-            return None
-
-        try:
-            self.schema.deserialize(attributes)
-        except colander.Invalid as e:
-            return e
         return None
 
     def set(self, attrs, silent=False):
@@ -92,7 +85,7 @@ class Model(backbone.Model):
                 child_schema = self.schema[key]
 
                 #special case for setting id on ref
-                if not isinstance(child, Model) and not isinstance(child, dict) and isinstance(child_schema, RefNode):
+                if not isinstance(child, Model) and isinstance(child_schema, RefNode):
                     if key in self.attributes:
                         current_child = self[key]
                         if isinstance(current_child, Model):
@@ -100,8 +93,6 @@ class Model(backbone.Model):
                                 continue
                             else:
                                 raise ValueError("cannot change model attr to different id. attr %s. current %s set to %s" % (key, current_child.id, child))
-
-                child = child_schema.deserialize(child)
 
                 #if new and old model have the id, use the old one by setting all new attributes to it
                 #this make all callbacks not lost
@@ -139,6 +130,16 @@ class Model(backbone.Model):
             return result
         else:
             return super(Model, self).toJSON()
+
+    def parse(self, response):
+        results = {}
+        for key in response:
+            child = response[key]
+            if self.schema is not None and key in self.schema:
+                child_schema = self.schema[key]
+                child = child_schema.deserialize(child)
+            results[key] = child
+        return results
 
 
     def fetch(self, options=None):
@@ -208,6 +209,7 @@ class Collection(backbone.Collection):
         self.schema_name = schema_name
         self.query = {}
         super(Collection, self).__init__(models, options)
+        self.schema = self.model.get_schema(self.schema_name)
 
     def url(self):
         return "%s/%s" % (self.storage_root, self.model.model_url)
@@ -237,6 +239,19 @@ class Collection(backbone.Collection):
 
     def __len__(self):
         return self.length
+
+    def parse(self, response):
+        results = []
+        for obj in response:
+            attrs = {}
+            for key in obj:
+                child = obj[key]
+                if self.schema is not None and key in self.schema:
+                    child_schema = self.schema[key]
+                    child = child_schema.deserialize(child)
+                attrs[key] = child
+            results.append(self.model(attrs, schema_name=self.schema_name))
+        return results
 
     #If key > len(self.models) append at the end
     def __setitem__(self, key, value):
@@ -286,19 +301,16 @@ class ModelRefNode(RefNode):
             return None
 
         if self.is_ref:
-            if isinstance(cstruct, Model):
-                return cstruct.id
             if isinstance(cstruct, dict):
-                return cstruct[self.target.id_attribute]
+                cstruct = cstruct[self.target.id_attribute]
             return self.target.id_type(cstruct)
         else:
-            if isinstance(cstruct, Model):
-                return cstruct
             if not isinstance(cstruct, dict):
                 d = {}
                 d[self.target.id_attribute] = cstruct
                 cstruct = d
-            return self.target(cstruct, schema_name=self.schema_name)
+            appstruct = super(ModelRefNode, self).deserialize(cstruct)
+            return self.target(appstruct, schema_name=self.schema_name)
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)
@@ -362,13 +374,11 @@ class CollectionRefNode(RefNode):
         self.add(child)
 
     def deserialize(self, cstruct=colander.null):
-        if isinstance(cstruct, Collection):
-            return cstruct
-
         if self.is_ref:
-            return cstruct
+            return [self.target.id_type(id) for id in cstruct]
 
-        return Collection(cstruct, model=self.target, schema_name = self.schema_name)
+        appstruct = super(CollectionRefNode, self).deserialize(cstruct)
+        return Collection(appstruct, model=self.target, schema_name = self.schema_name)
 
     def serialize(self, appstruct=colander.null):
         if appstruct is None:

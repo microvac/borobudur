@@ -129,10 +129,10 @@ class BaseStorage(object):
                     id = [m.id for m in obj.models]
                 return id
 
-        if isinstance(obj, Model):
-            obj = obj.attributes
-        if isinstance(obj, Collection):
-            obj = obj.models
+            if isinstance(obj, Model):
+                obj = obj.attributes
+            if isinstance(obj, Collection):
+                obj = obj.models
 
         return serializers[type(schema.typ)](obj, schema, serialize_child)
 
@@ -143,12 +143,19 @@ class BaseStorage(object):
                 return obj
             if storage is not None:
                 if isinstance(schema, CollectionRefNode):
-                    result = schema.deserialize([storage.one(item, schema.child) for item in obj])
+                    obj = [storage.one(item, schema.child) for item in obj]
+                    return Collection(obj, schema.target, schema_name=schema.schema_name)
                 else:
-                    result = schema.deserialize(storage.one(obj, schema))
-                return result
+                    obj = storage.one(obj, schema)
+                    return schema.target(obj, schema_name=schema.schema_name)
 
-        return deserializers[type(schema.typ)](obj, schema, deserialize_child)
+        result = deserializers[type(schema.typ)](obj, schema, deserialize_child)
+        if isinstance(schema, RefNode):
+            if isinstance(schema, CollectionRefNode):
+                return Collection(result, schema.target, schema_name=schema.schema_name)
+            else:
+                return schema.target(result, schema_name=schema.schema_name)
+        return result
 
 class MongoStorage(Storage, BaseStorage):
 
@@ -285,7 +292,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
 
-        return result
+        return result.attributes
 
     def update(self, parent_id, obj, schema=None):
         parent_schema = self.build_parent_schema(schema)
@@ -293,11 +300,11 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
 
         collection = parent[self.attribute_path]
         index = self.find(obj[self.model.id_attribute], collection)
-        collection[index] = obj
+        collection.models[index] = obj
         update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
 
-        return result
+        return result.attributes
 
     def delete(self, parent_id, id):
         parent_schema = self.build_parent_schema()
@@ -305,7 +312,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
 
         collection = parent[self.attribute_path]
         index = self.find(id, collection)
-        collection.pop(index)
+        collection.models.pop(index)
         update_result = self.parent_update(parent_id, parent, parent_schema)
 
         return True
@@ -317,7 +324,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         collection = parent[self.attribute_path]
         index = self.find(self.model.id_type(id), collection)
 
-        return collection[index]
+        return collection[index].attributes
 
     def all(self, parent_id, query=None, config=None, schema=None):
         parent_schema = self.build_parent_schema(schema)
@@ -331,7 +338,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         else:
             collection = parent[self.attribute_path][config.skip:len(parent[self.attribute_path])]
 
-        return collection
+        return [m.attributes for m in collection]
 
     def count(self, parent_id, query=None):
         parent_schema = self.build_parent_schema()
@@ -356,7 +363,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         return result
 
     def find(self, id, sequence):
-        for index, item in enumerate(sequence):
+        for index, item in enumerate(sequence.models):
             if item.get(self.model.id_attribute) == id:
                 return index
         return None

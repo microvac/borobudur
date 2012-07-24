@@ -265,9 +265,11 @@ class Collection(Event):
         return map(lambda model: model.get(attr), self.models)
         #return map(self.models, lambda model: model.get(attr))
 
-    def reset(self):
+    def reset(self, models=None):
         self.length = 0
         self.models = []
+        if models is not None:
+            self.add(models)
 
     #For now just check model type
     def _prepareModel(self, models, options=None):

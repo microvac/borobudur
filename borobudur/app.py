@@ -15,11 +15,11 @@ class ServiceModelLoader(BaseLoader):
 
     def load(self, model, callbacks):
         def success(attrs):
-
+            parsed = model.parse(attrs)
             if isinstance(model, Model):
-                model.set(attrs)
+                model.set(parsed)
             else:
-                model.reset(attrs)
+                model.reset(parsed)
             callbacks.success()
         url = "/app/services/%s/%s" % (self.service_id, self.service_attr)
         borobudur.query_el.getJSON(url, success)
