@@ -46,6 +46,9 @@ class Model(backbone.Model):
         return cls.schemas[schema_name]
 
     def url(self):
+        if self.storage_root is None:
+            raise ValueError("trying to get url of model with no storage root")
+
         id = None if self.isNew() else self.id
         current = self.parent
         while current is not None:
@@ -279,11 +282,23 @@ class ModelRefNode(RefNode):
         return result
 
     def deserialize(self, cstruct=colander.null):
-        if isinstance(cstruct, Model):
-            return cstruct
-        if not isinstance(cstruct, dict):
-            return cstruct
-        return self.target(cstruct, schema_name=self.schema_name)
+        if cstruct is None:
+            return None
+
+        if self.is_ref:
+            if isinstance(cstruct, Model):
+                return cstruct.id
+            if isinstance(cstruct, dict):
+                return cstruct[self.target.id_attribute]
+            return self.target.id_type(cstruct)
+        else:
+            if isinstance(cstruct, Model):
+                return cstruct
+            if not isinstance(cstruct, dict):
+                d = {}
+                d[self.target.id_attribute] = cstruct
+                cstruct = d
+            return self.target(cstruct, schema_name=self.schema_name)
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)

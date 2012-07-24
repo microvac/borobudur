@@ -143,9 +143,9 @@ class BaseStorage(object):
                 return obj
             if storage is not None:
                 if isinstance(schema, CollectionRefNode):
-                    result = [storage.one(item, schema.child) for item in obj]
+                    result = schema.deserialize([storage.one(item, schema.child) for item in obj])
                 else:
-                    result = storage.one(obj, schema)
+                    result = schema.deserialize(storage.one(obj, schema))
                 return result
 
         return deserializers[type(schema.typ)](obj, schema, deserialize_child)
@@ -279,9 +279,8 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         parent_schema = self.build_parent_schema(schema)
         parent = self.parent_one(parent_id, parent_schema)
 
-        serialized = mapping_serializer(obj, schema, self.serialize)
         collection = parent[self.attribute_path]
-        collection.append(serialized)
+        collection.add(obj)
         index = len(collection) - 1
         update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
@@ -292,10 +291,9 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         parent_schema = self.build_parent_schema(schema)
         parent = self.parent_one(parent_id, parent_schema)
 
-        serialized = mapping_serializer(obj, schema, self.serialize)
         collection = parent[self.attribute_path]
         index = self.find(obj[self.model.id_attribute], collection)
-        collection[index] = serialized
+        collection[index] = obj
         update_result = self.parent_update(parent_id, parent, parent_schema)
         result = update_result[self.attribute_path][index]
 

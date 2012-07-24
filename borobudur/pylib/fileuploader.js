@@ -44,7 +44,9 @@ qq.indexOf = function(arr, elt, from){
     
 qq.getUniqueId = (function(){
     var id = 0;
-    return function(){ return id++; };
+    return function(){
+        return id++;
+    };
 })();
 
 //

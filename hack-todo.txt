@@ -15,3 +15,5 @@ form button's order
 view access to parent, look new_inquiry
 
 attachment upload widget model_url
+
+embedded storage deserializing result twice!

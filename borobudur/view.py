@@ -20,6 +20,11 @@ def form_button(name, title, css_class="btn"):
         return fn
     return decorate
 
+class NullTemplate(object):
+
+    def render(self, el, model, vars):
+        print "rendering null template"
+
 class View(object):
     """
     todorambanan:type children d(i(str), c(borobudur.view:View))
@@ -27,7 +32,7 @@ class View(object):
     events = {}
     children = {}
     forms = {}
-    template = None
+    template = NullTemplate()
 
     def __init__(self, app, el, model, el_rendered):
         self.app = app
