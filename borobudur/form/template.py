@@ -1,3 +1,5 @@
+import borobudur
+
 def ZPTRendererFactory():
     """
     Construct a Chameleon ZPT :term:`renderer`.

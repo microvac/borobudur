@@ -85,14 +85,15 @@ class Model(backbone.Model):
                 child_schema = self.schema[key]
 
                 #special case for setting id on ref
-                if not isinstance(child, Model) and isinstance(child_schema, RefNode):
-                    if key in self.attributes:
-                        current_child = self[key]
-                        if isinstance(current_child, Model):
-                            if current_child.id == child:
-                                continue
-                            else:
-                                raise ValueError("cannot change model attr to different id. attr %s. current %s set to %s" % (key, current_child.id, child))
+                if child is not None:
+                    if not isinstance(child, Model) and isinstance(child_schema, RefNode):
+                        if key in self.attributes:
+                            current_child = self[key]
+                            if isinstance(current_child, Model):
+                                if current_child.id == child:
+                                    continue
+                                else:
+                                    raise ValueError("cannot change model attr to different id. attr %s. current %s set to %s" % (key, current_child.id, child))
 
                 #if new and old model have the id, use the old one by setting all new attributes to it
                 #this make all callbacks not lost
@@ -271,11 +272,12 @@ class ModelRefNode(RefNode):
     prambanan:type target c(object)
     """
 
-    def __init__(self, target, schema_name="", is_ref=True, **kwargs):
+    def __init__(self, target, schema_name="", is_ref=True, nullable=False, **kwargs):
         super(ModelRefNode, self).__init__(colander.Mapping(), **kwargs)
         self.target = target
         self.schema_name = schema_name
         self.is_ref = is_ref
+        self.nullable = nullable
 
         node = target.get_schema(schema_name)
         for child in node.children:
@@ -283,7 +285,9 @@ class ModelRefNode(RefNode):
 
     def serialize(self, appstruct):
         if appstruct is None:
-            return None
+            if self.nullable:
+                return None
+            appstruct = {}
 
         if self.is_ref:
             if isinstance(appstruct, Model):
@@ -297,7 +301,7 @@ class ModelRefNode(RefNode):
         return result
 
     def deserialize(self, cstruct=colander.null):
-        if cstruct is None:
+        if cstruct is None and self.nullable:
             return None
 
         if self.is_ref:

@@ -419,7 +419,7 @@ class Mapping(SchemaType):
 
     def serialize(self, node, appstruct):
         if appstruct is null:
-            return None
+            appstruct = {}
 
         def callback(subnode, subappstruct):
             return subnode.serialize(subappstruct)
