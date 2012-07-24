@@ -477,11 +477,11 @@ class DateInputWidget(Widget):
     default_options = [('dateFormat', 'yy-mm-dd'),]
 
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.options = {}
         for key, value in self.default_options:
             self.options[key] = value
-        super(Widget, self).__init__(self, *args, **kwargs)
+        super(DateInputWidget, self).__init__(**kwargs)
 
     def serialize(self, element, field, cstruct, readonly=False):
         if cstruct in (null, None):
@@ -536,13 +536,17 @@ class DateTimeInputWidget(DateInputWidget):
         if len(cstruct) == 25: # strip timezone if it's there
             cstruct = cstruct[:-6]
         cstruct = self.options['separator'].join(cstruct.split('T'))
-        return field.renderer(
+        result =  field.renderer(
             template,
             element,
             field,
             cstruct=cstruct,
             options="",
             )
+        from borobudur.jslib.bootstrap.datepicker import datepicker
+        datepicker(borobudur.query_el("input", element))
+        return result
+
 
     def deserialize(self, field, pstruct):
         if pstruct in ('', null):

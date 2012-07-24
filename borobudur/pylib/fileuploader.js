@@ -276,7 +276,7 @@ qq.FileUploaderBasic = function(o){
             sizeError: "{file} is too large, maximum file size is {sizeLimit}.",
             minSizeError: "{file} is too small, minimum file size is {minSizeLimit}.",
             emptyError: "{file} is empty, please select files again without it.",
-            onLeave: "The files are being uploaded, if you leave now the upload will be cancelled."            
+            onLeave: "File sedang di upload. Jika Anda keluar sekarang upload akan dibatalkan"
         },
         showMessage: function(message){
             alert(message);
