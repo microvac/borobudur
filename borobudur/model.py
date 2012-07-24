@@ -272,11 +272,10 @@ class ModelRefNode(RefNode):
     prambanan:type target c(object)
     """
 
-    def __init__(self, target, schema_name="", is_ref=True, nullable=False, **kwargs):
+    def __init__(self, target, schema_name="", nullable=False, **kwargs):
         super(ModelRefNode, self).__init__(colander.Mapping(), **kwargs)
         self.target = target
         self.schema_name = schema_name
-        self.is_ref = is_ref
         self.nullable = nullable
 
         node = target.get_schema(schema_name)
@@ -289,14 +288,9 @@ class ModelRefNode(RefNode):
                 return None
             appstruct = {}
 
-        if self.is_ref:
-            if isinstance(appstruct, Model):
-                appstruct = appstruct.id
-            result = str(appstruct)
-        else:
-            if isinstance(appstruct, Model):
-                appstruct = appstruct.attributes
-            result = super(ModelRefNode, self).serialize(appstruct)
+        if isinstance(appstruct, Model):
+            appstruct = appstruct.attributes
+        result = super(ModelRefNode, self).serialize(appstruct)
 
         return result
 
@@ -304,17 +298,13 @@ class ModelRefNode(RefNode):
         if cstruct is None and self.nullable:
             return None
 
-        if self.is_ref:
-            if isinstance(cstruct, dict):
-                cstruct = cstruct[self.target.id_attribute]
-            return self.target.id_type(cstruct)
-        else:
-            if not isinstance(cstruct, dict):
-                d = {}
-                d[self.target.id_attribute] = cstruct
-                cstruct = d
-            appstruct = super(ModelRefNode, self).deserialize(cstruct)
-            return self.target(appstruct, schema_name=self.schema_name)
+        if not isinstance(cstruct, dict):
+            d = {}
+            d[self.target.id_attribute] = cstruct
+            cstruct = d
+        appstruct = super(ModelRefNode, self).deserialize(cstruct)
+
+        return self.target(appstruct, schema_name=self.schema_name)
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)
@@ -365,22 +355,18 @@ class ModelRefWidget(Widget):
 
 class CollectionRefNode(RefNode):
 
-    def __init__(self, target, schema_name="", is_ref=True, **kwargs):
+    def __init__(self, target, schema_name="", **kwargs):
         super(CollectionRefNode, self).__init__(colander.Sequence(), **kwargs)
 
         self.target = target
         self.schema_name = schema_name
-        self.is_ref = is_ref
 
-        child = ModelRefNode(target, schema_name, is_ref)
+        child = ModelRefNode(target, schema_name)
         child.name = "child"
         self.child = child
         self.add(child)
 
     def deserialize(self, cstruct=colander.null):
-        if self.is_ref:
-            return [self.target.id_type(id) for id in cstruct]
-
         appstruct = super(CollectionRefNode, self).deserialize(cstruct)
         return Collection(appstruct, model=self.target, schema_name = self.schema_name)
 
@@ -388,16 +374,9 @@ class CollectionRefNode(RefNode):
         if appstruct is None:
             return None
 
-        if self.is_ref:
-            if isinstance(appstruct, Collection):
-                appstruct = [m.id for m in appstruct]
-            result = [str(id) for id in appstruct]
-        else:
-            if isinstance(appstruct, Collection):
-                appstruct = appstruct.models
-            return super(CollectionRefNode, self).serialize(appstruct)
-
-        return result
+        if isinstance(appstruct, Collection):
+            appstruct = appstruct.models
+        return super(CollectionRefNode, self).serialize(appstruct)
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)

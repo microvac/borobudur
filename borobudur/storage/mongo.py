@@ -141,8 +141,6 @@ class BaseStorage(object):
     def deserialize(self, obj, schema, deserialize_child):
         if isinstance(schema, RefNode):
             storage = self.context.get(schema.target)
-            if schema.is_ref:
-                return obj
             if storage is not None:
                 if isinstance(schema, CollectionRefNode):
                     obj = [storage.one(item, schema.child) for item in obj]
@@ -389,7 +387,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
 
         structure = {
             parent_id_attribute: parent_id_node,
-            self.attribute_path: CollectionRefNode(self.model, schema_name, is_ref=False),
+            self.attribute_path: CollectionRefNode(self.model, schema_name)
         }
         return MappingNode(**structure)
 
