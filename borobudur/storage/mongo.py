@@ -188,10 +188,6 @@ class MongoStorage(Storage, BaseStorage):
         previous = self.collection.find_one({self.model.id_attribute: self.model.id_type(obj[self.model.id_attribute])})
         result = merge_document(serialized, previous)
 
-        #mongo doesn't receive set _id
-        if "_id" in result:
-            del result["_id"]
-
         self.collection.update({self.model.id_attribute: self.model.id_type(obj[self.model.id_attribute])},
                                result
                               )
