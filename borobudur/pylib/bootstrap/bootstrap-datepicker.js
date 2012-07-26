@@ -66,7 +66,6 @@
 			$(window).on('resize', $.proxy(this.place, this));
 			if (e ) {
 				e.stopPropagation();
-				e.preventDefault();
 			}
 			if (!this.isInput) {
 				$(document).on('mousedown', $.proxy(this.hide, this));

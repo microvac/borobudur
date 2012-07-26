@@ -145,6 +145,8 @@ class BaseStorage(object):
                     return Collection(obj, schema.target, schema_name=schema.schema_name)
                 else:
                     obj = storage.one(obj, schema)
+                    if schema.nullable and obj is None:
+                        return None
                     return schema.target(obj, schema_name=schema.schema_name)
 
         result = deserializers[type(schema.typ)](obj, schema, deserialize_child)
