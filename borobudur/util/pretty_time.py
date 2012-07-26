@@ -8,7 +8,7 @@ __copyright__ = "Copyright 2010, S Anand"
 __license__ = "WTFPL"
 __translator__ = "VP"
 
-from datetime import datetime
+from datetime import datetime, date
 from translationstring import TranslationString, TranslationStringFactory
 
 _ = TranslationStringFactory("borobudur")

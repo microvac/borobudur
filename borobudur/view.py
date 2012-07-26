@@ -1,8 +1,10 @@
+import translationstring
 from borobudur.model import Collection, Model
 import prambanan
 import borobudur
 import prambanan.jslib.underscore as underscore
 from borobudur.form.form import Form, Button
+from borobudur.util.pretty_time import pretty_time
 
 delegate_event_splitter = prambanan.JS("/^(\S+)\s*(.*)$/")
 
@@ -24,6 +26,12 @@ class NullTemplate(object):
 
     def render(self, el, model, vars):
         print "rendering null template"
+
+translator = translationstring.Translator()
+
+view_utils = {
+    "pretty_time": lambda time: pretty_time(time, translator)
+}
 
 class View(object):
     """
@@ -47,6 +55,8 @@ class View(object):
         self.render_dict = {}
         self.render_dict["view"] = self
         self.render_dict["app"] = app
+        self.render_dict["utils"] = view_utils
+        self.render_dict["translator"] = translator
 
         self.delegate_events()
 

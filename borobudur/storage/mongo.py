@@ -18,10 +18,24 @@ class StorageContext(object):
     def get(self, model):
         return self.reference.get(model, None)
 
+#### Serializer and deserializers ###
+# serializer should be forgiving on non existing items that make adding child schema later easier
+# deserializer should harsher, spawning errors in times
+
 def null_converter(obj, schema=None, func=None):
     return obj
 
-def sequence_converter(obj, schema, converter):
+def sequence_serializer(obj, schema, converter):
+    result = []
+    child_schema = schema.children[0]
+    for child_obj in obj:
+        result.append(converter(child_obj, child_schema, converter))
+    return result
+
+def sequence_deserializer(obj, schema, converter):
+    if obj is None:
+        obj = []
+
     result = []
     child_schema = schema.children[0]
     for child_obj in obj:
@@ -30,32 +44,31 @@ def sequence_converter(obj, schema, converter):
 
 def mapping_serializer(obj, schema, serialize_child):
     result = {}
-    #if "_id" in obj:
-    #    result["_id"] = obj["_id"]
     for child_schema in schema.children:
         child_obj = obj[child_schema.name]
         result[child_schema.name] = serialize_child(child_obj, child_schema, serialize_child)
     return result
 
 def mapping_deserializer(obj, schema, deserialize_child):
-    result = {}
-    #if "_id" in obj:
-    #    result["_id"] = obj["_id"]
     if obj is None:
-        return None
+        obj = {}
+
+    result = {}
     for child_schema in schema.children:
-        if child_schema.name in obj:
-            child_obj = obj[child_schema.name]
-            result[child_schema.name] = deserialize_child(child_obj, child_schema, deserialize_child)
+        if child_schema.name not in obj:
+            child_obj = None
         else:
-            #Todo: consider missing values implementation
-            result[child_schema.name] = None
+            child_obj = obj[child_schema.name]
+        result[child_schema.name] = deserialize_child(child_obj, child_schema, deserialize_child)
+
     return result
 
 def date_serializer(obj, schema=None, func=None):
     return datetime(year=obj.year, month=obj.month, day=obj.day)
 
 def date_deserializer(obj, schema=None, func=None):
+    if obj is None:
+        return None
     return date(year=obj.year, month=obj.month, day=obj.day)
 
 def object_id_serializer(obj, schema=None, func=None):
@@ -68,7 +81,7 @@ serializers = {
     colander.DateTime: null_converter,
     colander.Boolean: null_converter,
     #colander.Decimal:
-    colander.Sequence: sequence_converter,
+    colander.Sequence: sequence_serializer,
     colander.Mapping: mapping_serializer,
     ObjectId: object_id_serializer,
     Date: date_serializer,
@@ -82,7 +95,7 @@ deserializers = {
     colander.DateTime: null_converter,
     colander.Boolean: null_converter,
     #colander.Decimal:
-    colander.Sequence: sequence_converter,
+    colander.Sequence: sequence_deserializer,
     colander.Mapping: mapping_deserializer,
     ObjectId: null_converter,
     Date: date_deserializer,
@@ -149,6 +162,8 @@ class BaseStorage(object):
                     if obj is None and schema.nullable:
                         return None
                     obj = storage.one(obj, schema)
+                    if schema.nullable and obj is None:
+                        return None
                     return schema.target(obj, schema_name=schema.schema_name)
 
         result = deserializers[type(schema.typ)](obj, schema, deserialize_child)
@@ -156,6 +171,8 @@ class BaseStorage(object):
             if isinstance(schema, CollectionRefNode):
                 return Collection(result, schema.target, schema_name=schema.schema_name)
             else:
+                if schema.nullable and obj is None:
+                    return None
                 return schema.target(result, schema_name=schema.schema_name)
         return result
 
