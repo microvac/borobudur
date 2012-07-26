@@ -154,6 +154,8 @@ class BaseStorage(object):
             if isinstance(schema, CollectionRefNode):
                 return Collection(result, schema.target, schema_name=schema.schema_name)
             else:
+                if schema.nullable and obj is None:
+                    return None
                 return schema.target(result, schema_name=schema.schema_name)
         return result
 
