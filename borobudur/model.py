@@ -80,6 +80,10 @@ class Model(backbone.Model):
 
         for key in iter(attrs):
             child = attrs[key]
+            if key in self.attributes:
+                current_child = self[key]
+            else:
+                current_child = None
 
             if self.schema is not None and key in self.schema:
                 child_schema = self.schema[key]
@@ -97,13 +101,13 @@ class Model(backbone.Model):
 
                 #if new and old model have the id, use the old one by setting all new attributes to it
                 #this make all callbacks not lost
-                if isinstance(child, Model):
-                    if key in self.attributes:
-                        current_child = self[key]
-                        if isinstance(current_child, Model) and current_child.id == child.id:
-                            current_child.set(child.attributes)
-                            child = current_child
-
+                if isinstance(child, Model) and isinstance(current_child, Model) and current_child.id == child.id:
+                    current_child.set(child.attributes)
+                    child = current_child
+                #if new and old child is a collection, just reset that collection
+                if isinstance(child, Collection) and isinstance(current_child, Collection):
+                    current_child.reset(child.models)
+                    child = current_child
 
             copy[key] = child
 
@@ -326,6 +330,9 @@ class ModelRefWidget(Widget):
         return pstruct
 
     def to_pstruct(self, name, cstruct):
+        if cstruct is None:
+            cstruct = {}
+
         def process_dict(process, name, item):
             results = []
             results.append(["__start__", "%s:mapping" % name])
@@ -382,4 +389,10 @@ class CollectionRefNode(RefNode):
         cloned = self.__class__(self.target, self.schema_name)
         clone_node(self, cloned)
         return cloned
+
+class CollectionRefWidget(ModelRefWidget):
+    def to_pstruct(self, name, cstruct):
+        if cstruct is None:
+            cstruct = []
+        return super(CollectionRefWidget, self).to_pstruct(name, cstruct)
 
