@@ -47,7 +47,8 @@ class Model(backbone.Model):
 
     def url(self):
         if self.storage_root is None:
-            raise ValueError("trying to get url of model with no storage root")
+            self.storage_root = "/app/storages"
+            #raise ValueError("trying to get url of model with no storage root")
 
         id = None if self.isNew() else self.id
         current = self.parent
@@ -217,10 +218,9 @@ class Collection(backbone.Collection):
         self.schema = self.model.get_schema(self.schema_name)
 
     def url(self):
+        if not self.storage_root:
+            self.storage_root = "/app/storages"
         return "%s/%s" % (self.storage_root, self.model.model_url)
-
-    def create(self):
-        return self.model(schema_name=self.schema_name)
 
     def fetch(self, options=None):
         data  = {}

@@ -14,7 +14,8 @@ from translationstring import TranslationString, TranslationStringFactory
 _ = TranslationStringFactory("borobudur")
 
 def _df(seconds, denominator=1, text='', past=True):
-    value = str((seconds + denominator/2)/ denominator)
+    value = seconds + denominator/2
+    value = str(int(value/ denominator))
     msg_past = _("${value}${text} lalu", mapping={"value": value, "text": text})
     msg_future = _("${value}${text} lagi", mapping={"value": value, "text": text})
     if past:   return msg_past
