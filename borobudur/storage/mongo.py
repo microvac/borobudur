@@ -1,7 +1,7 @@
 import bson
 from borobudur.storage import Storage, StorageException, SearchConfig
 from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection
-from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode
+from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode, DateTime
 from datetime import datetime, date
 
 from pymongo import ASCENDING, DESCENDING
@@ -45,6 +45,8 @@ def sequence_deserializer(obj, schema, converter):
 def mapping_serializer(obj, schema, serialize_child):
     result = {}
     for child_schema in schema.children:
+        if obj is None:
+            print "ea"
         child_obj = obj[child_schema.name]
         result[child_schema.name] = serialize_child(child_obj, child_schema, serialize_child)
     return result
@@ -135,9 +137,11 @@ class MongoStorageException(StorageException):
 class BaseStorage(object):
     def serialize(self, obj, schema, serialize_child):
         if isinstance(schema, RefNode):
+            if obj is None and schema.nullable:
+                return None
+
             storage = self.context.get(schema.target)
             if storage is not None:
-                id = obj
                 if isinstance(obj, Model):
                     id = obj.id
                 if isinstance(obj, Collection):
@@ -156,6 +160,8 @@ class BaseStorage(object):
             storage = self.context.get(schema.target)
             if storage is not None:
                 if isinstance(schema, CollectionRefNode):
+                    if obj is None:
+                        obj = []
                     obj = [storage.one(item, schema.child) for item in obj]
                     return Collection(obj, schema.target, schema_name=schema.schema_name)
                 else:
