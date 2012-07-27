@@ -10,7 +10,9 @@ delegate_event_splitter = prambanan.JS("/^(\S+)\s*(.*)$/")
 
 def on_element(event, selector=None):
     def decorate(fn):
-        fn._on_element = (event, selector)
+        if not hasattr(fn, "_on_element"):
+            fn._on_element = []
+        fn._on_element.append((event, selector))
         return fn
     return  decorate
 
@@ -145,7 +147,8 @@ class View(object):
         for attr in underscore.functions(self):
             value = self[attr]
             if value._on_element:
-                results.append([value._on_element, value])
+                for conf in value._on_element:
+                    results.append([conf, value])
         return results
 
     def find_decorated_buttons(self, name):
