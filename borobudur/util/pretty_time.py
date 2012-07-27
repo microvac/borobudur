@@ -35,7 +35,7 @@ def pretty_time(time, translator):
     elif not time:
         time = now
 
-    if time > now:
+    if time.__cmp__(now) == 1:
         past = False
         diff = time.__sub__(now)
     else:

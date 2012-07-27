@@ -1033,7 +1033,7 @@ class DateTime(SchemaType):
                             mapping={'val':appstruct})
                           )
 
-        return appstruct.isoformat()
+        return appstruct._d.toISOString()
 
     def deserialize(self, node, cstruct):
         if not cstruct:
