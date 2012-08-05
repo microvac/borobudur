@@ -336,9 +336,26 @@ class ModelRefWidget(Widget):
         return field.renderer(self.template, element, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
+        return self.deserialize_pstruct(pstruct, field.schema)
+
+    def deserialize_pstruct(self, pstruct, schema):
+        typ = type(schema.typ)
+        if typ == colander.Mapping:
+            if pstruct == "":
+                return colander.null
+            for key in pstruct:
+                pstruct[key] = self.deserialize_pstruct(pstruct[key], schema[key])
+            return pstruct
+        if typ == colander.Sequence:
+            if pstruct == "":
+                return colander.null
+            for i in range(len(pstruct)):
+                pstruct[i] = self.deserialize_pstruct(pstruct[i], schema.children[0])
+
         if not pstruct:
             return colander.null
         return pstruct
+
 
     def to_pstruct(self, name, cstruct):
         if cstruct is None:
@@ -402,6 +419,10 @@ class CollectionRefNode(RefNode):
         return cloned
 
 class CollectionRefWidget(ModelRefWidget):
+
+    def deserialize(self, field, pstruct):
+        return self.deserialize_pstruct(pstruct, field.schema)
+
     def to_pstruct(self, name, cstruct):
         if cstruct is None:
             cstruct = []
