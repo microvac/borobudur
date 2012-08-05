@@ -163,7 +163,7 @@ class BaseStorage(object):
                     if obj is None:
                         obj = []
                     obj = [storage.one(item, schema.child) for item in obj]
-                    return Collection(obj, schema.target, schema_name=schema.schema_name)
+                    return Collection(schema.target, obj, schema_name=schema.schema_name)
                 else:
                     if obj is None and schema.nullable:
                         return None
@@ -175,7 +175,7 @@ class BaseStorage(object):
         result = deserializers[type(schema.typ)](obj, schema, deserialize_child)
         if isinstance(schema, RefNode):
             if isinstance(schema, CollectionRefNode):
-                return Collection(result, schema.target, schema_name=schema.schema_name)
+                return Collection(schema.target, result, schema_name=schema.schema_name)
             else:
                 if schema.nullable and obj is None:
                     return None

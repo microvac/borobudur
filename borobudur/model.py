@@ -221,7 +221,10 @@ class Collection(backbone.Collection):
 
     sync = borobudur_sync
 
-    def __init__(self, models=None, model=Model, schema_name=""):
+    def __init__(self, model=Model, models=None, schema_name=""):
+        if models is None:
+            models = []
+
         self.schema_name = schema_name
         self.schema = model.get_schema(self.schema_name)
         self.query = {}
@@ -391,7 +394,7 @@ class CollectionRefNode(RefNode):
 
     def deserialize(self, cstruct=colander.null):
         appstruct = super(CollectionRefNode, self).deserialize(cstruct)
-        return Collection(appstruct, model=self.target, schema_name = self.schema_name)
+        return Collection(self.target, appstruct, schema_name = self.schema_name)
 
     def serialize(self, appstruct=colander.null):
         if appstruct is None:
