@@ -12,7 +12,7 @@ class APIInvocationsView(View):
     active_child = None
     q_active_tr = None
 
-    @on_element("click", "tr")
+    @on_element("tr", "click")
     def show_invocation(self, ev):
         if self.active_child is not None:
             self.q_active_tr.removeClass("pDebugEven")

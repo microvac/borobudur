@@ -8,11 +8,11 @@ from borobudur.util.pretty_time import pretty_time
 
 delegate_event_splitter = prambanan.JS("/^(\S+)\s*(.*)$/")
 
-def on_element(event, selector=None):
+def on_element(selector, event_name, prevent_default=True):
     def decorate(fn):
         if not hasattr(fn, "_on_element"):
             fn._on_element = []
-        fn._on_element.append((event, selector))
+        fn._on_element.append((selector, event_name, prevent_default))
         return fn
     return  decorate
 
@@ -121,8 +121,15 @@ class View(object):
 
         self.undelegate_events()
 
-        for pair, method in events:
-            event_name, selector = pair
+        def make_handler(method, prevent_default):
+            def handler(ev):
+                if prevent_default:
+                    ev.preventDefault()
+                method(ev)
+            return handler
+
+        for config, method in events:
+            selector, event_name, prevent_default = config
 
             if not underscore.isFunction(method):
                 if not self[method]:
@@ -130,14 +137,16 @@ class View(object):
                 method = self[method]
 
             method = underscore.bind(method, self)
-            event_name += '.delegateEvents' + self.cid
-
             method = prambanan.wrap_on_error(method)
 
+            event_name += '.delegateEvents' + self.cid
+
+            handler = make_handler(method, prevent_default)
+
             if selector is None:
-                self.q_el.bind(event_name, method)
+                self.q_el.bind(event_name, handler)
             else:
-                self.q_el.delegate(selector, event_name, method)
+                self.q_el.delegate(selector, event_name, handler)
 
     def undelegate_events(self):
         if borobudur.is_server:
