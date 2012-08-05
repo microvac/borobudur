@@ -200,15 +200,7 @@ class Model(backbone.Model):
     def clone(self):
         return self.__class__(self.attributes, self.schema_name, self.parent)
 
-    def as_dict(self, schema_name=None):
-        if schema_name is not None:
-            self.serialize_schema = self.__class__.get_schema(schema_name)
-
-        result = self.toJSON()
-
-        self.serialize_schema = None
-
-        return result
+    def asdict(self): return self.toJSON(self)
 
     # Methods converted to python underscore-separated style
     def is_new(self): return self.isNew()
