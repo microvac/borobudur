@@ -11,7 +11,7 @@
     </h3>
     <b>Settings</b>
     <br />
-    <pre style="background-color: white; padding: 10px; font-family: monospace;">${stringify(#.settings)}</pre>
+    <pre style="background-color: white; padding: 10px; font-family: monospace;">${stringify(#.settings, null, 2)}</pre>
 
     <div tal:condition="#.status != 'loading'">
         <br />
@@ -25,7 +25,7 @@
         <div tal:condition="#.status == 'success'">
             <b>Response Text</b>
             <br />
-            <pre style="background-color: white; padding: 10px; font-family: monospace;">${stringify(parse(#.xhr.responseText), null, 4)}</pre>
+            <pre style="background-color: white; padding: 10px; font-family: monospace;">${stringify(parse(#.xhr.responseText), null, 2)}</pre>
          </div>
 
         <div tal:condition="#.status == 'error'" style="background-color: white; padding: 10px;">

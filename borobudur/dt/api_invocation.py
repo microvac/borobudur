@@ -2,6 +2,7 @@ import borobudur
 from borobudur.model import Model
 from borobudur.view import View, on_element
 from prambanan import get_template, JS
+from prambanan.jslib import underscore
 
 class APIInvocationView(View):
     template = get_template("zpt", ("borobudur", "dt/api_invocation.pt"))
@@ -36,7 +37,9 @@ def bind_ajax_request(app, col):
             elif settings.url.indexOf("/storages/") != -1:
                 type = "Storages"
             if type is not None:
-                model = Model({"status":"loading", "settings":settings, "type": type})
+                showed_settings = underscore.extend({}, settings)
+                del showed_settings["app"]
+                model = Model({"status":"loading", "settings":showed_settings, "type": type})
                 col.add(model)
 
                 prev_success = settings.success

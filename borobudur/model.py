@@ -5,36 +5,71 @@ import borobudur.jslib.backbone as backbone
 import borobudur.schema as schema
 from borobudur.form.widget import Widget
 from borobudur.schema import clone_node
-from prambanan import get_template
+from prambanan import get_template, JS
+from prambanan.jslib import underscore
 
 class RefNode(colander.SchemaNode):
     pass
+
+def get_sync_options(options, app, schema_name, success, error):
+    if options is None:
+        options = {}
+    options["schema_name"] = schema_name
+    options["app"] = app
+    options["success"] = success
+    options["error"] = error
+    return options
+
+methodMap = {
+    'create': 'POST',
+    'update': 'PUT',
+    'delete': 'DELETE',
+    'read':   'GET'
+};
+
+def borobudur_sync (method, model, options=None):
+    type = methodMap[method];
+    params = {"type": type, "dataType": 'json'};
+
+    url = model.url(options["app"])
+    query = {}
+    if options.query:
+        query = underscore.extend(options.query)
+    if options.schema_name != "":
+        query["s"]=options.schema_name
+    i = 0
+    for key in query:
+        url += "?" if i == 0 else "&"
+        url += "%s=%s" % (key, query[key])
+    params.url = url
+
+    if not options.data and model and (method == 'create' or method == 'update'):
+        params.contentType = 'application/json';
+        params.data = JS("JSON.stringify(model.toJSON())");
+
+    # Don't process data on a non-GET request.
+    if params.type != 'GET':
+        params.processData = False;
+
+    # Make the request, allowing the user to override any Ajax options.
+    return JS("$.ajax(_.extend(params, options))")
 
 class Model(backbone.Model):
     """
     """
 
-    contains_file = False
-
     id_attribute = "_id"
     id_type = ObjectId
 
-    schemas = {}
+    schemas = {"": schema.MappingNode()}
     model_url = None
 
-    has_json_body = False
+    sync = borobudur_sync
 
-    def __init__(self, attributes=None, storage_root=None, schema_name=None, parent=None):
+    def __init__(self, attributes=None, schema_name="", parent=None):
         self.schema_name = schema_name
-        self.storage_root = storage_root
 
-        if schema_name is not None:
-            self.schema = self.__class__.get_schema(schema_name)
-        else:
-            self.schema = None
-
-        self.save_schema_name = None
-        self.serialize_schema = None
+        self.schema = self.__class__.get_schema(schema_name)
 
         self.parent = parent
         self.idAttribute = self.id_attribute
@@ -45,11 +80,7 @@ class Model(backbone.Model):
     def get_schema(cls, schema_name=""):
         return cls.schemas[schema_name]
 
-    def url(self):
-        if self.storage_root is None:
-            self.storage_root = "/app/storages"
-            #raise ValueError("trying to get url of model with no storage root")
-
+    def url(self, app):
         id = None if self.isNew() else self.id
         current = self.parent
         while current is not None:
@@ -59,19 +90,10 @@ class Model(backbone.Model):
                 id = current.id
             current = current.parent
 
-        result = "%s/%s" % (self.storage_root, self.model_url)
+        result = "%s/%s" % (app.storage_root, self.model_url)
         if id is not None:
             result = "%s/%s" % (result, id)
-        if self.has_json_body:
-            schema_name = self.schema_name
-            if self.save_schema_name is not None:
-                schema_name = self.save_schema_name
-            if schema_name is not None:
-                result += "?s="+schema_name
         return result
-
-    def validate(self, attributes):
-        return None
 
     def set(self, attrs, silent=False):
         """
@@ -148,26 +170,13 @@ class Model(backbone.Model):
         return results
 
 
-    def fetch(self, options=None):
-        data  = {}
-        if self.schema_name is not None and self.schema_name != "":
-            data["s"] = self.schema_name
-        if options is None:
-            options = {}
-        options["data"] = data
+    def fetch(self, app, success=None, error=None, options=None):
+        options = get_sync_options(options, app, self.schema_name, success, error)
         super(Model, self).fetch(options)
 
-    def save(self, schema_name=None, options=None):
-        if schema_name is not None:
-            self.serialize_schema = self.__class__.get_schema(schema_name)
-        self.has_json_body = True
-        self.save_schema_name = schema_name
-
+    def save(self, app, success=None, error=None, options=None):
+        options = get_sync_options(options, app, self.schema_name, success, error)
         super(Model, self).save({}, options)
-
-        self.has_json_body = False
-        self.serialize_schema = None
-        self.save_schema_name = None
 
     @staticmethod
     def serialize_queries(queries):
@@ -189,7 +198,7 @@ class Model(backbone.Model):
         raise NotImplementedError()
 
     def clone(self):
-        return self.__class__(self.attributes, self.storage_root, self.schema_name, self.parent)
+        return self.__class__(self.attributes, self.schema_name, self.parent)
 
     def as_dict(self, schema_name=None):
         if schema_name is not None:
@@ -210,27 +219,34 @@ class Model(backbone.Model):
 
 class Collection(backbone.Collection):
 
-    def __init__(self, models=None, model=Model, storage_root=None, schema_name=None):
-        options = {"model": model}
+    sync = borobudur_sync
+
+    def __init__(self, models=None, model=Model, schema_name=""):
         self.schema_name = schema_name
+        self.schema = model.get_schema(self.schema_name)
         self.query = {}
+
+        options = {"model": model}
         super(Collection, self).__init__(models, options)
-        self.schema = self.model.get_schema(self.schema_name)
 
     def url(self):
         if not self.storage_root:
             self.storage_root = "/app/storages"
         return "%s/%s" % (self.storage_root, self.model.model_url)
 
-    def fetch(self, options=None):
-        data  = {}
-        if self.schema_name is not None:
-            data["s"] = self.schema_name
-        for key in self.query:
-            data[key] = self.query[key]
-        if options is None:
-            options = {}
-        options["data"] = data
+    def create(self, model, app, success=None, error=None, options=None):
+        model = self._prepareModel(model, options)
+        self.add(model, options);
+        def wrapped_success(next_model, resp):
+            if success is not None:
+                success(next_model, resp)
+            else:
+                next_model.trigger('sync', model, resp, options)
+        model.save(app, wrapped_success, error, options)
+
+    def fetch(self, app, success=None, error=None, options=None):
+        options = get_sync_options(options, app, self.schema_name, success, error)
+        options["query"] = self.query
         super(Collection, self).fetch(options)
 
     def _prepareModel(self, model, options=None):

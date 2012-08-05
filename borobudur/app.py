@@ -13,7 +13,7 @@ class ServiceModelLoader(BaseLoader):
         self.service_id = service_id
         self.service_attr = service_attr
 
-    def load(self, model, callbacks):
+    def load(self, app, model, callbacks):
         def success(attrs):
             parsed = model.parse(attrs)
             if isinstance(model, Model):
@@ -21,17 +21,16 @@ class ServiceModelLoader(BaseLoader):
             else:
                 model.reset(parsed)
             callbacks.success()
-        url = "/app/services/%s/%s" % (self.service_id, self.service_attr)
+        url = "%s/%s/%s" % (app.service_root, self.service_id, self.service_attr)
         borobudur.query_el.getJSON(url, success)
 
 class StorageModelLoader(BaseLoader):
-    def load(self, model, callbacks):
+
+    def load(self, app, model, callbacks):
         options = {
             "data": self.params,
-            "success":callbacks.success,
-            "error": callbacks.error
         }
-        model.fetch(options)
+        model.fetch(app, callbacks.success, callbacks.error, options)
 
 class ServiceInvoker(object):
 
@@ -95,8 +94,7 @@ class Loaders(object):
     def next(self):
         name, loader = self.loaders[self.i]
         model = self.models[name]
-        model.storage_root = self.page.storage_root
-        loader.load(model, self)
+        loader.load(self.page.app, model, self)
 
 
 def find_LCA(current_page, target_page_type):
@@ -232,6 +230,9 @@ class App(object):
         self.api_root = settings["api_root"];
         self.pages = []
         self.module_names = []
+
+        self.storage_root = self.root+self.api_root+"storages"
+        self.service_root = self.root+self.api_root+"services"
 
         for route, page_type_id  in settings["pages"]:
             self.add_page(route, page_type_id)
