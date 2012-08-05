@@ -1,19 +1,10 @@
 objectid -> string on client
 colander_patch
 
-dictionary get on prambanan
 tal:i18n_attributes on template
 
 MappingNode constructor with missing, etc
-model storage_root
-model has_json_body (POST with schema_name on query_string)
-modelref serialize/deserializer
-
 from module import submodule doesnt works (must be changed to import module.submodule as submodule)
 
 form button's order
-view access to parent, look new_inquiry
-
 attachment upload widget model_url
-
-embedded storage deserializing result twice!
