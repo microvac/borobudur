@@ -23,7 +23,7 @@ class APIInvocationsView(View):
         q_el.addClass("pDebugEven")
         cid = q_el.attr("data-key")
         model = self.model.getByCid(cid)
-        self.active_child = APIInvocationView(self.app, self.el_query(".invocation div")[0], model, False)
+        self.active_child = APIInvocationView(self, self.el_query(".invocation div")[0], model, False)
 
 def bind_ajax_request(app, col):
     jQuery = borobudur.query_el

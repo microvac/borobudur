@@ -44,8 +44,9 @@ class View(object):
     forms = {}
     template = NullTemplate()
 
-    def __init__(self, app, el, model, el_rendered):
-        self.app = app
+    def __init__(self, parent, el, model, el_rendered):
+        self.parent = parent
+        self.app = parent.app
         self.model = model
         self.el = el
         self.el_query = borobudur.create_el_query(el)
@@ -56,18 +57,33 @@ class View(object):
 
         self.render_dict = {}
         self.render_dict["view"] = self
-        self.render_dict["app"] = app
+        self.render_dict["app"] = self.app
         self.render_dict["utils"] = view_utils
         self.render_dict["translator"] = translator
 
         self.delegate_events()
 
         self.initialize()
+
         if not el_rendered:
             self.render()
 
     def initialize(self):
         pass
+
+    def render(self):
+        self.template.render(self.el, self.model, self.render_dict)
+        return self
+
+    def remove(self):
+        for child_view in self.child_views:
+            child_view.remove()
+        self.child_views = []
+        self.q_el.remove()
+        return self
+
+    def parent_page(self):
+        return self.parent.parent_page() if hasattr(self.parent, "parent_page") else self.parent
 
     def render_form(self, el, model, name):
         schema = self.forms[name]
@@ -89,22 +105,12 @@ class View(object):
 
     def render_child(self, el, model, name):
         child_view_type = self.children[name]
-        child_view = prambanan.JS("new child_view_type(self.app, el, model, false)")
+        child_view = prambanan.JS("new child_view_type(self, el, model, false)")
         self.child_views.append(child_view)
 
     def get_child_model(self, child_name):
         return self.model[child_name]
 
-    def render(self):
-        self.template.render(self.el, self.model, self.render_dict)
-        return self
-
-    def remove(self):
-        for child_view in self.child_views:
-            child_view.remove()
-        self.child_views = []
-        self.q_el.remove()
-        return self
 
     def delegate_events(self):
         if borobudur.is_server:

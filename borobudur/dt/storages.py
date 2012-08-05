@@ -16,7 +16,7 @@ class StorageView(View):
         self.model_type = prambanan.load_module_attr(model_type_name)
 
         model = Model({"model_type": self.model_type, "model_type_name": model_type_name})
-        super(StorageView, self).__init__(app, el, model, False)
+        super(StorageView, self).__init__(self, el, model, False)
         self.show_form()
 
     @on_element("change", "select.schema-chooser")

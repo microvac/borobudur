@@ -42,7 +42,7 @@ class Page(object):
         prambanan:type view_type c(borobudur.view:View)
         """
         el = self.document.el_query("#"+id)[0]
-        view = view_type(self.app, el, model, self.el_rendered)
+        view = view_type(self, el, model, self.el_rendered)
         self.views.append((id, view))
 
     def load_model(self, model_name, model_type, schema_name, **attrs):
