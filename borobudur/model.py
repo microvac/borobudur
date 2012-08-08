@@ -174,9 +174,9 @@ class Model(backbone.Model):
         options = get_sync_options(options, app, self.schema_name, success, error)
         super(Model, self).fetch(options)
 
-    def save(self, app, success=None, error=None, options=None):
+    def save(self, app, attributes, success=None, error=None, options=None):
         options = get_sync_options(options, app, self.schema_name, success, error)
-        super(Model, self).save({}, options)
+        super(Model, self).save(attributes, options)
 
     @staticmethod
     def serialize_queries(queries):
@@ -229,7 +229,7 @@ class Collection(backbone.Collection):
             self.storage_root = "/app/storages"
         return "%s/%s" % (self.storage_root, self.model.model_url)
 
-    def create(self, model, app, success=None, error=None, options=None):
+    def create(self, app, model, success=None, error=None, options=None):
         model = self._prepareModel(model, options)
         self.add(model, options);
         def wrapped_success(next_model, resp):
