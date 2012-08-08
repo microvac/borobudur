@@ -219,10 +219,14 @@ def make_file_storage_view(model, storage):
 
         def download(self):
             id = self.request.matchdict["id"]
-            item = storage.one(id, self.schema)
-            path = os.path.join(storage.directory, id)
+            type = self.request.matchdict.get("type", storage.default_type)
+
+            path = os.path.join(storage.directory, id, type)
             response = FileResponse(path, request=self.request)
+
+            item = storage.one(id, self.schema)
             response.content_disposition = 'attachment; filename="%s"' % item["filename"]
+
             return response
 
     return View
@@ -266,9 +270,11 @@ def expose_file_storage(config, app, storage):
 
     config.add_route("upload_"+name, app.root+app.api_root+"uploads/"+storage_url)
     config.add_route("download_"+name, app.root+app.api_root+"files/"+storage_url+"/{id}")
+    config.add_route("typed_download_"+name, app.root+app.api_root+"files/"+storage_url+"/{id}/{type}")
 
     config.add_view(storage_view, route_name="upload_"+name, attr="upload", request_method="POST", renderer="json")
     config.add_view(storage_view, route_name="download_"+name, attr="download", request_method="GET")
+    config.add_view(storage_view, route_name="typed_download_"+name, attr="download", request_method="GET")
 
 def expose_service(config, app, service):
     exposed_methods = []
