@@ -100,6 +100,9 @@ class View(object):
 
         form.buttons = buttons
 
+        #todo hack for new_inquiry
+        form.el = el
+
         self.child_forms[name] = form
         form.render(el, model.attributes)
 
