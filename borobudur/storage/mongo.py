@@ -45,8 +45,6 @@ def sequence_deserializer(obj, schema, converter):
 def mapping_serializer(obj, schema, serialize_child):
     result = {}
     for child_schema in schema.children:
-        if obj is None:
-            print "ea"
         child_obj = obj[child_schema.name]
         result[child_schema.name] = serialize_child(child_obj, child_schema, serialize_child)
     return result
@@ -307,6 +305,7 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         parent_schema = self.build_parent_schema(schema)
         parent = self.parent_one(parent_id, parent_schema)
 
+        self.pre_insert(obj)
         collection = parent[self.attribute_path]
         collection.add(obj)
         index = len(collection) - 1
@@ -326,6 +325,9 @@ class EmbeddedMongoStorage(Storage, BaseStorage):
         result = update_result[self.attribute_path][index]
 
         return result.attributes
+
+    def pre_insert(self, appstruct):
+        pass
 
     def delete(self, parent_id, id):
         parent_schema = self.build_parent_schema()
