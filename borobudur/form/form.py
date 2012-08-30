@@ -7,7 +7,9 @@ from borobudur.form.compat import (
     text_type,
 )
 from prambanan.jslib import underscore
+from prambanan import get_template
 
+button_template = get_template('zpt', ('borobudur', 'form/templates/button.pt'))
 
 class Form(field.Field):
     """
@@ -154,7 +156,11 @@ class Button(object):
         self.value = value
         self.disabled = disabled
 
-    def on_render(self, el):
+    def render(self, form):
+        q_el = borobudur.query_el("<div></div>")
+        element = q_el[0]
+        button_template.render(element, form.model, {"field":form, "button":self})
+        result = q_el.children()[0]
         if self.handler is not None:
-            borobudur.query_el(el).bind("click", self.handler)
-        
+            borobudur.query_el(result).bind("click", self.handler)
+        return result

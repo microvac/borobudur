@@ -85,7 +85,9 @@ class View(object):
     def parent_page(self):
         return self.parent.parent_page() if hasattr(self.parent, "parent_page") else self.parent
 
-    def render_form(self, el, model, name):
+    def render_form(self, name, model):
+        q_el = borobudur.query_el("<div></div>")
+        el = q_el[0]
         schema = self.forms[name]
         form = Form(schema)
 
@@ -99,21 +101,24 @@ class View(object):
             buttons.append(button)
 
         form.buttons = buttons
+        form.render(el, model.attributes)
+        self.child_forms[name] = form
+
+        el = q_el.children()[0]
 
         #todo hack for new_inquiry
         form.el = el
+        return el
 
-        self.child_forms[name] = form
-        form.render(el, model.attributes)
-
-    def render_child(self, el, model, name):
+    def render_child(self, name, model, tag="div"):
         child_view_type = self.children[name]
+        el = borobudur.query_el("<%s></%s>"% (tag, tag))[0]
         child_view = prambanan.JS("new child_view_type(self, el, model, false)")
         self.child_views.append(child_view)
+        return el
 
     def get_child_model(self, child_name):
         return self.model[child_name]
-
 
     def delegate_events(self):
         if borobudur.is_server:

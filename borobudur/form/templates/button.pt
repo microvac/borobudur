@@ -1,0 +1,9 @@
+<button
+        id="${field.formid+button.name}"
+        name="${button.name}"
+        type="${button.type}"
+        class="${button.css_class}"
+        value="${button.value}"
+        >
+    ${button.title}
+</button>
