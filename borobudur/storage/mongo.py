@@ -194,8 +194,8 @@ class MongoStorage(Storage, BaseStorage):
         self.collection = self.db[self.collection_name]
 
     def insert(self, obj, schema=None):
+        self.pre_insert(obj)
         result = mapping_serializer(obj, schema, self.serialize)
-        self.pre_insert(result)
         self.collection.insert(result)
         if result:
             result = mapping_deserializer(result, schema, self.deserialize)
