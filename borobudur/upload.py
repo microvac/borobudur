@@ -1,3 +1,4 @@
+import StringIO
 import datetime
 from bson.objectid import ObjectId
 import os
@@ -19,6 +20,8 @@ class FileStorage(Storage):
         file_id = ObjectId()
 
         os.mkdir(os.path.join(self.directory, str(file_id)))
+
+        file = StringIO.StringIO(file.read())
 
         for type, sub_file in self.make_sub_files(file):
             self.save_file(sub_file, file_id, type)
