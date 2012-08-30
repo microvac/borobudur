@@ -34,16 +34,7 @@
 
         <div class="form-actions">
             <tal:block repeat="button field.buttons">
-                <button
-                        id="${field.formid+button.name}"
-                        name="${button.name}"
-                        type="${button.type}"
-                        class="${button.css_class}"
-                        value="${button.value}"
-                        data-test="${button.on_render(el)}"
-                        >
-                    ${button.title}
-                </button>
+                <div tal:replace="structure button.render(field)"></div>
             </tal:block>
         </div>
 

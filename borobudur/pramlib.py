@@ -20,7 +20,7 @@ class BorobudurPrambananLibrary(PrambananLibrary):
             PythonModule(join(pylib_dir, "bson_objectid.py"), "bson.objectid", self.import_cache),
             JavascriptModule([join(pylib_dir, "pramlib.backbone.js")], "borobudur.jslib.backbone"),
             JavascriptModule([join(pylib_dir, "fileuploader.js"), join(pylib_dir, "pramlib.qq.js")], "borobudur.jslib.qq"),
-            PythonModule(join(jslib_dir, "bootstrap", "modal.py"), "borobudur.jslib.bootstrap.modal", self.import_cache, [join(pylib_dir, "bootstrap", "bootstrap-modal.js")]),
+            PythonModule(join(jslib_dir, "bootstrap", "modal.py"), "borobudur.jslib.bootstrap.modal", self.import_cache, [join(pylib_dir, "bootstrap", "bootstrap-modal.js"), join(pylib_dir, "bootstrap", "bootstrap-modal-gallery.js")]),
             PythonModule(join(jslib_dir, "bootstrap", "datepicker.py"), "borobudur.jslib.bootstrap.datepicker", self.import_cache, [join(pylib_dir, "bootstrap", "bootstrap-datepicker.js")]),
             ]
         modules.extend(package_to_modules("borobudur", self.import_cache))

@@ -182,7 +182,7 @@ class SimplePackCalculator(object):
 
 class AssetManager(object):
 
-    def __init__(self, base_dir, static_dir, prambanan_dir, prambanan_cache_file):
+    def __init__(self, base_dir, static_dir, prambanan_dir, prambanan_cache_file, is_production=False):
 
         self.env = Environment(os.path.join(base_dir, static_dir), "/"+static_dir+"/")
         self.style_assets = {}
@@ -190,6 +190,7 @@ class AssetManager(object):
         self.target_dir = prambanan_dir
         self.manager = PrambananManager([], prambanan_cache_file)
         self.overridden_types = get_overridden_types(self.manager)
+        self.is_production = is_production
 
         updater = self.env.updater
         prev_needs_rebuild = updater.needs_rebuild
@@ -260,7 +261,10 @@ class AssetManager(object):
             if not pack.modules and not templates_count:
                 continue
 
-            yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name), self.manager, pack, self.overridden_types)
+            if self.is_production:
+                yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name), self.manager, pack, self.overridden_types, output="gen/%s.js"%pack.name, filters="uglifyjs")
+            else:
+                yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name), self.manager, pack, self.overridden_types)
 
     def styles_to_bundles(self, ids):
         for id in ids:

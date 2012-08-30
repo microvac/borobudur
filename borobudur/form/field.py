@@ -446,7 +446,7 @@ class Field(object):
               return {'form':form.render()} # the form just needs rendering
         """
         self.widget.clear_error(self)
-        fstruct = borobudur.query_el("form", el).serializeArray()
+        fstruct = borobudur.query_el(el).serializeArray()
         controls = []
         for obj in fstruct:
             controls.append([obj.name,obj.value])
