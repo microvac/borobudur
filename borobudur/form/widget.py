@@ -495,7 +495,7 @@ class DateInputWidget(Widget):
             options=self.options,
         )
         from borobudur.jslib.bootstrap.datepicker import datepicker
-        datepicker(borobudur.query_el("input", element), {"format": self.options["dateFormat"]})
+        datepicker(borobudur.query_el(result), {"format": self.options["dateFormat"]})
         return result
 
     def deserialize(self, field, pstruct):
