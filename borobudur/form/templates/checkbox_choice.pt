@@ -1,5 +1,6 @@
-<input type="hidden" name="__start__" value="${field.name}:sequence"/>
-  <ul class="deformSet">
+<div>
+    <input type="hidden" name="__start__" value="${field.name}:sequence"/>
+    <ul class="deformSet">
     <tal:loop tal:repeat="choice values">
       <tal:def tal:define="(value, title) choice">
         <li class="deformSet-item">
@@ -13,6 +14,6 @@
         </li>
       </tal:def>
     </tal:loop>
-  </ul>
-<input type="hidden" name="__end__" value="${field.name}:sequence"/>
-
+    </ul>
+    <input type="hidden" name="__end__" value="${field.name}:sequence"/>
+</div>
