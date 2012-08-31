@@ -136,7 +136,7 @@ class Field(object):
         self.name = schema.name
         self.title = schema.title
         self.description = schema.description
-        self.required = schema.required
+        self.required = schema.required()
         self.children = []
         self.model = Model({"error":None})
         self.widget = self.make_widget()
