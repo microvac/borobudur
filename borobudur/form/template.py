@@ -38,19 +38,15 @@ def ZPTRendererFactory():
        an interpolated translation.  Default: ``None`` (no translation
        performed).
     """
-    def __call__(template, element, field, **kw):
-        has_el = True
-        if element is None:
-            has_el = False
-            q_el = borobudur.query_el("<div></div>")
-            element = q_el[0]
+    def __call__(template, field, **kw):
+        q_el = borobudur.query_el("<div></div>")
+        element = q_el[0]
+
         vars = dict(kw)
         vars["field"] = field
         template.render(element, field.model, vars)
-        if has_el:
-            return element
-        else:
-            return q_el.children()[0]
+        return q_el.children()[0]
+
     return __call__
 
 

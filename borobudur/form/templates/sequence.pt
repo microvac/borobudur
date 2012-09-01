@@ -18,7 +18,7 @@
 
     <div class="deformSeqContainer">
         <div tal:repeat="tup subfields"
-             tal:replace="structure rndr(item_tmpl, el, tup[1], cstruct=tup[0],
+             tal:replace="structure rndr(item_tmpl, tup[1], cstruct=tup[0],
                           parent=field)"/>
 
         <span class="deformInsertBefore"

@@ -29,7 +29,7 @@
          </div>
 
         <div tal:condition="#.status == 'error'" style="background-color: white; padding: 10px;">
-            <div tal:replace="structure query_el(el).append(query_el(#.xhr.responseText))"></div>
+            <div tal:replace="structure query_el('<div></div>').html(#.xhr.responseText)[0]"></div>
         </div>
 
     </div>

@@ -129,7 +129,7 @@ class Widget(object):
         for name in kw:
             setattr(self, name, kw.get(name))
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         """
         The ``serialize`` method of a widget must serialize a
         :term:`cstruct` value to an HTML rendering.  A :term:`cstruct`
@@ -240,11 +240,11 @@ class TextInputWidget(Widget):
     input_prepend = None
     input_append = None
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field, cstruct=cstruct)
+        return field.renderer(template, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if pstruct is null:
@@ -317,7 +317,7 @@ class MoneyInputWidget(Widget):
     options = None
     size = None
     
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''
         template = readonly and self.readonly_template or self.template
@@ -325,7 +325,7 @@ class MoneyInputWidget(Widget):
         if options is None:
             options = {}
         options = json.dumps(dict(options))
-        return field.renderer(template, element, field, mask_options=options,
+        return field.renderer(template, field, mask_options=options,
                               cstruct=cstruct)
     
     def deserialize(self, field, pstruct):
@@ -419,7 +419,7 @@ class AutocompleteInputWidget(Widget):
     strip = True
     values = None
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''
         options = {}
@@ -431,7 +431,7 @@ class AutocompleteInputWidget(Widget):
         options = json.dumps(options)
         values = json.dumps(self.values)
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field,
+        return field.renderer(template, field,
                               cstruct=cstruct,
                               options=options,
                               values=values)
@@ -483,19 +483,19 @@ class DateInputWidget(Widget):
             self.options[key] = value
         super(DateInputWidget, self).__init__(**kwargs)
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''
         template = readonly and self.readonly_template or self.template
         result =  field.renderer(
             template,
-            element,
             field,
             cstruct=cstruct,
             options=self.options,
         )
-        from borobudur.jslib.bootstrap.datepicker import datepicker
-        datepicker(borobudur.query_el(result), {"format": self.options["dateFormat"]})
+        if not readonly:
+            from borobudur.jslib.bootstrap.datepicker import datepicker
+            datepicker(borobudur.query_el(result), {"format": self.options["dateFormat"]})
         return result
 
     def deserialize(self, field, pstruct):
@@ -536,7 +536,7 @@ class DateTimeInputWidget(DateInputWidget):
                         ('separator', ' ')]
     )
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''
         template = readonly and self.readonly_template or self.template
@@ -545,13 +545,13 @@ class DateTimeInputWidget(DateInputWidget):
         cstruct = self.options['separator'].join(cstruct.split('T'))
         result =  field.renderer(
             template,
-            element,
             field,
             cstruct=cstruct,
             options="",
             )
-        from borobudur.jslib.bootstrap.datepicker import datepicker
-        datepicker(borobudur.query_el("input", element))
+        if not readonly:
+            from borobudur.jslib.bootstrap.datepicker import datepicker
+            datepicker(borobudur.query_el((result)))
         return result
 
 
@@ -688,10 +688,10 @@ class HiddenWidget(Widget):
     template = get_template('zpt', ('borobudur', 'form/templates/hidden.pt'))
     hidden = True
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''
-        return field.renderer(self.template, element, field, cstruct=cstruct)
+        return field.renderer(self.template, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if not pstruct:
@@ -727,9 +727,9 @@ class CheckboxWidget(Widget):
     template = get_template('zpt', ('borobudur', 'form/templates/checkbox.pt'))
     readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/checkbox.pt'))
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field, cstruct=cstruct)
+        return field.renderer(template, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if pstruct is null:
@@ -775,11 +775,11 @@ class SelectWidget(Widget):
     values = ()
     size = None
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = self.null_value
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field, cstruct=cstruct,
+        return field.renderer(template, field, cstruct=cstruct,
                               values=_normalize_choices(self.values))
 
     def deserialize(self, field, pstruct):
@@ -850,11 +850,11 @@ class CheckboxChoiceWidget(Widget):
     readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/checkbox_choice.pt'))
     values = ()
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ()
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field, cstruct=cstruct,
+        return field.renderer(template, field, cstruct=cstruct,
                               values=_normalize_choices(self.values))
 
     def deserialize(self, field, pstruct):
@@ -923,12 +923,12 @@ class CheckedInputWidget(Widget):
     mask = None
     mask_placeholder = "_"
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''
         confirm = getattr(field, '%s-confirm' % (field.name,), cstruct)
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field, cstruct=cstruct,
+        return field.renderer(template, field, cstruct=cstruct,
                               confirm=confirm, subject=self.subject,
                               confirm_subject=self.confirm_subject,
                               )
@@ -1000,11 +1000,11 @@ class MappingWidget(Widget):
     error_class = None
     category = 'structural'
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = {}
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field, cstruct=cstruct,
+        return field.renderer(template, field, cstruct=cstruct,
                               null=null)
 
     def deserialize(self, field, pstruct):
@@ -1127,14 +1127,13 @@ class SequenceWidget(Widget):
         # we clone the item field to bump the oid (for easier
         # automated testing; finding last node)
         item_field = field.children[0].clone()
-        proto = field.renderer(self.item_template, el, item_field,
-                               cstruct=null, parent=field)
+        proto = field.renderer(self.item_template, item_field,cstruct=null, parent=field)
         if isinstance(proto, string_types):
             proto = proto.encode('utf-8')
         #proto = url_quote(proto)
         return proto
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if (self.render_initial_item and self.min_len is None):
             # This is for compat only: ``render_initial_item=True`` should
             # now be spelled as ``min_len = 1``
@@ -1174,20 +1173,24 @@ class SequenceWidget(Widget):
         else:
             add_subitem_text = _(self.add_subitem_text_template,
                                  mapping=add_template_mapping)
-        result = field.renderer(template, element, field,
+
+        result = field.renderer(template, field,
                               cstruct=cstruct,
                               subfields=subfields,
                               item_field=item_field,
                               add_subitem_text=add_subitem_text)
 
-        q_prototype = borobudur.query_el(borobudur.query_el(".deformSeqPrototype", element).children()[0])
-        q_container = borobudur.query_el(".deformSeqContainer")
+        q_prototype = borobudur.query_el(borobudur.query_el(".deformSeqPrototype", result).children()[0])
+        q_container = borobudur.query_el(".deformSeqContainer", result)
+
         def add_click():
+            print "ea"
             q_container.append(q_prototype.clone())
-        borobudur.query_el(".deformSeqAdd", element).click(add_click)
+        borobudur.query_el(result).delegate(".deformSeqAdd", "click", add_click)
+
         def remove_click(ev):
             borobudur.query_el(ev.currentTarget).parent().remove()
-        borobudur.query_el(element).delegate(".deformSeqRemove", "click", remove_click)
+        borobudur.query_el(result).delegate(".deformSeqRemove", "click", remove_click)
 
         return result
 
@@ -1271,7 +1274,7 @@ class DatePartsWidget(Widget):
     size = None
     assume_y2k = True
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct is null:
             year = ''
             month = ''
@@ -1279,7 +1282,7 @@ class DatePartsWidget(Widget):
         else:
             year, month, day = cstruct.split('-', 2)
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, element, field, cstruct=cstruct,
+        return field.renderer(template, field, cstruct=cstruct,
                               year=year, month=month, day=day)
 
     def deserialize(self, field, pstruct):

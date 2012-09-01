@@ -86,8 +86,8 @@ class View(object):
         return self.parent.parent_page() if hasattr(self.parent, "parent_page") else self.parent
 
     def render_form(self, name, model):
-        q_el = borobudur.query_el("<div></div>")
-        el = q_el[0]
+        el = None
+
         schema = self.forms[name]
         form = Form(schema)
 
@@ -96,18 +96,16 @@ class View(object):
         for button, handler in buttons_config:
             handler = underscore.bind(handler, self)
             def make_handler(h):
-                return prambanan.wrap_on_error(lambda ev: h(ev, model, form, el))
+                return prambanan.wrap_on_error(lambda ev: h(ev, form.model, form, form.element))
             button.handler = make_handler(handler)
             buttons.append(button)
 
         form.buttons = buttons
-        form.render(el, model.attributes)
+        el = form.render(model)
         self.child_forms[name] = form
 
-        el = q_el.children()[0]
-
-        #todo hack for new_inquiry
         form.el = el
+
         return el
 
     def render_child(self, name, model, tag="div"):

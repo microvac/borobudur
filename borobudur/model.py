@@ -330,10 +330,10 @@ class ModelRefWidget(Widget):
     template = get_template('zpt', ('borobudur', 'form/templates/model_ref.pt'))
     hidden = True
 
-    def serialize(self, element, field, cstruct, readonly=False):
+    def serialize(self, field, cstruct, readonly=False):
         if cstruct in (colander.null, None):
             cstruct = colander.null
-        return field.renderer(self.template, element, field, cstruct=cstruct)
+        return field.renderer(self.template, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         return self.deserialize_pstruct(pstruct, field.schema)

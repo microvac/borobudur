@@ -93,6 +93,8 @@ class Form(field.Field):
     in the context of a Field (a Form is just another kind of Field).
     """
     css_class = 'deform'
+    element = None
+
     def __init__(self, schema, action='', method='POST', buttons=(),
                  formid='deform', use_ajax=False, ajax_options='{}', **kw):
         super(Form, self).__init__(schema, **kw)
@@ -107,6 +109,35 @@ class Form(field.Field):
         self.formid = formid
         self.use_ajax = use_ajax
         self.widget = widget.FormWidget()
+
+    def render(self, model, readonly=False):
+        """ Render the field (or form) to HTML using ``appstruct`` as
+        a set of default values.  ``appstruct`` is typically a
+        dictionary of application values matching the schema used by
+        this form, or ``None``.
+
+        Calling this method is the same as calling::
+
+           cstruct = form.schema.serialize(appstruct)
+           form.widget.serialize(field, cstruct)
+
+        The ``readonly`` argument causes the rendering to be entirely
+        read-only (no input elements at all).
+
+        See the documentation for
+        :meth:`colander.SchemaNode.serialize` and
+        :meth:`deform.widget.Widget.serialize` .
+        """
+        self.model = model
+
+        cstruct = self.schema.serialize(model.attributes)
+
+        element = self.serialize(cstruct, readonly=readonly)
+        if self.element is not None:
+            borobudur.query_el(self.element).replaceWith(element)
+        self.element = element
+
+        return element
 
 class Button(object):
     """

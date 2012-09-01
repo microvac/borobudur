@@ -348,35 +348,15 @@ class Field(object):
             return None
         return getattr(self.error, 'msg', None)
 
-    def serialize(self, element, cstruct, readonly=False):
+    def serialize(self, cstruct, readonly=False):
         """ Serialize the cstruct into HTML.  If ``readonly`` is
         ``True``, render a read-only rendering (no input fields)."""
-        return self.widget.serialize(element, self, cstruct, readonly)
+        return self.widget.serialize(self, cstruct, readonly)
 
     def deserialize(self, pstruct):
         """ Deserialize the pstruct into a cstruct."""
         return self.widget.deserialize(self, pstruct)
 
-    def render(self, element, appstruct=colander.null, readonly=False):
-        """ Render the field (or form) to HTML using ``appstruct`` as
-        a set of default values.  ``appstruct`` is typically a
-        dictionary of application values matching the schema used by
-        this form, or ``None``.
-
-        Calling this method is the same as calling::
-
-           cstruct = form.schema.serialize(appstruct)
-           form.widget.serialize(field, cstruct)
-
-        The ``readonly`` argument causes the rendering to be entirely
-        read-only (no input elements at all).
-
-        See the documentation for
-        :meth:`colander.SchemaNode.serialize` and
-        :meth:`deform.widget.Widget.serialize` .
-        """
-        cstruct = self.schema.serialize(appstruct)
-        return self.serialize(element, cstruct, readonly=readonly)
 
     def validate(self, el):
         """
