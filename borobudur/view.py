@@ -16,13 +16,13 @@ def on_element(selector, event_name, prevent_default=True):
         return fn
     return  decorate
 
-def form_button(name, title, css_class="btn"):
+def on_form(selector, button_name, prevent_default=True):
     def decorate(fn):
-        button = Button(title=title)
-        button.css_class=css_class
-        fn._form_button = (name, button)
+        if not hasattr(fn, "_on_form"):
+            fn._on_form = []
+        fn._on_form.append((selector, button_name, prevent_default))
         return fn
-    return decorate
+    return  decorate
 
 class NullTemplate(object):
 
@@ -86,21 +86,21 @@ class View(object):
         return self.parent.parent_page() if hasattr(self.parent, "parent_page") else self.parent
 
     def render_form(self, name, model):
-        el = None
+        form_type = self.forms[name]
+        form = prambanan.JS("new form_type(form_type.schema)")
 
-        schema = self.forms[name]
-        form = Form(schema)
-
-        buttons_config = self.find_decorated_buttons(name)
-        buttons = []
-        for button, handler in buttons_config:
+        button_handlers = self.find_decorated_buttons(name)
+        for config, handler in button_handlers:
+            _, button_name, prevent_default = config
             handler = underscore.bind(handler, self)
             def make_handler(h):
-                return prambanan.wrap_on_error(lambda ev: h(ev, form.model, form, form.element))
-            button.handler = make_handler(handler)
-            buttons.append(button)
+                def wrapped(ev):
+                    if prevent_default:
+                        ev.preventDefault()
+                        h(ev, form.model, form, form.element)
+                return prambanan.wrap_on_error(wrapped)
+            form.add_button_handler(button_name, make_handler(handler))
 
-        form.buttons = buttons
         el = form.render(model)
         self.child_forms[name] = form
 
@@ -179,9 +179,9 @@ class View(object):
         results = []
         for attr in underscore.functions(self):
             value = self[attr]
-            if value._form_button:
-                form_name, button = value._form_button
-                if name == form_name:
-                    results.append([button, value])
+            if value._on_form:
+                for conf in value._on_form:
+                    if conf[0] == name:
+                        results.append([conf, value])
         return results
 
