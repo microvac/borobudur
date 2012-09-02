@@ -1,3 +1,5 @@
+from zope.interface.interface import Interface
+
 class StorageException(Exception):
     pass
 
@@ -26,7 +28,10 @@ class SearchConfig(object):
             sorts = []
         self.sorts = sorts
 
-class Storage(object):
+class IStorageConnection(Interface):
+    pass
+
+class IStorage(Interface):
     """
     Interface that define contracts for Borobudur storage implementations
     """

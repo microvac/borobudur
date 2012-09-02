@@ -1,5 +1,6 @@
 import bson
-from borobudur.storage import Storage, StorageException, SearchConfig
+from borobudur.interfaces import IAppContext
+from borobudur.storage import StorageException, SearchConfig, IStorage, IStorageConnection
 from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode, DateTime
 from datetime import datetime, date
@@ -8,15 +9,6 @@ from pymongo import ASCENDING, DESCENDING
 
 import colander
 
-class StorageContext(object):
-
-    reference = {}
-
-    def set(self, model, storage):
-        self.reference[model] = storage
-
-    def get(self, model):
-        return self.reference.get(model, None)
 
 #### Serializer and deserializers ###
 # serializer should be forgiving on non existing items that make adding child schema later easier
@@ -133,12 +125,19 @@ class MongoStorageException(StorageException):
     pass
 
 class BaseStorage(object):
+    exposed = True
+
     def serialize(self, obj, schema, serialize_child):
         if isinstance(schema, RefNode):
             if obj is None and schema.nullable:
                 return None
 
-            storage = self.context.get(schema.target)
+            storage = self.app_context.get_storage(schema.target)
+
+            #todo hack
+            if isinstance(storage, EmbeddedMongoStorage):
+                storage = None
+
             if storage is not None:
                 if isinstance(obj, Model):
                     id = obj.id
@@ -155,7 +154,12 @@ class BaseStorage(object):
 
     def deserialize(self, obj, schema, deserialize_child):
         if isinstance(schema, RefNode):
-            storage = self.context.get(schema.target)
+            storage = self.app_context.get_storage(schema.target)
+
+            #todo hack
+            if isinstance(storage, EmbeddedMongoStorage):
+                storage = None
+
             if storage is not None:
                 if isinstance(schema, CollectionRefNode):
                     if obj is None:
@@ -180,15 +184,16 @@ class BaseStorage(object):
                 return schema.target(result, schema_name=schema.schema_name)
         return result
 
-class MongoStorage(Storage, BaseStorage):
+class MongoStorage(BaseStorage):
 
+    connection_name = None
     db_name = None
     collection_name = None
     model = None
 
-    def __init__(self, context, connection):
-        self.context = context
-        self.connection = connection
+    def __init__(self, app_context ):
+        self.app_context = app_context
+        self.connection = app_context.get_connection(self.connection_name)
 
         self.db = self.connection[self.db_name]
         self.collection = self.db[self.collection_name]
@@ -290,16 +295,16 @@ class MongoStorage(Storage, BaseStorage):
     def __str__(self):
         return "%s mongo storage on %s - %s" % (self.model.__class__.__name__, self.db_name, self.collection_name)
 
-class EmbeddedMongoStorage(Storage, BaseStorage):
+class EmbeddedMongoStorage(BaseStorage):
 
     model = None
     parent_storage = None
     attribute_path = None
     empty_schema = None
 
-    def __init__(self, context, connection):
-        self.context = context
-        self.parent_storage = self.parent_storage(context, connection)
+    def __init__(self, app_context):
+        self.app_context = app_context
+        self.parent_storage = self.parent_storage(app_context)
 
     def insert(self, parent_id, obj, schema=None):
         parent_schema = self.build_parent_schema(schema)
