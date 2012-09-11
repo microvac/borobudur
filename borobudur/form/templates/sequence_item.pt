@@ -2,7 +2,7 @@
      tal:omit-tag="field.widget.hidden"
      title="${field.description}" i18n:domain="deform">
     <!-- sequence_item -->
-    <span tal:replace="structure field.serialize(el, cstruct)"/>
+    <span tal:replace="structure field.serialize(cstruct)"/>
     <a
             id="${field.oid}-close"
             tal:condition="not field.widget.hidden"

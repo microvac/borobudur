@@ -6,6 +6,7 @@ from borobudur.form.compat import (
     string_types,
     text_type,
 )
+from borobudur.model import Model
 from prambanan.jslib import underscore
 from prambanan import get_template
 
@@ -93,20 +94,50 @@ class Form(field.Field):
     in the context of a Field (a Form is just another kind of Field).
     """
     css_class = 'deform'
-    def __init__(self, schema, action='', method='POST', buttons=(),
+    element = None
+    buttons = []
+
+    def __init__(self, schema, action='', method='POST',
                  formid='deform', use_ajax=False, ajax_options='{}', **kw):
         super(Form, self).__init__(schema, **kw)
-        _buttons = []
-        for button in buttons:
-            if isinstance(button, string_types):
-                button = Button(button)
-            _buttons.append(button)
         self.action = action
         self.method = method
-        self.buttons = _buttons
         self.formid = formid
         self.use_ajax = use_ajax
         self.widget = widget.FormWidget()
+        self.event = Model()
+
+    def render(self, model, readonly=False):
+        """ Render the field (or form) to HTML using ``appstruct`` as
+        a set of default values.  ``appstruct`` is typically a
+        dictionary of application values matching the schema used by
+        this form, or ``None``.
+
+        Calling this method is the same as calling::
+
+           cstruct = form.schema.serialize(appstruct)
+           form.widget.serialize(field, cstruct)
+
+        The ``readonly`` argument causes the rendering to be entirely
+        read-only (no input elements at all).
+
+        See the documentation for
+        :meth:`colander.SchemaNode.serialize` and
+        :meth:`deform.widget.Widget.serialize` .
+        """
+        self.model = model
+
+        cstruct = self.schema.serialize(model.attributes)
+
+        element = self.serialize(cstruct, readonly=readonly)
+        if self.element is not None:
+            borobudur.query_el(self.element).replaceWith(element)
+        self.element = element
+
+        return element
+
+    def add_button_handler(self, name, handler):
+        self.event.on(name, handler)
 
 class Button(object):
     """
@@ -141,16 +172,15 @@ class Button(object):
     disabled
         Render the button as disabled if True.
     """
-    css_class = "btn"
-    handler = None
     def __init__(self, name='submit', title=None, type='submit', value=None,
-                 disabled=False):
+                 css_class="btn",disabled=False):
         if title is None:
             title = name.capitalize()
         if value is None:
             value = name
 
         self.name = name
+        self.css_class = css_class
         self.title = title
         self.type = type
         self.value = value
@@ -161,6 +191,11 @@ class Button(object):
         element = q_el[0]
         button_template.render(element, form.model, {"field":form, "button":self})
         result = q_el.children()[0]
-        if self.handler is not None:
-            borobudur.query_el(result).bind("click", self.handler)
+        borobudur.query_el(result).bind("click", self.make_handler(form))
         return result
+
+    def make_handler(self, form):
+        def handler(ev):
+            form.event.trigger(self.name, ev)
+        return handler
+
