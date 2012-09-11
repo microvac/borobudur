@@ -24,6 +24,7 @@ setup(name='borobudur',
           "colander",
           "webassets",
           "pyquery",
+          "zope.component",
       ],
       entry_points="""
       # -*- Entry points: -*-

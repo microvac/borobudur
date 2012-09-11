@@ -2,11 +2,10 @@ import StringIO
 import datetime
 from bson.objectid import ObjectId
 import os
-from borobudur.storage import Storage
 
 __author__ = 'h'
 
-class FileStorage(Storage):
+class FileStorage(object):
 
     model=None
     directory=None
