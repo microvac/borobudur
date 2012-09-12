@@ -292,7 +292,7 @@ def expose_service(config, app_context, service_type):
 
     def make_view(name):
         def view(request):
-            return getattr(service_type(app_context), name)(request)
+            return getattr(service_type(request, app_context), name)()
         return view
 
     exposed_methods = []
