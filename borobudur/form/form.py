@@ -125,7 +125,7 @@ class Form(field.Field):
         :meth:`colander.SchemaNode.serialize` and
         :meth:`deform.widget.Widget.serialize` .
         """
-        self.model = model
+        self.m = model
 
         cstruct = self.schema.serialize(model.attributes)
 

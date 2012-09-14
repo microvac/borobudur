@@ -97,7 +97,7 @@ class View(object):
                 def wrapped(ev):
                     if prevent_default:
                         ev.preventDefault()
-                        h(ev, form.model, form, form.element)
+                        h(ev, form.m, form, form.element)
                 return prambanan.wrap_on_error(wrapped)
             form.add_button_handler(button_name, make_handler(handler))
 
