@@ -1,7 +1,7 @@
 import borobudur
 import prambanan
-from prambanan.jslib import underscore
-import prambanan.jslib.underscore
+import pramjs.underscore as underscore
+import pramjs.underscore
 
 class Page(object):
     """

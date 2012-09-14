@@ -2,7 +2,7 @@ import translationstring
 from borobudur.model import Collection, Model
 import prambanan
 import borobudur
-import prambanan.jslib.underscore as underscore
+import pramjs.underscore as underscore
 from borobudur.form.form import Form, Button
 from borobudur.util.pretty_time import pretty_time
 

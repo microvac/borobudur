@@ -2,7 +2,7 @@ import borobudur
 from borobudur.model import Model
 from borobudur.view import View, on_element
 from prambanan import get_template, JS
-from prambanan.jslib import underscore
+import pramjs.underscore as underscore
 
 class APIInvocationView(View):
     template = get_template("zpt", ("borobudur", "dt/api_invocation.pt"))

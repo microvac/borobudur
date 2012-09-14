@@ -7,7 +7,7 @@ from borobudur.form.compat import (
     text_type,
 )
 from borobudur.model import Model
-from prambanan.jslib import underscore
+import pramjs.underscore as underscore
 from prambanan import get_template
 
 button_template = get_template('zpt', ('borobudur', 'form/templates/button.pt'))

@@ -22,9 +22,6 @@ function create_el_query(el){
     }
 }
 
-query_el = window.$
-
-
 var Router = (function(){
 
     // Make backbone history inheritable

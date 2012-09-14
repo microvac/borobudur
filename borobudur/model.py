@@ -1,12 +1,12 @@
 import bson.objectid
 from bson.objectid import ObjectId
 import colander
-import borobudur.jslib.backbone as backbone
+import pramjs.backbone as backbone
+import pramjs.underscore as underscore
 import borobudur.schema as schema
 from borobudur.form.widget import Widget
 from borobudur.schema import clone_node
 from prambanan import get_template, JS
-from prambanan.jslib import underscore
 
 class RefNode(colander.SchemaNode):
     pass

@@ -25,6 +25,9 @@ setup(name='borobudur',
           "webassets",
           "pyquery",
           "zope.component",
+          "pramjs.underscore",
+          "pramjs.backbone",
+          "pramjs.twitter_bootstrap", #form
       ],
       entry_points="""
       # -*- Entry points: -*-

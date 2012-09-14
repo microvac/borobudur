@@ -1,5 +1,5 @@
-from borobudur.jslib.backbone import Model
-import prambanan.jslib.underscore as underscore
+from borobudur.model import Model
+import pramjs.underscore as underscore
 
 import borobudur
 import prambanan
@@ -11,6 +11,7 @@ class ServiceModelLoader(BaseLoader):
 
     def __init__(self, service_id, service_attr):
         self.service_id = service_id
+
         self.service_attr = service_attr
 
     def load(self, app, model, callbacks):

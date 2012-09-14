@@ -2,7 +2,6 @@ storage
 scaffolds
 debugtoolbar
 pylib
-jslib
 test
 asset.py
 config.py

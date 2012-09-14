@@ -3,7 +3,7 @@ import time
 import translationstring
 from prambanan import JS
 import prambanan
-import prambanan.jslib.underscore as underscore
+import pramjs.underscore as underscore
 
 _ = translationstring.TranslationStringFactory('colander')
 

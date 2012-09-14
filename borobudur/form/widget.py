@@ -16,9 +16,10 @@ from borobudur.form.compat import (
     uppercase,
     )
 
+
 from prambanan import get_template
 import prambanan
-from prambanan.jslib import underscore
+import pramjs.underscore as underscore
 
 def _normalize_choices(values):
     result = []
@@ -494,7 +495,7 @@ class DateInputWidget(Widget):
             options=self.options,
         )
         if not readonly:
-            from borobudur.jslib.bootstrap.datepicker import datepicker
+            from pramjs.twitter_bootstrap.datepicker import datepicker
             datepicker(borobudur.query_el(result), {"format": self.options["dateFormat"]})
         return result
 
@@ -550,7 +551,7 @@ class DateTimeInputWidget(DateInputWidget):
             options="",
             )
         if not readonly:
-            from borobudur.jslib.bootstrap.datepicker import datepicker
+            from pramjs.twitter_bootstrap.datepicker import datepicker
             datepicker(borobudur.query_el((result)))
         return result
 
