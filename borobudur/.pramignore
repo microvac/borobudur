@@ -7,3 +7,4 @@ asset.py
 config.py
 less_import_parser.py
 colander_patch.py
+cmd.py

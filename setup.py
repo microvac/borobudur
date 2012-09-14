@@ -35,5 +35,7 @@ setup(name='borobudur',
       borobudur = borobudur.pramlib:BorobudurPrambananLibrary
       [pyramid.scaffold]
       borobudur_mongo=borobudur.scaffolds:MongoProjectTemplate
+      [console_scripts]
+      borobudur = borobudur.cmd:main
       """,
       )

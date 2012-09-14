@@ -182,11 +182,12 @@ class SimplePackCalculator(object):
 
 class AssetManager(object):
 
-    def __init__(self, base_dir, static_dir, prambanan_dir, prambanan_cache_file, is_production=False):
+    def __init__(self, base_dir, static_dir, result_dir, prambanan_dir, prambanan_cache_file, is_production=False):
 
         self.env = Environment(os.path.join(base_dir, static_dir), "/"+static_dir+"/")
         self.style_assets = {}
 
+        self.result_dir = result_dir
         self.target_dir = prambanan_dir
         self.manager = PrambananManager([], prambanan_cache_file)
         self.overridden_types = get_overridden_types(self.manager)
@@ -199,6 +200,10 @@ class AssetManager(object):
                 return bundle.needs_rebuild(env)
             return prev_needs_rebuild(bundle, env)
         updater.needs_rebuild = needs_rebuild
+
+    @property
+    def full_result_dir(self):
+        return os.path.join(self.env.directory, self.result_dir)
 
     def define_style(self, id, type, output, *contents):
         if type not in ["less", "css"]:
@@ -262,13 +267,15 @@ class AssetManager(object):
                 continue
 
             if self.is_production:
-                yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name), self.manager, pack, self.overridden_types, output="gen/%s.js"%pack.name, filters="uglifyjs")
+                yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name),
+                    self.manager, pack, self.overridden_types, output="%s/%s.js"%(self.result_dir, pack.name), filters="uglifyjs")
             else:
                 yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name), self.manager, pack, self.overridden_types)
 
     def styles_to_bundles(self, ids):
         for id in ids:
             type, output, contents = self.style_assets[id]
+            output = "%s/%s" % (self.result_dir, output)
             if type == "less":
                 yield id, LessBundle(*contents, filters="less", output=output)
             else:
