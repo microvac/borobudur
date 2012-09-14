@@ -1,11 +1,7 @@
 import os
 import sys
-import transaction
-import pkg_resources
 import pyramid.settings
 import shutil
-
-from sqlalchemy import engine_from_config
 
 from pyramid.paster import (
     get_appsettings,
