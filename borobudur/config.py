@@ -7,7 +7,7 @@ from pyramid.view import view_config
 from zope.interface.interface import Interface
 
 import borobudur
-from borobudur.interfaces import IAppContext
+from borobudur.interfaces import IAppResources
 import borobudur.schema
 import borobudur.storage
 import borobudur.storage.mongo
@@ -106,14 +106,14 @@ def asset_changed_view(asset_manager, calculate, entry_point):
 
     return view
 
-def make_embedded_storage_view(app_context, model, level):
+def make_embedded_storage_view(model, level):
 
     class View(object):
 
         def __init__(self, request):
             self.request = request
             self.schema = model.get_schema(request.params.get("s", ""))
-            self.storage = app_context.get_storage(model)
+            self.storage = request.resources.get_storage(model)
 
             id = None
             current_id_level = 0
@@ -156,13 +156,13 @@ def make_embedded_storage_view(app_context, model, level):
 
     return View
 
-def make_storage_view(app_context, model):
+def make_storage_view(model):
 
     class View(object):
 
         def __init__(self, request):
             self.request = request
-            self.storage = app_context.get_storage(model)
+            self.storage = request.resources.get_storage(model)
             self.schema = model.get_schema(request.params.get("s", ""))
 
         def create(self):
@@ -207,14 +207,14 @@ def make_storage_view(app_context, model):
 
     return View
 
-def make_file_storage_view(app_context, storage_type):
+def make_file_storage_view(storage_type):
 
     model = storage_type.model
 
     class View(object):
 
         def __init__(self, request):
-            self.storage = app_context.get_storage(model)
+            self.storage = request.resources.get_storage(model)
             self.request = request
             self.schema = model.get_schema(request.params.get("s", ""))
 
@@ -240,9 +240,8 @@ def make_file_storage_view(app_context, storage_type):
 
     return View
 
-def expose_storage(config, app_context, storage_type):
+def expose_storage(config, app, storage_type):
 
-    app = app_context.app
     model = storage_type.model
     name = model.__name__
     storage_url = model.model_url
@@ -254,9 +253,9 @@ def expose_storage(config, app_context, storage_type):
         level += 1
 
     if level:
-        storage_view = make_embedded_storage_view(app_context, model, level)
+        storage_view = make_embedded_storage_view(model, level)
     else:
-        storage_view = make_storage_view(app_context, model)
+        storage_view = make_storage_view(model)
 
     for i in range(level):
         storage_url += "/{id%d}" % i
@@ -270,14 +269,13 @@ def expose_storage(config, app_context, storage_type):
     config.add_view(storage_view, route_name="id_"+name, attr="update", request_method="PUT", renderer="json")
     config.add_view(storage_view, route_name="id_"+name, attr="delete", request_method="DELETE", renderer="json")
 
-def expose_file_storage(config, app_context, storage_type):
+def expose_file_storage(config, app, storage_type):
 
-    app = app_context.app
     model = storage_type.model
     name = model.__name__
     storage_url = model.model_url
 
-    storage_view = make_file_storage_view(app_context, storage_type)
+    storage_view = make_file_storage_view(storage_type)
 
     config.add_route("upload_"+name, app.root+app.api_root+"uploads/"+storage_url)
     config.add_route("download_"+name, app.root+app.api_root+"files/"+storage_url+"/{id}")
@@ -287,12 +285,11 @@ def expose_file_storage(config, app_context, storage_type):
     config.add_view(storage_view, route_name="download_"+name, attr="download", request_method="GET")
     config.add_view(storage_view, route_name="typed_download_"+name, attr="download", request_method="GET")
 
-def expose_service(config, app_context, service_type):
-    app = app_context.app
+def expose_service(config, app, service_type):
 
     def make_view(name):
         def view(request):
-            return getattr(service_type(request, app_context), name)()
+            return getattr(service_type(request), name)()
         return view
 
     exposed_methods = []
@@ -309,14 +306,14 @@ def expose_service(config, app_context, service_type):
         config.add_route(route_name, app.root+app.api_root+"services/"+service_type.id+"/"+method_name)
         config.add_view(method, route_name=route_name, renderer="json")
 
-class AppContext(object):
+class AppResources(object):
 
     storage_type_map = {}
     service_type_map = {}
 
-    def __init__(self, registry, app, storage_types, **kwargs):
+    def __init__(self, request, registry, storage_types, **kwargs):
+        self.request = request
         self.registry = registry
-        self.app = app
         self.storage_types = storage_types
 
         for storage_type in storage_types:
@@ -328,15 +325,12 @@ class AppContext(object):
         storage_type = self.storage_type_map.get(model, None)
         if storage_type is None:
             return None
-        return storage_type(self)
+        return storage_type(self.request)
 
     def get_connection(self, name):
         return self.registry.queryUtility(IStorageConnection, name=name)
 
-def get_app_context(request):
-    return request.registry.queryUtility(IAppContext)
-
-def add_borobudur_app(config, app, asset_manager, base_template, client_entry_point,
+def borobudurize(config, app, asset_manager, base_template, client_entry_point,
                       storage_types=(), file_storage_types=(), service_types=()):
 
     calculator = SimplePackCalculator(app, asset_manager.manager)
@@ -360,22 +354,31 @@ def add_borobudur_app(config, app, asset_manager, base_template, client_entry_po
     ac_view = asset_changed_view(asset_manager, calculator, client_entry_point)
     config.add_view(ac_view, route_name=ac_route_name)
 
-    app_context = AppContext(config.registry, app=app, storage_types=storage_types, service_types=service_types)
-    config.registry.registerUtility(app_context, IAppContext)
 
     for storage_type in storage_types:
         if storage_type.exposed:
-            expose_storage(config, app_context, storage_type)
+            expose_storage(config, app, storage_type)
 
     for file_storage_type in file_storage_types:
-        expose_file_storage(config, app_context, file_storage_type)
+        expose_file_storage(config, app, file_storage_type)
 
     for service_type in service_types:
-        expose_service(config, app_context, service_type)
+        expose_service(config, app, service_type)
+
+    def get_resources(request):
+        app_resources = AppResources(request, config.registry, storage_types=storage_types, service_types=service_types)
+        return app_resources
+
+    config.set_request_property(get_resources, 'resources', reify=True)
+
+    def get_app(request):
+            return app
+
+    config.set_request_property(get_app, 'app', reify=True)
 
 def add_storage_connection(config, name, connection):
     config.registry.registerUtility(connection, IStorageConnection, name=name)
 
 def includeme(config):
     config.add_directive('add_storage_connection', add_storage_connection)
-    config.add_directive('add_borobudur_app', add_borobudur_app)
+    config.add_directive('borobudurize', borobudurize)

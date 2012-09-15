@@ -2,7 +2,7 @@ from zope.interface.interface import Interface
 
 __author__ = 'h'
 
-class IAppContext(Interface):
+class IAppResources(Interface):
 
     def get_storage(self, model):
         pass

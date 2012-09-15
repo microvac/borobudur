@@ -1,5 +1,4 @@
 import bson
-from borobudur.interfaces import IAppContext
 from borobudur.storage import StorageException, SearchConfig, IStorage, IStorageConnection
 from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode, DateTime
@@ -132,7 +131,7 @@ class BaseStorage(object):
             if obj is None and schema.nullable:
                 return None
 
-            storage = self.app_context.get_storage(schema.target)
+            storage = self.request.resources.get_storage(schema.target)
 
             #todo hack
             if isinstance(storage, EmbeddedMongoStorage):
@@ -154,7 +153,7 @@ class BaseStorage(object):
 
     def deserialize(self, obj, schema, deserialize_child):
         if isinstance(schema, RefNode):
-            storage = self.app_context.get_storage(schema.target)
+            storage = self.request.resources.get_storage(schema.target)
 
             #todo hack
             if isinstance(storage, EmbeddedMongoStorage):
@@ -191,9 +190,9 @@ class MongoStorage(BaseStorage):
     collection_name = None
     model = None
 
-    def __init__(self, app_context ):
-        self.app_context = app_context
-        self.connection = app_context.get_connection(self.connection_name)
+    def __init__(self, request):
+        self.request = request
+        self.connection = request.resources.get_connection(self.connection_name)
 
         self.db = self.connection[self.db_name]
         self.collection = self.db[self.collection_name]
@@ -302,9 +301,9 @@ class EmbeddedMongoStorage(BaseStorage):
     attribute_path = None
     empty_schema = None
 
-    def __init__(self, app_context):
-        self.app_context = app_context
-        self.parent_storage = self.parent_storage(app_context)
+    def __init__(self, request):
+        self.request = request
+        self.parent_storage = self.parent_storage(request)
 
     def insert(self, parent_id, obj, schema=None):
         parent_schema = self.build_parent_schema(schema)
