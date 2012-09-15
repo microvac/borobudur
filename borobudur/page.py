@@ -18,12 +18,9 @@ class Page(object):
 
     styles=[]
 
-    def __init__(self, app, matchdict, document, el_rendered):
-        self.app = app
-        self.storage_root = app.root + app.api_root + "storages"
-
-        self.matchdict = matchdict
-        self.document = document
+    def __init__(self, request, el_rendered):
+        self.request = request
+        self.app = request.app
         self.models = {}
         self.views = []
         self.el_rendered = el_rendered
@@ -41,12 +38,12 @@ class Page(object):
         """
         prambanan:type view_type c(borobudur.view:View)
         """
-        el = self.document.el_query("#"+id)[0]
+        el = self.request.document.el_query("#"+id)[0]
         view = view_type(self, el, model, self.el_rendered)
         self.views.append((id, view))
 
     def load_model(self, model_name, model_type, schema_name, **attrs):
-        loader = self.loaders.model(model_name, model_type, self.storage_root, schema_name, None)
+        loader = self.loaders.model(model_name, model_type, self.app.storage_root, schema_name, None)
         for attr_name in attrs:
             loader.attr(attr_name, attrs.get(attr_name))
 

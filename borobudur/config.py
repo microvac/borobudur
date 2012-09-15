@@ -29,7 +29,7 @@ class AppState(object):
     active_pages = []
     load_info = False
 
-def wrap_pyramid_view(page_callback, base_template, asset_manager, calculator, entry_point):
+def wrap_pyramid_view(page_callback, asset_manager, calculator, entry_point):
     """
     loaded_page: id
     loaded_bundles = list of bundles
@@ -37,23 +37,16 @@ def wrap_pyramid_view(page_callback, base_template, asset_manager, calculator, e
 
     def view(request):
 
-        el = etree.Element("div")
-        base_template.render(el, Model())
-        el = el[0]
-
-        app_state = AppState()
-        document = Document(el)
-
         def page_success(load_flow):
-            asset_manager.write_all(load_flow, calculator, entry_point)
+            asset_manager.write_all(request.document, load_flow, calculator, entry_point)
 
         load_callbacks = {
             "success": page_success
         }
+        app_state = AppState()
+        page_callback(request, app_state, load_callbacks)
 
-        page_callback(app_state, request.matchdict, document, load_callbacks)
-
-        html = etree.tostring(el, pretty_print=True, method="html")
+        html = etree.tostring(request.document.el, pretty_print=True, method="html")
 
         return Response("<!DOCTYPE html>\n"+html)
 
@@ -341,7 +334,7 @@ def borobudurize(config, app, asset_manager, base_template, client_entry_point,
         route = app.root+route
         config.add_route(route_name, route)
 
-        view = wrap_pyramid_view(callback, base_template, asset_manager, calculator, client_entry_point)
+        view = wrap_pyramid_view(callback, asset_manager, calculator, client_entry_point)
         config.add_view(view, route_name=route_name)
 
     al_route_name = app.name+"._api."+"asset.list"
@@ -368,13 +361,21 @@ def borobudurize(config, app, asset_manager, base_template, client_entry_point,
     def get_resources(request):
         app_resources = AppResources(request, config.registry, storage_types=storage_types, service_types=service_types)
         return app_resources
-
     config.set_request_property(get_resources, 'resources', reify=True)
 
     def get_app(request):
             return app
-
     config.set_request_property(get_app, 'app', reify=True)
+
+    def get_document(request):
+        el = etree.Element("div")
+        base_template.render(el, Model())
+        el = el[0]
+        return Document(el)
+    config.set_request_property(get_document, 'document', reify=True)
+
+
+
 
 def add_storage_connection(config, name, connection):
     config.registry.registerUtility(connection, IStorageConnection, name=name)

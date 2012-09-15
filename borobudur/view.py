@@ -46,7 +46,9 @@ class View(object):
 
     def __init__(self, parent, el, model, el_rendered):
         self.parent = parent
+        self.request = parent.request
         self.app = parent.app
+
         self.model = model
         self.el = el
         self.el_query = borobudur.create_el_query(el)
@@ -57,6 +59,7 @@ class View(object):
 
         self.render_dict = {}
         self.render_dict["view"] = self
+        self.render_dict["request"] = self.request
         self.render_dict["app"] = self.app
         self.render_dict["utils"] = view_utils
         self.render_dict["translator"] = translator

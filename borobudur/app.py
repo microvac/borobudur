@@ -125,13 +125,12 @@ class LoadFlow(object):
     prambanan:type page_types l(c(borobudur.page:Page))
     """
 
-    def __init__(self, app, page_type_id, app_state, matchdict):
+    def __init__(self, request, page_type_id, app_state):
         page_type = prambanan.load_module_attr(page_type_id)
 
-        self.app = app
+        self.request = request
         self.page_type_id = page_type_id
         self.app_state = app_state
-        self.matchdict = matchdict
 
         loaded_index = -1 if not app_state.load_info else app_state.load_info["index"]
         self.load_from = loaded_index + 1
@@ -142,7 +141,7 @@ class LoadFlow(object):
 
         current = persist_page
         while current is not None:
-            if current.will_reload(matchdict):
+            if current.will_reload(request.match_dict):
                 persist_page = current.parent_page
             current = current.parent_page
 
@@ -154,8 +153,7 @@ class LoadFlow(object):
         self.persist_page = persist_page
         self.page_types = list(reversed(page_types))
 
-    def apply(self, document, callbacks):
-        self.document = document
+    def apply(self, callbacks):
         self.callbacks = callbacks
 
         app_state = self.app_state
@@ -181,7 +179,7 @@ class LoadFlow(object):
         except StopLoadException as e:
             stop_load = True
 
-        el_query = self.document.el_query
+        el_query = self.request.document.el_query
         if page is not None:
             if page.title is not None:
                 el_query("title").html(page.title)
@@ -207,7 +205,7 @@ class LoadFlow(object):
             self.finish()
         else:
             page_el_rendered = self.i < self.load_from
-            page = page_type(self.app, self.matchdict, self.document, page_el_rendered)
+            page = page_type(self.request, page_el_rendered)
             page.parent_page = self.app_state.leaf_page
 
             self.current = page
@@ -252,8 +250,8 @@ class App(object):
 
     def make_callback(self, page_type_id):
 
-        def callback(app_state, matchdict, document, callbacks):
-            load_flow = LoadFlow(self, page_type_id, app_state, matchdict)
-            load_flow.apply(document, callbacks)
+        def callback(request, app_state, callbacks):
+            load_flow = LoadFlow(request, page_type_id, app_state)
+            load_flow.apply(callbacks)
 
         return callback

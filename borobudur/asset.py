@@ -210,7 +210,7 @@ class AssetManager(object):
             raise ValueError("type %s is not supported" % type)
         self.style_assets[id] = (type, output, contents)
 
-    def write_all(self, load_flow, calculate, entry_point):
+    def write_all(self, document, load_flow, calculate, entry_point):
         page_type_id = load_flow.page_type_id
 
         packs = list(calculate(page_type_id, entry_point))
@@ -218,8 +218,8 @@ class AssetManager(object):
 
         assets = {"js":{}, "css":{}}
 
-        q_body = load_flow.document.el_query("body")
-        q_head = load_flow.document.el_query("head")
+        q_body = document.el_query("body")
+        q_head = document.el_query("head")
 
         for type, name, bundle in self.get_all_bundles(packs, styles):
             if type == "js":
