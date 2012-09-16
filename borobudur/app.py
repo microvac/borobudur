@@ -141,7 +141,7 @@ class LoadFlow(object):
 
         current = persist_page
         while current is not None:
-            if current.will_reload(request.match_dict):
+            if current.will_reload(request.matchdict):
                 persist_page = current.parent_page
             current = current.parent_page
 

@@ -93,7 +93,7 @@ var Router = (function(){
                 var callbacks = {"success": function(){}};
                 var request = {
                     document: document,
-                    match_dict: this._extractParameters(route, fragment),
+                    matchdict: this._extractParameters(route, fragment),
                     app: this.app
                 }
 

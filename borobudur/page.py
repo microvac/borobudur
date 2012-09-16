@@ -63,7 +63,7 @@ class Page(object):
     def prepare(self, loaders):
         pass
 
-    def will_reload(self, match_dict):
+    def will_reload(self, matchdict):
         return False
 
     def open(self ):
