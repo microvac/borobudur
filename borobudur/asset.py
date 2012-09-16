@@ -150,7 +150,15 @@ class LessBundle(SelfCheckingBundle):
 
 bootstrap_template = """
     $(function(){
-        prambanan.import("prambanan").load_module_attr(%s)(%s);
+        var app_settings = %s;
+        var state_info = %s;
+        var entry_point = %s;
+        var ClientApp = prambanan.import("borobudur.app").ClientApp;
+        var app = new ClientApp(app_settings, state_info);
+        if(entry_point){
+            prambanan.import("prambanan").load_module_attr(entry_point)(app);
+        }
+        app.router.bootstrap(state_info);
     });
 """
 class SimplePackCalculator(object):
@@ -164,15 +172,18 @@ class SimplePackCalculator(object):
             yield self.cached_results[page_type_id]
             return
 
-        entry_point = self.app.client_entry_point
-
-        entry_module = entry_point.split(":")[0]
         result = Pack()
         result.name = self.app.name
 
         available_modules = self.available_modules
 
-        main_modules, main_templates, main_templates_position = find_modules_and_templates([entry_module]+self.app.module_names, available_modules)
+        default_modules = ["borobudur.app"]
+        entry_point = self.app.client_entry_point
+        if entry_point is not None:
+            entry_module = entry_point.split(":")[0]
+            default_modules.append(entry_module)
+
+        main_modules, main_templates, main_templates_position = find_modules_and_templates(default_modules+self.app.module_names, available_modules)
 
         result.modules = RUNTIME_MODULES + main_modules.values()
         result.templates_position = main_templates_position+len(RUNTIME_MODULES)
@@ -181,6 +192,11 @@ class SimplePackCalculator(object):
         self.cached_results[page_type_id] = result
 
         yield result
+
+def to_json(obj):
+    out = StringIO()
+    json.dump(obj, out)
+    return out.getvalue()
 
 class AssetManager(object):
 
@@ -215,7 +231,6 @@ class AssetManager(object):
     def write_all(self, app, document, load_flow):
         page_type_id = load_flow.page_type_id
         calculate = app.asset_calculator
-        entry_point = app.client_entry_point
 
         packs = list(calculate(page_type_id))
         styles = [style for page_type in load_flow.page_types for style in page_type.styles]
@@ -245,12 +260,7 @@ class AssetManager(object):
             "load_info": {"index": load_flow.i}
         }
 
-        state_out = StringIO()
-        entry_point_out = StringIO()
-        json.dump(state, state_out)
-        json.dump(entry_point, entry_point_out)
-
-        bootstrap = bootstrap_template % (entry_point_out.getvalue(), state_out.getvalue())
+        bootstrap = bootstrap_template % (to_json(app.client_settings), to_json(state), to_json(app.client_entry_point))
         q_bootstrap = PyQuery(etree.Element("script")).html(bootstrap)
         q_body.append(q_bootstrap)
 

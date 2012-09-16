@@ -255,3 +255,10 @@ class App(object):
             load_flow.apply(callbacks)
 
         return callback
+
+class ClientApp(App):
+
+    def __init__(self, settings, state_info):
+        super(ClientApp, self).__init__(settings)
+        self.state_info = state_info
+        self.router = borobudur.Router(self)

@@ -7,6 +7,7 @@ from pyramid.view import view_config
 from zope.interface.interface import Interface
 
 import borobudur
+from borobudur.app import App
 from borobudur.interfaces import IApp
 import borobudur.schema
 import borobudur.storage
@@ -139,6 +140,8 @@ def add_resources(config, name, resource_types, resource_root):
         try_expose(resource_type, config, resource_root, factory)
 
 def add_app(config, name, app, resource_name):
+    app.freeze()
+
     factory = create_factory(resource_name=resource_name, app_name=name)
 
     for  route, page_type_id, callback in app.get_leaf_pages():
@@ -183,9 +186,23 @@ def includeme(config):
     config.set_request_property(get_app, 'app', reify=True)
     config.set_request_property(get_document, 'document', reify=True)
 
-def configure_server_app(app, asset_manager, asset_calculator, base_template, client_entry_point):
-    app.asset_manager = asset_manager
-    app.base_template = base_template
-    app.client_entry_point = client_entry_point
-    app.asset_calculator = asset_calculator(app)
+class ServerApp(App):
+
+    def __init__(self, settings, asset_manager, base_template, client_entry_point=None):
+        super(ServerApp, self).__init__(settings)
+        self.asset_manager = asset_manager
+        self.base_template = base_template
+        self.client_entry_point = client_entry_point
+        self.asset_calculator = SimplePackCalculator(self)
+
+    def freeze(self):
+        settings = {}
+        settings["name"] = self.name
+        settings["root"] = self.root
+        settings["api_root"] = self.api_root
+        settings["pages"] = []
+        for page in self.pages:
+            settings["pages"].append(page)
+        self.client_settings = settings
+
 
