@@ -63,7 +63,7 @@ var Router = (function(){
                 var route = current[0];
                 var page_id = current[1];
                 var callback = current[2];
-                var name = app.name + page_id.replace(":", ".");
+                var name = page_id.replace(":", ".");
                 this.route(route, name, callback);
             }, this);
         },

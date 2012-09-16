@@ -30,7 +30,7 @@ def bind_ajax_request(app, col):
     jQuery = borobudur.query_el
     prev_ajax = jQuery.ajax
     def ajax(settings):
-        if settings.url and settings.url.startswith(app.root+app.api_root):
+        if settings.url and settings.url.startswith(app.resource_root):
             type = None
             if settings.url.indexOf("/services/") != -1:
                 type = "Service"

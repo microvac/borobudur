@@ -167,13 +167,13 @@ class SimplePackCalculator(object):
         self.cached_results = {}
         self.available_modules = get_available_modules(app.asset_manager.manager)
 
-    def __call__(self, page_type_id):
+    def __call__(self, app_name, page_type_id):
         if page_type_id in self.cached_results:
             yield self.cached_results[page_type_id]
             return
 
         result = Pack()
-        result.name = self.app.name
+        result.name = app_name
 
         available_modules = self.available_modules
 
@@ -228,11 +228,25 @@ class AssetManager(object):
             raise ValueError("type %s is not supported" % type)
         self.style_assets[id] = (type, output, contents)
 
-    def write_all(self, app, document, load_flow):
+    def configure_with_npm(self):
+        if os.name == "nt":
+            self.env.config["UGLIFYJS_BIN"] = "uglifyjs.cmd"
+            self.env.config["LESS_BIN"] = "lessc.cmd"
+        else:
+            self.env.config["UGLIFYJS_BIN"] = "node_modules/.bin/uglifyjs"
+            self.env.config["LESS_BIN"] = "node_modules/.bin/lessc"
+        self.env.debug = False
+
+
+    def write_all(self, request, load_flow):
+        app = request.app
+        app_name = request.context.app_name
+        document = request.document
+
         page_type_id = load_flow.page_type_id
         calculate = app.asset_calculator
 
-        packs = list(calculate(page_type_id))
+        packs = list(calculate(app_name, page_type_id))
         styles = [style for page_type in load_flow.page_types for style in page_type.styles]
 
         assets = {"js":{}, "css":{}}
@@ -260,7 +274,11 @@ class AssetManager(object):
             "load_info": {"index": load_flow.i}
         }
 
-        bootstrap = bootstrap_template % (to_json(app.client_settings), to_json(state), to_json(app.client_entry_point))
+        bootstrap = bootstrap_template % (
+            to_json(request.context.client_settings),
+            to_json(state),
+            to_json(app.client_entry_point)
+        )
         q_bootstrap = PyQuery(etree.Element("script")).html(bootstrap)
         q_body.append(q_bootstrap)
 

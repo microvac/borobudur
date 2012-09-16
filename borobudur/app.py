@@ -223,20 +223,14 @@ class AppPart(object):
         self.name = name
 
 class App(object):
-    def __init__(self, settings):
-        self.name = settings["name"];
-        self.root = settings["root"];
-        self.api_root = settings["api_root"];
+    def __init__(self, pages):
         self.pages = []
         self.module_names = []
 
-        self.storage_root = self.root+self.api_root+"storages"
-        self.service_root = self.root+self.api_root+"services"
+        for route, page_type_id  in pages:
+            self.add_page_conf(route, page_type_id)
 
-        for route, page_type_id  in settings["pages"]:
-            self.add_page(route, page_type_id)
-
-    def add_page(self, route, page_type_id):
+    def add_page_conf(self, route, page_type_id):
         self.pages.append((route, page_type_id))
         module = page_type_id.split(":")[0]
         if not module in self.module_names:
@@ -259,6 +253,11 @@ class App(object):
 class ClientApp(App):
 
     def __init__(self, settings, state_info):
-        super(ClientApp, self).__init__(settings)
+        super(ClientApp, self).__init__(settings["pages"])
         self.state_info = state_info
         self.router = borobudur.Router(self)
+
+        self.root = settings["root"];
+        self.resource_root = settings["resource_root"]
+        self.storage_root = self.resource_root+"storages"
+        self.service_root = self.resource_root+"services"

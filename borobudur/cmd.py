@@ -1,16 +1,11 @@
 import os
 import sys
-import pyramid.settings
 import shutil
 
 from pyramid.paster import (
-    get_appsettings,
     setup_logging,
     bootstrap)
-from borobudur.app import App
-from borobudur.asset import AssetManager, SimplePackCalculator
 from borobudur.interfaces import IApp
-from roma.common import app_settings
 
 
 def usage(argv):
@@ -34,18 +29,18 @@ def main(argv=sys.argv):
     config_uri = argv[1]
     setup_logging(config_uri)
     env = bootstrap(config_uri)
-    app = env["app"].registry.queryUtility(IApp)
-    manager = app.asset_manager
-    if argv[2] == "clean":
-        rm_all(manager.full_result_dir)
-        rm_all(manager.env.cache.directory)
-    elif argv[2] == "build":
-        page = app.pages[0][1]
-        packs = app.asset_calculator(page)
-        for _, __, bundle in manager.get_all_bundles(packs, manager.style_assets.keys()):
-            print "generating %s" % bundle.output
-            for url in bundle.urls(manager.env):
-                print "%s generated" % url
-    else:
-        usage(argv)
+    for app_name, app in env["app"].registry.getUtilitiesFor(IApp):
+        manager = app.asset_manager
+        if argv[2] == "clean":
+            rm_all(manager.full_result_dir)
+            rm_all(manager.env.cache.directory)
+        elif argv[2] == "build":
+            page = app.pages[0][1]
+            packs = app.asset_calculator(app_name, page)
+            for _, __, bundle in manager.get_all_bundles(packs, manager.style_assets.keys()):
+                print "generating %s" % bundle.output
+                for url in bundle.urls(manager.env):
+                    print "%s generated" % url
+        else:
+            usage(argv)
 

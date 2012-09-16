@@ -37,7 +37,7 @@ def wrap_pyramid_view(page_callback):
 
     def view(request):
         def page_success(load_flow):
-            request.app.asset_manager.write_all(request.app, request.document, load_flow)
+            request.app.asset_manager.write_all(request, load_flow)
 
         load_callbacks = {
             "success": page_success
@@ -55,7 +55,7 @@ def asset_list_view(request):
     calculate = request.app.asset_calculator
     page_type_id = request.matchdict["page_type_id"]
 
-    packs = list(calculate(page_type_id))
+    packs = list(calculate(request.context.app_name, page_type_id))
     styles = ["bootstrap"]
 
     results = {
@@ -75,7 +75,7 @@ def asset_changed_view(request):
     page_type_id = request.matchdict["page_type_id"]
 
     import time
-    packs = list(calculate(page_type_id))
+    packs = list(calculate(request.context.app_name, page_type_id))
     styles = ["bootstrap"]
 
     results = {"js":[], "css":[]}
@@ -129,42 +129,43 @@ class AppResources(object):
 
 r_map = {}
 
-def add_resources(config, name, resource_types, resource_root):
+def add_resources(config, name, resource_types, root):
     storage_type_map = {}
     factory = create_factory(resource_name=name)
     for resource_type in resource_types:
         if issubclass(resource_type, borobudur.storage.mongo.MongoStorage) or issubclass(resource_type, borobudur.storage.mongo.EmbeddedMongoStorage):
             storage_type_map[resource_type.model] = resource_type
-    r_map[name] = (storage_type_map, resource_types)
+    r_map[name] = (storage_type_map, resource_types, root)
     for resource_type in resource_types:
-        try_expose(resource_type, config, resource_root, factory)
+        try_expose(resource_type, config, root, factory)
 
-def add_app(config, name, app, resource_name):
-    app.freeze()
+def add_app(config, name, app, root, resource_name):
+    resource_root = r_map[name][2]
+    client_settings = app.make_client_settings(root, resource_root)
 
-    factory = create_factory(resource_name=resource_name, app_name=name)
+    factory = create_factory(resource_name=resource_name, app_name=name, client_settings=client_settings)
 
     for  route, page_type_id, callback in app.get_leaf_pages():
-        route_name = app.name+"."+page_type_id.replace(":", ".")
+        route_name = name+"."+page_type_id.replace(":", ".")
 
-        route = app.root+route
+        route = root+route
         config.add_route(route_name, route, factory=factory)
 
         view = wrap_pyramid_view(callback)
         config.add_view(view, route_name=route_name)
 
-    al_route_name = app.name+"._api."+"asset.list"
-    config.add_route(al_route_name, app.root+app.api_root+"assets/list/{page_type_id}", factory=factory)
+    al_route_name = name+"._api."+"asset.list"
+    config.add_route(al_route_name, resource_root+"assets/list/{page_type_id}", factory=factory)
     config.add_view(asset_list_view, route_name=al_route_name)
 
-    ac_route_name = app.name+"._api."+"asset.changed"
-    config.add_route(ac_route_name, app.root+app.api_root+"assets/changed/{page_type_id}", factory=factory)
+    ac_route_name = name+"._api."+"asset.changed"
+    config.add_route(ac_route_name, resource_root+"assets/changed/{page_type_id}", factory=factory)
     config.add_view(asset_changed_view, route_name=ac_route_name)
 
     config.registry.registerUtility(app, IApp, name=name)
 
 def get_resources(request):
-    storage_type_map, resource_types = r_map[request.context.resource_name]
+    storage_type_map, resource_types, resource_root = r_map[request.context.resource_name]
     app_resources = AppResources(request, request.registry, resource_types=resource_types, storage_type_map=storage_type_map)
     return app_resources
 
@@ -188,21 +189,25 @@ def includeme(config):
 
 class ServerApp(App):
 
-    def __init__(self, settings, asset_manager, base_template, client_entry_point=None):
-        super(ServerApp, self).__init__(settings)
+    def __init__(self, asset_manager, base_template, client_entry_point=None):
+        super(ServerApp, self).__init__([])
         self.asset_manager = asset_manager
         self.base_template = base_template
         self.client_entry_point = client_entry_point
         self.asset_calculator = SimplePackCalculator(self)
 
-    def freeze(self):
-        settings = {}
-        settings["name"] = self.name
-        settings["root"] = self.root
-        settings["api_root"] = self.api_root
-        settings["pages"] = []
+    def add_page(self, route, page_type):
+        page_type_id = "%s:%s" % (page_type.__module__, page_type.__name__)
+        self.add_page_conf(route, page_type_id)
+
+    def make_client_settings(self, root, resource_root):
+        settings = {
+            "resource_root": resource_root,
+            "root": root,
+            "pages": []
+        }
         for page in self.pages:
             settings["pages"].append(page)
-        self.client_settings = settings
+        return settings
 
 
