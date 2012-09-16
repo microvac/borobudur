@@ -7,7 +7,7 @@ from pyramid.view import view_config
 from zope.interface.interface import Interface
 
 import borobudur
-from borobudur.interfaces import IAppResources
+from borobudur.interfaces import IApp
 import borobudur.schema
 import borobudur.storage
 import borobudur.storage.mongo
@@ -29,16 +29,15 @@ class AppState(object):
     active_pages = []
     load_info = False
 
-def wrap_pyramid_view(page_callback, asset_manager, calculator, entry_point):
+def wrap_pyramid_view(page_callback):
     """
     loaded_page: id
     loaded_bundles = list of bundles
     """
 
     def view(request):
-
         def page_success(load_flow):
-            asset_manager.write_all(request.document, load_flow, calculator, entry_point)
+            request.app.asset_manager.write_all(request.app, request.document, load_flow)
 
         load_callbacks = {
             "success": page_success
@@ -52,52 +51,51 @@ def wrap_pyramid_view(page_callback, asset_manager, calculator, entry_point):
 
     return view
 
-def asset_list_view(asset_manager, calculate, entry_point):
+def asset_list_view(request):
+    calculate = request.app.asset_calculator
+    page_type_id = request.matchdict["page_type_id"]
 
-    def view(request):
-        page_type_id = request.matchdict["page_type_id"]
+    packs = list(calculate(page_type_id))
+    styles = ["bootstrap"]
 
-        packs = list(calculate(page_type_id, entry_point))
-        styles = ["bootstrap"]
+    results = {
+        "css": {},
+        "js": {},
+    }
 
-        results = {
-            "css": {},
-            "js": {},
-        }
+    asset_manager = request.app.asset_manager
+    for type, name, bundle in asset_manager.get_all_bundles(packs, styles):
+        results[type][name] = [url for url in bundle.urls(asset_manager.env)]
 
+    return render_to_response("json", results)
+
+
+def asset_changed_view(request):
+    calculate = request.app.asset_calculator
+    page_type_id = request.matchdict["page_type_id"]
+
+    import time
+    packs = list(calculate(page_type_id))
+    styles = ["bootstrap"]
+
+    results = {"js":[], "css":[]}
+
+    asset_manager = request.app.asset_manager
+
+    found = False
+    i = 0
+    while not found and i < 1000:
         for type, name, bundle in asset_manager.get_all_bundles(packs, styles):
-            results[type][name] = [url for url in bundle.urls(asset_manager.env)]
-
-        return render_to_response("json", results)
-
-    return view
-
-def asset_changed_view(asset_manager, calculate, entry_point):
-
-    def view(request):
-        page_type_id = request.matchdict["page_type_id"]
-
-        import time
-        packs = list(calculate(page_type_id, entry_point))
-        styles = ["bootstrap"]
-
-        results = {"js":[], "css":[]}
-
-        found = False
-        i = 0
-        while not found and i < 1000:
-            for type, name, bundle in asset_manager.get_all_bundles(packs, styles):
-                if asset_manager.env.updater.needs_rebuild(bundle, asset_manager.env):
-                    results[type].append(name)
-                    found = True
-                i += 0
-            if not found:
-                time.sleep(1)
+            if asset_manager.env.updater.needs_rebuild(bundle, asset_manager.env):
+                results[type].append(name)
+                found = True
+            i += 0
+        if not found:
+            time.sleep(1)
 
 
-        return render_to_response("json", results)
+    return render_to_response("json", results)
 
-    return view
 
 def make_embedded_storage_view(model, level):
 
@@ -323,10 +321,7 @@ class AppResources(object):
     def get_connection(self, name):
         return self.registry.queryUtility(IStorageConnection, name=name)
 
-def borobudurize(config, app, asset_manager, base_template, client_entry_point,
-                      storage_types=(), file_storage_types=(), service_types=()):
-
-    calculator = SimplePackCalculator(app, asset_manager.manager)
+def borobudurize(config, app, storage_types=(), file_storage_types=(), service_types=()):
 
     for  route, page_type_id, callback in app.get_leaf_pages():
         route_name = app.name+"."+page_type_id.replace(":", ".")
@@ -334,19 +329,16 @@ def borobudurize(config, app, asset_manager, base_template, client_entry_point,
         route = app.root+route
         config.add_route(route_name, route)
 
-        view = wrap_pyramid_view(callback, asset_manager, calculator, client_entry_point)
+        view = wrap_pyramid_view(callback)
         config.add_view(view, route_name=route_name)
 
     al_route_name = app.name+"._api."+"asset.list"
     config.add_route(al_route_name, app.root+app.api_root+"assets/list/{page_type_id}")
-    al_view = asset_list_view(asset_manager, calculator, client_entry_point)
-    config.add_view(al_view, route_name=al_route_name)
+    config.add_view(asset_list_view, route_name=al_route_name)
 
     ac_route_name = app.name+"._api."+"asset.changed"
     config.add_route(ac_route_name, app.root+app.api_root+"assets/changed/{page_type_id}")
-    ac_view = asset_changed_view(asset_manager, calculator, client_entry_point)
-    config.add_view(ac_view, route_name=ac_route_name)
-
+    config.add_view(asset_changed_view, route_name=ac_route_name)
 
     for storage_type in storage_types:
         if storage_type.exposed:
@@ -357,6 +349,8 @@ def borobudurize(config, app, asset_manager, base_template, client_entry_point,
 
     for service_type in service_types:
         expose_service(config, app, service_type)
+
+    config.registry.registerUtility(app, IApp)
 
     def get_resources(request):
         app_resources = AppResources(request, config.registry, storage_types=storage_types, service_types=service_types)
@@ -369,12 +363,10 @@ def borobudurize(config, app, asset_manager, base_template, client_entry_point,
 
     def get_document(request):
         el = etree.Element("div")
-        base_template.render(el, Model())
+        request.app.base_template.render(el, Model())
         el = el[0]
         return Document(el)
     config.set_request_property(get_document, 'document', reify=True)
-
-
 
 
 def add_storage_connection(config, name, connection):
@@ -383,3 +375,10 @@ def add_storage_connection(config, name, connection):
 def includeme(config):
     config.add_directive('add_storage_connection', add_storage_connection)
     config.add_directive('borobudurize', borobudurize)
+
+def configure_server_app(app, asset_manager, asset_calculator, base_template, client_entry_point):
+    app.asset_manager = asset_manager
+    app.base_template = base_template
+    app.client_entry_point = client_entry_point
+    app.asset_calculator = asset_calculator(app)
+

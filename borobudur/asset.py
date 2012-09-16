@@ -154,15 +154,17 @@ bootstrap_template = """
     });
 """
 class SimplePackCalculator(object):
-    def __init__(self, app, manager):
+    def __init__(self, app):
         self.app = app
         self.cached_results = {}
-        self.available_modules = get_available_modules(manager)
+        self.available_modules = get_available_modules(app.asset_manager.manager)
 
-    def __call__(self, page_type_id, entry_point):
-        if entry_point in self.cached_results:
-            yield self.cached_results[entry_point]
+    def __call__(self, page_type_id):
+        if page_type_id in self.cached_results:
+            yield self.cached_results[page_type_id]
             return
+
+        entry_point = self.app.client_entry_point
 
         entry_module = entry_point.split(":")[0]
         result = Pack()
@@ -176,7 +178,7 @@ class SimplePackCalculator(object):
         result.templates_position = main_templates_position+len(RUNTIME_MODULES)
         result.templates = main_templates
 
-        self.cached_results[entry_point] = result
+        self.cached_results[page_type_id] = result
 
         yield result
 
@@ -210,10 +212,12 @@ class AssetManager(object):
             raise ValueError("type %s is not supported" % type)
         self.style_assets[id] = (type, output, contents)
 
-    def write_all(self, document, load_flow, calculate, entry_point):
+    def write_all(self, app, document, load_flow):
         page_type_id = load_flow.page_type_id
+        calculate = app.asset_calculator
+        entry_point = app.client_entry_point
 
-        packs = list(calculate(page_type_id, entry_point))
+        packs = list(calculate(page_type_id))
         styles = [style for page_type in load_flow.page_types for style in page_type.styles]
 
         assets = {"js":{}, "css":{}}
