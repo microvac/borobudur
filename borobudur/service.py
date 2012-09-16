@@ -1,14 +1,25 @@
-def service(return_model, return_schema_name):
-    def decorate(fn):
-        return fn
-    return decorate
+import inspect
 
-class Service(object):
-    id = None
+class ServiceExposer(object):
 
-    def __init__(self, app, callbacks):
-        self.app = app
-        self.callbacks = callbacks
+    def __call__(self, config, app, service_type):
 
-    def invoke(self, method_name, **kwargs):
-        pass
+        def make_view(name):
+            def view(request):
+                return getattr(service_type(request), name)()
+            return view
+
+        exposed_methods = []
+        for name in dir(service_type):
+            if not name.startswith("__"):
+                method = getattr(service_type, name)
+                if inspect.ismethod(method):
+                    exposed_methods.append(name)
+
+        for method_name in exposed_methods:
+            method = make_view(method_name)
+
+            route_name = "service_%s_%s" % (service_type.id, method_name)
+            config.add_route(route_name, app.root+app.api_root+"services/"+service_type.id+"/"+method_name)
+            config.add_view(method, route_name=route_name, renderer="json")
+

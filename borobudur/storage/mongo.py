@@ -1,3 +1,4 @@
+import borobudur
 import bson
 from borobudur.storage import StorageException, SearchConfig, IStorage, IStorageConnection
 from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection
@@ -418,4 +419,82 @@ class EmbeddedMongoStorage(BaseStorage):
 
     def __str__(self):
         return "%s mongo embedded storage with parent %s on %s" % (self.model.__name__, self.parent_storage.__class__.__name__, self.attribute_path)
+
+def make_embedded_storage_view(model, level):
+
+    class View(object):
+
+        def __init__(self, request):
+            self.request = request
+            self.schema = model.get_schema(request.params.get("s", ""))
+            self.storage = request.resources.get_storage(model)
+
+            id = None
+            current_id_level = 0
+            while current_id_level < level:
+                id_name = "id%d" % current_id_level
+                id = (self.request.matchdict[id_name], id)
+                current_id_level += 1
+
+            self.id = id
+
+        def create(self):
+            appstruct = self.schema.deserialize(self.request.json_body)
+            result = self.storage.insert(self.id, appstruct, self.schema)
+            serialized = self.schema.serialize(result)
+            return serialized
+
+        def read(self):
+            result = self.storage.one(self.id, self.request.matchdict["id"], self.schema)
+            serialized = self.schema.serialize(result)
+            return serialized
+
+        def update(self):
+            appstruct = self.schema.deserialize(self.request.json_body)
+            result = self.storage.update(self.id, appstruct, self.schema)
+            serialized = self.schema.serialize(result)
+            return serialized
+
+        def delete(self):
+            pass
+
+        def list(self):
+            skip = self.request.params.get("ps", 0)
+            limit = self.request.params.get("pl", 0)
+            config = borobudur.storage.SearchConfig(skip, limit)
+
+            results = self.storage.all(self.id, config=config, schema=self.schema)
+            sequence_schema = borobudur.schema.SequenceNode(self.schema)
+            serialized = sequence_schema.serialize(results)
+            return serialized
+
+    return View
+
+class EmbeddedStorageExposer(object):
+
+    def __call__(self, config, app, storage_type):
+
+        model = storage_type.model
+        name = model.__name__
+        storage_url = model.model_url
+
+        level = 0
+        current = storage_type
+        while getattr(current, "parent_storage", None):
+            current = current.parent_storage
+            level += 1
+
+        storage_view = make_embedded_storage_view(model, level)
+
+        for i in range(level):
+            storage_url += "/{id%d}" % i
+
+        config.add_route("non_id"+name, app.root+app.api_root+"storages/"+storage_url)
+        config.add_route("id_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+
+        config.add_view(storage_view, route_name="non_id"+name, attr="list", request_method="GET", renderer="json")
+        config.add_view(storage_view, route_name="non_id"+name, attr="create", request_method="POST", renderer="json")
+        config.add_view(storage_view, route_name="id_"+name, attr="read", request_method="GET", renderer="json")
+        config.add_view(storage_view, route_name="id_"+name, attr="update", request_method="PUT", renderer="json")
+        config.add_view(storage_view, route_name="id_"+name, attr="delete", request_method="DELETE", renderer="json")
 

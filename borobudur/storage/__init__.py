@@ -1,3 +1,4 @@
+import borobudur
 from zope.interface.interface import Interface
 
 class StorageException(Exception):
@@ -27,6 +28,76 @@ class SearchConfig(object):
         if sorts is None:
             sorts = []
         self.sorts = sorts
+
+def make_storage_view(model):
+
+    class View(object):
+
+        def __init__(self, request):
+            self.request = request
+            self.storage = request.resources.get_storage(model)
+            self.schema = model.get_schema(request.params.get("s", ""))
+
+        def create(self):
+            appstruct = self.schema.deserialize(self.request.json_body)
+            result = self.storage.insert(appstruct, self.schema)
+            serialized = self.schema.serialize(result)
+            return serialized
+
+        def read(self):
+            result = self.storage.one(self.request.matchdict["id"], self.schema)
+            serialized = self.schema.serialize(result)
+            return serialized
+
+        def update(self):
+            appstruct = self.schema.deserialize(self.request.json_body)
+            result = self.storage.update(appstruct, self.schema)
+            serialized = self.schema.serialize(result)
+            return serialized
+
+        def delete(self):
+            result = self.storage.delete(self.request.matchdict["id"])
+            return result
+
+        def list(self):
+            skip = self.request.params.get("ps", 0)
+            limit = self.request.params.get("pl", 0)
+            sort_order = self.request.params.get("so")
+            sort_criteria = self.request.params.get("sc")
+            query = self.storage.model.deserialize_queries(self.request.params)
+            sorts = None
+            if sort_criteria and sort_order:
+                sorts = borobudur.storage.SearchSort(sort_criteria, sort_order)
+            elif sort_criteria:
+                sorts = borobudur.storage.SearchSort(sort_criteria)
+
+            config = borobudur.storage.SearchConfig(skip, limit, sorts)
+
+            results = self.storage.all(query=query, schema=self.schema, config=config)
+            sequence_schema = borobudur.schema.SequenceNode(self.schema)
+            serialized = sequence_schema.serialize(results)
+            return serialized
+
+    return View
+
+class StorageExposer(object):
+
+    def __call__(self, config, app, storage_type):
+        model = storage_type.model
+        name = model.__name__
+        storage_url = model.model_url
+
+        storage_view = make_storage_view(model)
+
+        config.add_route("non_id"+name, app.root+app.api_root+"storages/"+storage_url)
+        config.add_route("id_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+
+        config.add_view(storage_view, route_name="non_id"+name, attr="list", request_method="GET", renderer="json")
+        config.add_view(storage_view, route_name="non_id"+name, attr="create", request_method="POST", renderer="json")
+        config.add_view(storage_view, route_name="id_"+name, attr="read", request_method="GET", renderer="json")
+        config.add_view(storage_view, route_name="id_"+name, attr="update", request_method="PUT", renderer="json")
+        config.add_view(storage_view, route_name="id_"+name, attr="delete", request_method="DELETE", renderer="json")
+
 
 class IStorageConnection(Interface):
     pass
