@@ -17,3 +17,5 @@ pip-log.txt
 borobudur/test/js_output_src/gen
 **/test/sandbox/*
 
+#sphinx build
+docs/build
