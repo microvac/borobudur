@@ -12,7 +12,6 @@ import borobudur.schema
 import borobudur.storage
 import borobudur.storage.mongo
 
-from borobudur.storage import IStorageConnection
 from borobudur.asset import SimplePackCalculator
 from borobudur.model import Model, CollectionRefNode
 
@@ -127,9 +126,6 @@ class AppResources(object):
             return None
         return storage_type(self.request)
 
-    def get_connection(self, name):
-        return self.registry.queryUtility(IStorageConnection, name=name)
-
 r_map = {}
 
 def add_resources(config, name, resource_types, resource_root):
@@ -164,9 +160,6 @@ def add_app(config, name, app, resource_name):
 
     config.registry.registerUtility(app, IApp, name=name)
 
-def add_storage_connection(config, name, connection):
-    config.registry.registerUtility(connection, IStorageConnection, name=name)
-
 def get_resources(request):
     storage_type_map, resource_types = r_map[request.context.resource_name]
     app_resources = AppResources(request, request.registry, resource_types=resource_types, storage_type_map=storage_type_map)
@@ -183,7 +176,6 @@ def get_document(request):
     return Document(el)
 
 def includeme(config):
-    config.add_directive('add_storage_connection', add_storage_connection)
     config.add_directive('add_app', add_app)
     config.add_directive('add_resources', add_resources)
 

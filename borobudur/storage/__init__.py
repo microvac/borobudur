@@ -99,9 +99,6 @@ class StorageExposer(object):
         config.add_view(storage_view, route_name="id_"+name, attr="delete", request_method="DELETE", renderer="json")
 
 
-class IStorageConnection(Interface):
-    pass
-
 class IStorage(Interface):
     """
     Interface that define contracts for Borobudur storage implementations

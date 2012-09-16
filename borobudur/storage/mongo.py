@@ -1,11 +1,11 @@
 import borobudur
 import bson
-from borobudur.storage import StorageException, SearchConfig, IStorage, IStorageConnection
+from borobudur.storage import StorageException, SearchConfig
 from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode, DateTime
 from datetime import datetime, date
 
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING, DESCENDING, Connection
 
 import colander
 
@@ -186,14 +186,14 @@ class BaseStorage(object):
 
 class MongoStorage(BaseStorage):
 
-    connection_name = None
+    connection_holder = None
     db_name = None
     collection_name = None
     model = None
 
     def __init__(self, request):
         self.request = request
-        self.connection = request.resources.get_connection(self.connection_name)
+        self.connection = self.connection_holder.connection
 
         self.db = self.connection[self.db_name]
         self.collection = self.db[self.collection_name]
@@ -498,3 +498,13 @@ class EmbeddedStorageExposer(object):
         config.add_view(storage_view, route_name="id_"+name, attr="update", request_method="PUT", renderer="json")
         config.add_view(storage_view, route_name="id_"+name, attr="delete", request_method="DELETE", renderer="json")
 
+class ConnectionHolder(object):
+    """
+    simple class that allows connection to lazily configured
+    """
+    connection = None
+
+    def bind(self, host, port):
+        if self.connection is not None:
+            raise ValueError("connection is already bind")
+        self.connection = Connection(host, port)
