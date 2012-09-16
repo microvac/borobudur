@@ -82,15 +82,15 @@ def make_storage_view(model):
 
 class StorageExposer(object):
 
-    def __call__(self, config, app, storage_type):
+    def __call__(self, config, resource_root, factory, storage_type):
         model = storage_type.model
         name = model.__name__
         storage_url = model.model_url
 
         storage_view = make_storage_view(model)
 
-        config.add_route("non_id"+name, app.root+app.api_root+"storages/"+storage_url)
-        config.add_route("id_"+name, app.root+app.api_root+"storages/"+storage_url+"/{id}")
+        config.add_route("non_id"+name, resource_root+"storages/"+storage_url, factory=factory)
+        config.add_route("id_"+name, resource_root+"storages/"+storage_url+"/{id}", factory=factory)
 
         config.add_view(storage_view, route_name="non_id"+name, attr="list", request_method="GET", renderer="json")
         config.add_view(storage_view, route_name="non_id"+name, attr="create", request_method="POST", renderer="json")

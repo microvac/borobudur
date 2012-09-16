@@ -42,16 +42,16 @@ def make_file_storage_view(storage_type):
 
 class FileStorageExposer(object):
 
-    def __call__(self, config, app, storage_type):
+    def __call__(self, config, resource_root, factory, storage_type):
         model = storage_type.model
         name = model.__name__
         storage_url = model.model_url
 
         storage_view = make_file_storage_view(storage_type)
 
-        config.add_route("upload_"+name, app.root+app.api_root+"uploads/"+storage_url)
-        config.add_route("download_"+name, app.root+app.api_root+"files/"+storage_url+"/{id}")
-        config.add_route("typed_download_"+name, app.root+app.api_root+"files/"+storage_url+"/{id}/{type}")
+        config.add_route("upload_"+name, resource_root+"uploads/"+storage_url, factory=factory)
+        config.add_route("download_"+name, resource_root+"files/"+storage_url+"/{id}", factory=factory)
+        config.add_route("typed_download_"+name, resource_root+"files/"+storage_url+"/{id}/{type}", factory=factory)
 
         config.add_view(storage_view, route_name="upload_"+name, attr="upload", request_method="POST", renderer="json")
         config.add_view(storage_view, route_name="download_"+name, attr="download", request_method="GET")

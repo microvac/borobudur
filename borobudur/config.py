@@ -102,10 +102,16 @@ def expose(*exposers):
         return cls
     return decorate
 
-def try_expose(cls, config, app):
+def try_expose(cls, config, app, factory):
     if hasattr(cls, "_exposers"):
         for exposer in getattr(cls, "_exposers"):
-            exposer(config, app, cls)
+            exposer(config, app, factory, cls)
+
+def create_factory(**kwargs):
+    class Factory(object):
+        def __init__(self, request):
+            self.__dict__.update(kwargs)
+    return Factory
 
 class AppResources(object):
 
@@ -124,57 +130,66 @@ class AppResources(object):
     def get_connection(self, name):
         return self.registry.queryUtility(IStorageConnection, name=name)
 
-def add_app(config, app, resource_types):
+r_map = {}
+
+def add_resources(config, name, resource_types, resource_root):
+    storage_type_map = {}
+    factory = create_factory(resource_name=name)
+    for resource_type in resource_types:
+        if issubclass(resource_type, borobudur.storage.mongo.MongoStorage) or issubclass(resource_type, borobudur.storage.mongo.EmbeddedMongoStorage):
+            storage_type_map[resource_type.model] = resource_type
+    r_map[name] = (storage_type_map, resource_types)
+    for resource_type in resource_types:
+        try_expose(resource_type, config, resource_root, factory)
+
+def add_app(config, name, app, resource_name):
+    factory = create_factory(resource_name=resource_name, app_name=name)
 
     for  route, page_type_id, callback in app.get_leaf_pages():
         route_name = app.name+"."+page_type_id.replace(":", ".")
 
         route = app.root+route
-        config.add_route(route_name, route)
+        config.add_route(route_name, route, factory=factory)
 
         view = wrap_pyramid_view(callback)
         config.add_view(view, route_name=route_name)
 
     al_route_name = app.name+"._api."+"asset.list"
-    config.add_route(al_route_name, app.root+app.api_root+"assets/list/{page_type_id}")
+    config.add_route(al_route_name, app.root+app.api_root+"assets/list/{page_type_id}", factory=factory)
     config.add_view(asset_list_view, route_name=al_route_name)
 
     ac_route_name = app.name+"._api."+"asset.changed"
-    config.add_route(ac_route_name, app.root+app.api_root+"assets/changed/{page_type_id}")
+    config.add_route(ac_route_name, app.root+app.api_root+"assets/changed/{page_type_id}", factory=factory)
     config.add_view(asset_changed_view, route_name=ac_route_name)
 
-    for resource_type in resource_types:
-        try_expose(resource_type, config, app)
-
-    config.registry.registerUtility(app, IApp)
-
-    storage_type_map = {}
-    for resource_type in resource_types:
-        if issubclass(resource_type, borobudur.storage.mongo.MongoStorage) or issubclass(resource_type, borobudur.storage.mongo.EmbeddedMongoStorage):
-            storage_type_map[resource_type.model] = resource_type
-    def get_resources(request):
-        app_resources = AppResources(request, config.registry, resource_types=resource_type, storage_type_map=storage_type_map)
-        return app_resources
-    config.set_request_property(get_resources, 'resources', reify=True)
-
-    def get_app(request):
-            return app
-    config.set_request_property(get_app, 'app', reify=True)
-
-    def get_document(request):
-        el = etree.Element("div")
-        request.app.base_template.render(el, Model())
-        el = el[0]
-        return Document(el)
-    config.set_request_property(get_document, 'document', reify=True)
-
+    config.registry.registerUtility(app, IApp, name=name)
 
 def add_storage_connection(config, name, connection):
     config.registry.registerUtility(connection, IStorageConnection, name=name)
 
+def get_resources(request):
+    storage_type_map, resource_types = r_map[request.context.resource_name]
+    app_resources = AppResources(request, request.registry, resource_types=resource_types, storage_type_map=storage_type_map)
+    return app_resources
+
+def get_app(request):
+    app_name = request.context.app_name
+    return request.registry.queryUtility(IApp, name=app_name)
+
+def get_document(request):
+    el = etree.Element("div")
+    request.app.base_template.render(el, Model())
+    el = el[0]
+    return Document(el)
+
 def includeme(config):
     config.add_directive('add_storage_connection', add_storage_connection)
     config.add_directive('add_app', add_app)
+    config.add_directive('add_resources', add_resources)
+
+    config.set_request_property(get_resources, 'resources', reify=True)
+    config.set_request_property(get_app, 'app', reify=True)
+    config.set_request_property(get_document, 'document', reify=True)
 
 def configure_server_app(app, asset_manager, asset_calculator, base_template, client_entry_point):
     app.asset_manager = asset_manager

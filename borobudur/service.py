@@ -2,7 +2,7 @@ import inspect
 
 class ServiceExposer(object):
 
-    def __call__(self, config, app, service_type):
+    def __call__(self, config, resource_root, factory, service_type):
 
         def make_view(name):
             def view(request):
@@ -20,6 +20,5 @@ class ServiceExposer(object):
             method = make_view(method_name)
 
             route_name = "service_%s_%s" % (service_type.id, method_name)
-            config.add_route(route_name, app.root+app.api_root+"services/"+service_type.id+"/"+method_name)
+            config.add_route(route_name, resource_root+"services/"+service_type.id+"/"+method_name, factory=factory)
             config.add_view(method, route_name=route_name, renderer="json")
-
