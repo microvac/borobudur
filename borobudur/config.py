@@ -115,9 +115,8 @@ def create_factory(**kwargs):
 
 class AppResources(object):
 
-    def __init__(self, request, registry, resource_types, storage_type_map):
+    def __init__(self, request, resource_types, storage_type_map):
         self.request = request
-        self.registry = registry
         self.resource_types = resource_types
         self.storage_type_map = storage_type_map
 
@@ -130,8 +129,9 @@ class AppResources(object):
 r_map = {}
 
 def add_resources(config, name, resource_types, root):
-    storage_type_map = {}
     factory = create_factory(resource_name=name)
+
+    storage_type_map = {}
     for resource_type in resource_types:
         if issubclass(resource_type, borobudur.storage.mongo.MongoStorage) or issubclass(resource_type, borobudur.storage.mongo.EmbeddedMongoStorage):
             storage_type_map[resource_type.model] = resource_type
@@ -164,9 +164,10 @@ def add_app(config, name, app, root, resource_name):
 
     config.registry.registerUtility(app, IApp, name=name)
 
+
 def get_resources(request):
     storage_type_map, resource_types, resource_root = r_map[request.context.resource_name]
-    app_resources = AppResources(request, request.registry, resource_types=resource_types, storage_type_map=storage_type_map)
+    app_resources = AppResources(request, resource_types=resource_types, storage_type_map=storage_type_map)
     return app_resources
 
 def get_app(request):
