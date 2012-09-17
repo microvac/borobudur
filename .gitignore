@@ -19,3 +19,6 @@ borobudur/test/js_output_src/gen
 
 #sphinx build
 docs/build
+
+#fabric
+fab.ini
