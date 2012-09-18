@@ -31,20 +31,13 @@ class SearchConfig(object):
 
 def make_storage_view(model):
 
-    schemas = {}
-
-    for name, schema in model.schemas.items():
-        new_schema = schema.clone()
-        for child in new_schema.children:
-            child.missing = None
-        schemas[name] = new_schema
 
     class View(object):
 
         def __init__(self, request):
             self.request = request
             self.storage = request.resources.get_storage(model)
-            self.schema = schemas[request.params.get("s", "")]
+            self.schema = model.schema
 
         def create(self):
             appstruct = self.schema.deserialize(self.request.json_body)

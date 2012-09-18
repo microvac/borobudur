@@ -97,11 +97,6 @@ class Page(object):
                 return view
         return None
 
-    def load_model(self, model_name, model_type, schema_name, **attrs):
-        loader = self.loaders.model(model_name, model_type, self.app.storage_root, schema_name, None)
-        for attr_name in attrs:
-            loader.attr(attr_name, attrs.get(attr_name))
-
     def destroy(self):
         reversed_views = reversed(self.views)
         for id, view in reversed_views:

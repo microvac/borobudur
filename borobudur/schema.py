@@ -5,12 +5,6 @@ from colander import (\
     null, Integer, String, Date, DateTime, Float, Decimal, Time, Boolean
     )
 
-def make_schemas(default_shema, **named_schemas):
-    result = {"": default_shema}
-    for name in named_schemas:
-        result[name] = named_schemas.get(name)
-    return result
-
 def clone_node(source, target):
     target.typ = source.typ
     target.preparer = source.preparer

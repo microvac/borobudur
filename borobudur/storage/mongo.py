@@ -1,7 +1,7 @@
 import borobudur
 import bson
 from borobudur.storage import StorageException, SearchConfig
-from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection
+from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection, CollectionRef, ModelRef
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode, DateTime
 from datetime import datetime, date
 
@@ -24,6 +24,9 @@ def sequence_serializer(obj, schema, converter):
         result.append(converter(child_obj, child_schema, converter))
     return result
 
+def collection_serializer(obj, schema, deserialize_child):
+    return sequence_serializer(obj.models, schema, deserialize_child)
+
 def sequence_deserializer(obj, schema, converter):
     if obj is None:
         obj = []
@@ -34,14 +37,26 @@ def sequence_deserializer(obj, schema, converter):
         result.append(converter(child_obj, child_schema, converter))
     return result
 
+def collection_deserializer(obj, schema, deserialize_child):
+    objs = sequence_deserializer(obj, schema, deserialize_child)
+    return Collection(schema.typ.target, objs)
+
 def mapping_serializer(obj, schema, serialize_child):
     result = {}
     for child_schema in schema.children:
-        if child_schema.name not in obj:
-            print "ea"
         child_obj = obj[child_schema.name]
         result[child_schema.name] = serialize_child(child_obj, child_schema, serialize_child)
     return result
+
+def model_serializer(obj, schema, serialize_child):
+    result = {}
+    for child_schema in schema.children:
+        if child_schema.name not in obj:
+            continue
+        child_obj = obj[child_schema.name]
+        result[child_schema.name] = serialize_child(child_obj, child_schema, serialize_child)
+    return result
+
 
 def mapping_deserializer(obj, schema, deserialize_child):
     if obj is None:
@@ -56,6 +71,10 @@ def mapping_deserializer(obj, schema, deserialize_child):
         result[child_schema.name] = deserialize_child(child_obj, child_schema, deserialize_child)
 
     return result
+
+def model_deserializer(obj, schema, deserialize_child):
+    attrs = mapping_deserializer(obj, schema, deserialize_child)
+    return schema.typ.target(attrs)
 
 def date_serializer(obj, schema=None, func=None):
     return datetime(year=obj.year, month=obj.month, day=obj.day)
@@ -80,6 +99,9 @@ serializers = {
     ObjectId: object_id_serializer,
     Date: date_serializer,
     Currency: null_converter,
+    CollectionRef: collection_serializer,
+    ModelRef: model_serializer,
+
 }
 
 deserializers = {
@@ -94,6 +116,8 @@ deserializers = {
     ObjectId: null_converter,
     Date: date_deserializer,
     Currency: null_converter,
+    CollectionRef: collection_deserializer,
+    ModelRef: model_deserializer,
 }
 
 def merge_array(source, target):
@@ -131,66 +155,38 @@ class BaseStorage(object):
 
     def serialize(self, obj, schema, serialize_child):
         if isinstance(schema, RefNode):
-            if obj is None and schema.nullable:
+            if obj is None and schema.typ.nullable:
                 return None
 
-            storage = self.request.resources.get_storage(schema.target)
+            if isinstance(schema, ModelRefNode):
 
-            #todo hack
-            if isinstance(storage, EmbeddedMongoStorage):
-                storage = None
+                storage = self.request.resources.get_storage(schema.typ.target)
 
-            if storage is not None:
-                if isinstance(obj, Model):
-                    id = obj.id
-                if isinstance(obj, Collection):
-                    id = [m.id for m in obj.models]
-                return id
+                #todo hack
+                if isinstance(storage, EmbeddedMongoStorage):
+                    storage = None
 
-            if isinstance(obj, Model):
-                obj = obj.attributes
-                #top level model can have attributes to None
-                #fill them before passing to mapping
-                #todo move this to mapping serializer check?
-                for child in schema.children:
-                    if child.name not in obj:
-                        obj[child.name] = None
-            if isinstance(obj, Collection):
-                obj = obj.models
+                if storage is not None:
+                    return obj.id
 
         return serializers[type(schema.typ)](obj, schema, serialize_child)
 
     def deserialize(self, obj, schema, deserialize_child):
         if isinstance(schema, RefNode):
-            storage = self.request.resources.get_storage(schema.target)
+            if obj is None and schema.typ.nullable:
+                return None
 
-            #todo hack
-            if isinstance(storage, EmbeddedMongoStorage):
-                storage = None
+            if isinstance(schema, ModelRefNode):
+                storage = self.request.resources.get_storage(schema.typ.target)
 
-            if storage is not None:
-                if isinstance(schema, CollectionRefNode):
-                    if obj is None:
-                        obj = []
-                    obj = [storage.one(item, schema.child) for item in obj]
-                    return Collection(schema.target, obj, schema_name=schema.schema_name)
-                else:
-                    if obj is None and schema.nullable:
-                        return None
-                    obj = storage.one(obj, schema)
-                    if schema.nullable and obj is None:
-                        return None
-                    return schema.target(obj, schema_name=schema.schema_name)
+                #todo hack
+                if isinstance(storage, EmbeddedMongoStorage):
+                    storage = None
 
-        result = deserializers[type(schema.typ)](obj, schema, deserialize_child)
-        if isinstance(schema, RefNode):
-            if isinstance(schema, CollectionRefNode):
-                return Collection(schema.target, result, schema_name=schema.schema_name)
-            else:
-                if schema.nullable and obj is None:
-                    return None
-                return schema.target(result, schema_name=schema.schema_name)
-        return result
+                if storage is not None:
+                    return schema.typ.target(storage.one(obj, schema))
+
+        return deserializers[type(schema.typ)](obj, schema, deserialize_child)
 
 class MongoStorage(BaseStorage):
 
@@ -405,23 +401,12 @@ class EmbeddedMongoStorage(BaseStorage):
         return None
 
     def build_parent_schema(self, schema=None):
-        if schema is None:
-            schema = self.empty_schema
-
         parent_id_attribute = self.parent_storage.model.id_attribute
-        parent_id_node = filter(lambda c: c.name==parent_id_attribute, self.parent_storage.model.get_schema("").children)[0]
-
-        schema_name = None
-        for name,value in self.model.schemas.items():
-            if value == schema:
-                schema_name = name
-                break
-        else:
-            raise ValueError("cannot find schema")
+        parent_id_node = filter(lambda c: c.name==parent_id_attribute, self.parent_storage.model.schema.children)[0]
 
         structure = {
             parent_id_attribute: parent_id_node,
-            self.attribute_path: CollectionRefNode(self.model, schema_name)
+            self.attribute_path: CollectionRefNode(self.model)
         }
         return MappingNode(**structure)
 
@@ -434,7 +419,7 @@ def make_embedded_storage_view(model, level):
 
         def __init__(self, request):
             self.request = request
-            self.schema = model.get_schema(request.params.get("s", ""))
+            self.schema = model.schema
             self.storage = request.resources.get_storage(model)
 
             id = None

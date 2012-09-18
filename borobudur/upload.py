@@ -16,7 +16,7 @@ def make_file_storage_view(storage_type):
         def __init__(self, request):
             self.storage = request.resources.get_storage(model)
             self.request = request
-            self.schema = model.get_schema(request.params.get("s", ""))
+            self.schema = model.schema
 
         def upload(self):
             user_id = authenticated_userid(self.request)
