@@ -1,8 +1,11 @@
-from borobudur.storage.mongo import MongoStorage, StorageContext
+from borobudur.storage.mongo import MongoStorage, ConnectionHolder
+from ent
 
-storage_context = StorageContext('localhost', 27017)
+mongo_connection_holder = ConnectionHolder()
 
-@storage_context.register("Friend", "test", "friend")
 class FriendStorage(MongoStorage):
-    pass
+    collection_holder = mongo_connection_holder
+    db_name = "test"
+    collection_name ="friends"
+    model = Friend
 

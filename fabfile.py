@@ -19,6 +19,9 @@ def doc_make():
 def doc_publish():
     put("docs/build/html/*", "/home/egoz/docs/borobudur/")
 
+def doc_view():
+    local("docs\\build\\html\\index.html")
+
 def package_publish():
     local("python setup.py register -r microvac sdist upload -r microvac")
 
