@@ -7,6 +7,7 @@ from borobudur.form.compat import (
     text_type,
 )
 from borobudur.model import Model
+from borobudur.schema import MappingNode
 import pramjs.underscore as underscore
 from prambanan import get_template
 
@@ -96,16 +97,37 @@ class Form(field.Field):
     css_class = 'deform'
     element = None
     buttons = []
+    fields = None
+    removed_fields = None
 
     def __init__(self, schema, action='', method='POST',
                  formid='deform', use_ajax=False, ajax_options='{}', **kw):
+
+        if self.fields is not None:
+            new_schema = MappingNode()
+            for child in schema.children:
+                if child.name in self.fields:
+                    new_schema.children.append(child)
+            schema = new_schema
+        elif self.removed_fields is not None:
+            new_schema = MappingNode()
+            for child in schema.children:
+                if child.name not in self.removed_fields:
+                    new_schema.children.append(child)
+            schema = new_schema
+
         super(Form, self).__init__(schema, **kw)
+
         self.action = action
         self.method = method
         self.formid = formid
         self.use_ajax = use_ajax
         self.widget = widget.FormWidget()
         self.event = Model()
+        self.initialize()
+
+    def initialize(self):
+        pass
 
     def render(self, model, readonly=False):
         """ Render the field (or form) to HTML using ``appstruct`` as

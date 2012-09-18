@@ -37,6 +37,8 @@ def sequence_deserializer(obj, schema, converter):
 def mapping_serializer(obj, schema, serialize_child):
     result = {}
     for child_schema in schema.children:
+        if child_schema.name not in obj:
+            print "ea"
         child_obj = obj[child_schema.name]
         result[child_schema.name] = serialize_child(child_obj, child_schema, serialize_child)
     return result
@@ -147,6 +149,12 @@ class BaseStorage(object):
 
             if isinstance(obj, Model):
                 obj = obj.attributes
+                #top level model can have attributes to None
+                #fill them before passing to mapping
+                #todo move this to mapping serializer check?
+                for child in schema.children:
+                    if child.name not in obj:
+                        obj[child.name] = None
             if isinstance(obj, Collection):
                 obj = obj.models
 

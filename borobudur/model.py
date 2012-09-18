@@ -148,13 +148,12 @@ class Model(backbone.Model):
         ie. if a child is a borobudur.Model, convert that thing to JSON too
         """
         schema = self.schema
-        if self.serialize_schema is not None:
-            schema = self.serialize_schema
 
         if schema is not None:
             result = {}
             for child in schema.children:
-                result[child.name]=child.serialize(self.get(child.name, None))
+                value = self.get(child.name, None)
+                result[child.name]=child.serialize(value)
             return result
         else:
             return super(Model, self).toJSON()
@@ -163,10 +162,11 @@ class Model(backbone.Model):
         results = {}
         for key in response:
             child = response[key]
-            if self.schema is not None and key in self.schema:
-                child_schema = self.schema[key]
-                child = child_schema.deserialize(child)
-            results[key] = child
+            if child is not None:
+                if self.schema is not None and key in self.schema:
+                    child_schema = self.schema[key]
+                    child = child_schema.deserialize(child)
+                results[key] = child
         return results
 
 
@@ -258,15 +258,9 @@ class Collection(backbone.Collection):
 
     def parse(self, response):
         results = []
+        parser = self.model({}, schema_name=self.schema_name)
         for obj in response:
-            attrs = {}
-            for key in obj:
-                child = obj[key]
-                if self.schema is not None and key in self.schema:
-                    child_schema = self.schema[key]
-                    child = child_schema.deserialize(child)
-                attrs[key] = child
-            results.append(self.model(attrs, schema_name=self.schema_name))
+            results.append(parser.parse(obj))
         return results
 
     #If key > len(self.models) append at the end
@@ -301,25 +295,18 @@ class ModelRefNode(RefNode):
         if appstruct is None:
             if self.nullable:
                 return None
-            appstruct = {}
+            appstruct = self.target(schema_name=self.schema_name)
 
-        if isinstance(appstruct, Model):
-            appstruct = appstruct.attributes
-        result = super(ModelRefNode, self).serialize(appstruct)
-
-        return result
+        return appstruct.toJSON()
 
     def deserialize(self, cstruct=colander.null):
         if cstruct is None and self.nullable:
             return None
 
-        if not isinstance(cstruct, dict):
-            d = {}
-            d[self.target.id_attribute] = cstruct
-            cstruct = d
-        appstruct = super(ModelRefNode, self).deserialize(cstruct)
+        result = self.target(schema_name=self.schema_name)
+        result.set(result.parse(cstruct))
 
-        return self.target(appstruct, schema_name=self.schema_name)
+        return result
 
     def clone(self):
         cloned = self.__class__(self.target, self.schema_name)
