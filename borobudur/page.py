@@ -54,6 +54,9 @@ class Page(object):
     description=None
 
     def __init__(self, request, el_rendered):
+        self.created_matchdict = request.matchdict
+        self.created_params = request.params
+
         self.request = request
         self.app = request.app
         self.models = {}
