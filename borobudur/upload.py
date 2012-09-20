@@ -23,8 +23,7 @@ def make_file_storage_view(storage_type):
             file = self.request.body_file
             params = self.request.params
             result = self.storage.upload(file, user_id, params, self.schema)
-            serialized = self.schema.serialize(result)
-            return {"success":True, "file": serialized}
+            return {"success":True, "file": result.toJSON()}
 
         def download(self):
             id = self.request.matchdict["id"]
@@ -33,7 +32,8 @@ def make_file_storage_view(storage_type):
             path = os.path.join(self.storage.directory, id, type)
             response = FileResponse(path, request=self.request)
 
-            item = self.storage.one(id, self.schema)
+            item = self.storage.model.ref(id)
+            self.storage.one(item)
             response.content_disposition = 'attachment; filename="%s"' % item["filename"]
 
             return response
@@ -77,8 +77,11 @@ class FileStorage(object):
         for type, sub_file in self.make_sub_files(file):
             self.save_file(sub_file, file_id, type)
 
-        result = self.extract_upload_params(file_id, user_id, params)
-        return self.insert(result, schema)
+        attrs = self.extract_upload_params(file_id, user_id, params)
+        model = self.model(attrs)
+        self.insert(model)
+
+        return model
 
     def make_sub_files(self, file):
         yield self.default_type, file

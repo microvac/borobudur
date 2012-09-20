@@ -1,5 +1,6 @@
 import borobudur
 from zope.interface.interface import Interface
+from borobudur.model import Collection
 
 class StorageException(Exception):
     pass
@@ -29,38 +30,43 @@ class SearchConfig(object):
             sorts = []
         self.sorts = sorts
 
-def make_storage_view(model):
+def make_storage_view(model_type):
 
 
     class View(object):
 
         def __init__(self, request):
             self.request = request
-            self.storage = request.resources.get_storage(model)
-            self.schema = model.schema
+            self.storage = request.resources.get_storage(model_type)
+            self.schema = model_type.schema
 
         def create(self):
-            appstruct = self.schema.deserialize(self.request.json_body)
-            result = self.storage.insert(appstruct, self.schema)
-            serialized = self.schema.serialize(result)
-            return serialized
-
-        def read(self):
-            result = self.storage.one(self.request.matchdict["id"], self.schema)
-            serialized = self.schema.serialize(result)
-            return serialized
+            model = model_type()
+            model.set(model.parse(self.request.json_body))
+            self.storage.insert(model)
+            return model.toJSON()
 
         def update(self):
-            appstruct = self.schema.deserialize(self.request.json_body)
-            result = self.storage.update(appstruct, self.schema)
-            serialized = self.schema.serialize(result)
-            return serialized
+            model = model_type()
+            model.set(model.parse(self.request.json_body))
+            self.storage.update(model)
+            return model.toJSON()
+
+        def read(self):
+            id = model_type.id_type(self.request.matchdict["id"])
+            model = model_type.ref(id)
+            self.storage.one(model)
+            return model.toJSON()
 
         def delete(self):
-            result = self.storage.delete(self.request.matchdict["id"])
-            return result
+            id = model_type.id_type(self.request.matchdict["id"])
+            model = model_type.ref(id)
+            self.storage.delete(model)
+            return True
 
         def list(self):
+            collection = Collection(model_type)
+
             skip = self.request.params.get("ps", 0)
             limit = self.request.params.get("pl", 0)
             sort_order = self.request.params.get("so")
@@ -74,21 +80,19 @@ def make_storage_view(model):
 
             config = borobudur.storage.SearchConfig(skip, limit, sorts)
 
-            results = self.storage.all(query=query, schema=self.schema, config=config)
-            sequence_schema = borobudur.schema.SequenceNode(self.schema)
-            serialized = sequence_schema.serialize(results)
-            return serialized
+            self.storage.all(collection, query=query, config=config)
+            return collection.toJSON()
 
     return View
 
 class StorageExposer(object):
 
     def __call__(self, config, resource_root, factory, storage_type):
-        model = storage_type.model
-        name = model.__name__
-        storage_url = model.model_url
+        model_type = storage_type.model
+        name = model_type.__name__
+        storage_url = model_type.model_url
 
-        storage_view = make_storage_view(model)
+        storage_view = make_storage_view(model_type)
 
         config.add_route("non_id"+name, resource_root+"storages/"+storage_url, factory=factory)
         config.add_route("id_"+name, resource_root+"storages/"+storage_url+"/{id}", factory=factory)

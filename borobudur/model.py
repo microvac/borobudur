@@ -68,6 +68,12 @@ class Model(backbone.Model):
 
         super(Model, self).__init__(attributes)
 
+    @classmethod
+    def ref(cls, id, parent=None):
+        attrs = {}
+        attrs[cls.id_attribute] = id
+        return cls(attrs, parent)
+
     def url(self, app):
         id = None if self.isNew() else self.id
         current = self.parent
@@ -150,7 +156,7 @@ class Model(backbone.Model):
         results = {}
         for key in response:
             child = response[key]
-            if child is not None:
+            if child is not None and child != "":
                 if key in self.schema:
                     child_schema = self.schema[key]
                     child = child_schema.deserialize(child)
@@ -176,6 +182,9 @@ class Model(backbone.Model):
 
     def __getitem__(self, name):
         return self.get(name)
+
+    def __contains__(self, key):
+        return self.attributes.__contains__(key)
 
     def __setitem__(self, name, value):
         attrs = {}

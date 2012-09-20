@@ -6,7 +6,10 @@ class ServiceExposer(object):
 
         def make_view(name):
             def view(request):
-                return getattr(service_type(request), name)()
+                result =  getattr(service_type(request), name)()
+                if hasattr(result, "toJSON"):
+                    return result.toJSON()
+                return result
             return view
 
         exposed_methods = []

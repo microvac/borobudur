@@ -184,7 +184,9 @@ class BaseStorage(object):
                     storage = None
 
                 if storage is not None:
-                    return schema.typ.target(storage.one(obj, schema))
+                    result = schema.typ.target.ref(obj)
+                    storage.one(result)
+                    return result
 
         return deserializers[type(schema.typ)](obj, schema, deserialize_child)
 
@@ -202,47 +204,46 @@ class MongoStorage(BaseStorage):
         self.db = self.connection[self.db_name]
         self.collection = self.db[self.collection_name]
 
-    def insert(self, obj, schema=None):
-        self.pre_insert(obj)
-        result = mapping_serializer(obj, schema, self.serialize)
-        self.collection.insert(result)
-        if result:
-            result = mapping_deserializer(result, schema, self.deserialize)
-        return result
+    def insert(self, model):
+        #todo bad smell, asymmetric model serializer yet mapping deserializer
+        serialized = model_serializer(model, model.schema, self.serialize)
+        self.collection.insert(serialized)
+        deserialized = mapping_deserializer(serialized, model.schema, self.deserialize)
+        model.set(deserialized)
 
-    def pre_insert(self, appstruct):
-        pass
+    def update(self, model):
+        serialized = model_serializer(model, model.schema, self.serialize)
+        query_doc = {model.id_attribute: model.id}
 
-    def update(self, obj, schema=None):
-        serialized = mapping_serializer(obj, schema, self.serialize)
-        previous = self.collection.find_one({self.model.id_attribute: self.model.id_type(obj[self.model.id_attribute])})
-        result = merge_document(serialized, previous)
+        previous = self.collection.find_one(query_doc)
+        serialized = merge_document(serialized, previous)
 
-        self.collection.update({self.model.id_attribute: self.model.id_type(obj[self.model.id_attribute])},
-                               result
-                              )
-        deserialized = mapping_deserializer(result, schema, self.deserialize)
-        return deserialized
+        self.collection.update(query_doc, serialized)
 
-    def delete(self, id):
-        result = self.collection.find_one({self.model.id_attribute: self.model.id_type(id)})
+        deserialized = mapping_deserializer(serialized, model.schema, self.deserialize)
+        model.set(deserialized)
+
+    def delete(self, model):
+        query_doc = {model.id_attribute: model.id}
+        result = self.collection.find_one(query_doc)
         if not result:
             raise ValueError("Error in deleting - There is no such id as: %s" % id.__str__())
-        self.collection.remove({self.model.id_attribute: self.model.id_type(id)})
-        return True
 
-    def one(self, id, schema=None):
-        result = self.collection.find_one({self.model.id_attribute: self.model.id_type(id)})
+        self.collection.remove(query_doc)
+
+    def one(self, model):
+        query_doc = {model.id_attribute: model.id}
+        result = self.collection.find_one(query_doc)
         if result:
-            result = mapping_deserializer(result, schema, self.deserialize)
-        return result
+            deserialized = mapping_deserializer(result, model.schema, self.deserialize)
+            model.set(deserialized)
 
-    def all(self, query=None, config=None, schema=None):
+    def all(self, collection, query=None, config=None):
         if config is None:
             config = SearchConfig(0, 0)
 
         cursor = self.collection.find(spec=query,
-                                      fields=self.get_field_list(schema),
+                                      fields=self.get_field_list(collection.model.schema),
                                       skip=config.skip,
                                       limit=config.limit
         )
@@ -257,10 +258,9 @@ class MongoStorage(BaseStorage):
                     order = DESCENDING
                 cursor.sort(sort.criteria, order)
 
-        result = []
+        collection.reset()
         for item in cursor:
-            result.append(mapping_deserializer(item, schema, self.deserialize))
-        return result
+            collection.add(mapping_deserializer(item, collection.model.schema, self.deserialize))
 
     def count(self, query=None):
         return self.collection.find(spec=query).count()

@@ -17,8 +17,9 @@
     <?python
             import __builtin__
             import colander
+            import borobudur
             flat_mapping = __builtin__.getattr(field.widget, 'flat_mapping', False)
-            cls = 'mapping' if __builtin__.isinstance(field.typ, colander.Mapping) and not flat_mapping else 'controls'
+            cls = 'mapping' if __builtin__.isinstance(field.typ, borobudur.model.ModelRef) and not flat_mapping else 'controls'
             if cls == 'mapping' and not field.title:
                 cls = ''
     ?>
