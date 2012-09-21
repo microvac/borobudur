@@ -35,7 +35,7 @@ Starting new borobudur project
 
         cd test_app
         pip install -e .
-        npm install .
+        npm install -d
 
 #. Run forest, run!
 

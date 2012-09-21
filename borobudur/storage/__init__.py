@@ -54,13 +54,13 @@ def make_storage_view(model_type):
 
         def read(self):
             id = model_type.id_type(self.request.matchdict["id"])
-            model = model_type.ref(id)
+            model = model_type.with_id(id)
             self.storage.one(model)
             return model.toJSON()
 
         def delete(self):
             id = model_type.id_type(self.request.matchdict["id"])
-            model = model_type.ref(id)
+            model = model_type.with_id(id)
             self.storage.delete(model)
             return True
 

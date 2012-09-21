@@ -113,7 +113,7 @@ def fetch_child(model_type, id, app, success):
         fetch_children(model_type, attrs, app, _success)
 
     params = {"type": "GET", "dataType": 'json'};
-    params.url = model_type.ref(id).url(app)
+    params.url = model_type.with_id(id).url(app)
     params.success = fetch_success
     return JS("$.ajax(params)")
 
@@ -178,8 +178,6 @@ class Model(backbone.Model):
 
     sync = borobudur_sync
 
-    is_ref = False
-
     def __init__(self, attributes=None, parent=None):
         self.parent = parent
         self.idAttribute = self.id_attribute
@@ -187,11 +185,10 @@ class Model(backbone.Model):
         super(Model, self).__init__(attributes)
 
     @classmethod
-    def ref(cls, id, parent=None):
+    def with_id(cls, id, parent=None):
         attrs = {}
         attrs[cls.id_attribute] = id
         result = cls(attrs, parent)
-        result.is_ref = True
         return result
 
     def url(self, app):
@@ -381,10 +378,9 @@ class ModelRef(object):
     """
 
 
-    def __init__(self, target, nullable=False):
-        if not target:
-            print "ea"
+    def __init__(self, target, nullable=False, is_ref=True):
         self.target = target
+        self.is_ref = is_ref
         self.nullable = nullable
 
     def serialize(self, node, appstruct):
@@ -394,7 +390,7 @@ class ModelRef(object):
             else:
                 return self.target().toJSON()
 
-        if appstruct.is_ref:
+        if self.is_ref:
             return str(appstruct.id)
         else:
             return appstruct.toJSON()
@@ -409,13 +405,13 @@ class ModelRef(object):
             return result
         else:
             id = self.target.id_type(cstruct)
-            return self.target.ref(id)
+            return self.target.with_id(id)
 
 class ModelRefNode(RefNode):
-    def __init__(self, target, nullable=False, **kwargs):
+    def __init__(self, target, nullable=False, is_ref=True, **kwargs):
         if not target:
             print "ea"
-        super(ModelRefNode, self).__init__(ModelRef(target, nullable), **kwargs)
+        super(ModelRefNode, self).__init__(ModelRef(target, nullable, is_ref), **kwargs)
 
         if self.widget is None:
             self.widget = ModelRefWidget()
@@ -426,7 +422,7 @@ class ModelRefNode(RefNode):
 
 
     def clone(self):
-        cloned = self.__class__(self.typ.target, self.typ.nullable)
+        cloned = self.__class__(self.typ.target, self.typ.nullable, self.typ.is_ref)
         clone_node(self, cloned)
         return cloned
 
@@ -515,12 +511,12 @@ class CollectionRef(colander.Sequence):
 
 class CollectionRefNode(RefNode):
 
-    def __init__(self, target, **kwargs):
+    def __init__(self, target, is_ref=True, **kwargs):
         super(CollectionRefNode, self).__init__(CollectionRef(target), **kwargs)
 
         if self.widget is None:
             self.widget = CollectionRefWidget()
-        child = ModelRefNode(target)
+        child = ModelRefNode(target, is_ref=is_ref)
         child.name = "child"
         self.child = child
         self.add(child)

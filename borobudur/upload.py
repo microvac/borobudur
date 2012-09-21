@@ -32,7 +32,7 @@ def make_file_storage_view(storage_type):
             path = os.path.join(self.storage.directory, id, type)
             response = FileResponse(path, request=self.request)
 
-            item = self.storage.model.ref(id)
+            item = self.storage.model.with_id(id)
             self.storage.one(item)
             response.content_disposition = 'attachment; filename="%s"' % item["filename"]
 
