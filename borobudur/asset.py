@@ -230,8 +230,8 @@ class AssetManager(object):
 
     def configure_with_npm(self):
         if os.name == "nt":
-            self.env.config["UGLIFYJS_BIN"] = "uglifyjs.cmd"
-            self.env.config["LESS_BIN"] = "lessc.cmd"
+            self.env.config["UGLIFYJS_BIN"] = "node_modules\\.bin\\uglifyjs.cmd"
+            self.env.config["LESS_BIN"] = "node_modules\\.bin\\lessc.cmd"
         else:
             self.env.config["UGLIFYJS_BIN"] = "node_modules/.bin/uglifyjs"
             self.env.config["LESS_BIN"] = "node_modules/.bin/lessc"
