@@ -90,7 +90,7 @@ class View(object):
 
     def render_form(self, name, model):
         form_type = self.forms[name]
-        form = prambanan.JS("new form_type(form_type.schema)")
+        form = prambanan.JS("new form_type()")
 
         button_handlers = self.find_decorated_buttons(name)
         for config, handler in button_handlers:

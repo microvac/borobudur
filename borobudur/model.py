@@ -25,7 +25,123 @@ methodMap = {
     'read':   'GET'
 };
 
+def fetch_from_cache(model_type, id, app):
+    model_cache = app.model_caches[model_type.model_url]
+    if not model_cache:
+        return None
+    result = model_cache[id]
+    if result:
+        return result
+    else:
+        return None
+
+def save_to_cache(model_type, attrs, app):
+    model_cache = app.model_caches[model_type.model_url]
+    if not model_cache:
+        model_cache = {}
+        app.model_caches[model_type.model_url] = model_cache
+    id = attrs[model_type.id_attribute]
+    model_cache[id] = attrs
+
+def fetch_children(model_type, attrs, app, success):
+    fetch_count = 0
+
+    started = False
+
+    def item_success():
+        global fetch_count
+        fetch_count -= 1
+        if fetch_count == 0 and started:
+            success()
+
+    for child_schema in model_type.schema.children:
+        if isinstance(child_schema, ModelRefNode):
+            child_value = attrs[child_schema.name]
+            child_type = child_schema.typ.target
+
+            if child_value is not None:
+                if not isinstance(child_value, dict):
+                    def make_model_success(current_name):
+                        def child_success(child_attrs):
+                            attrs[current_name] = child_attrs
+                            item_success()
+                        return child_success
+
+                    child_id = child_value
+                    fetch_count += 1
+                    fetch_child(child_type, child_id, app, make_model_success(child_schema.name))
+                else:
+                    fetch_count += 1
+                    fetch_children(child_type, child_value, app, item_success)
+
+        if isinstance(child_schema, CollectionRefNode):
+            child_arr = attrs[child_schema.name]
+            child_type = child_schema.children[0].typ.target
+
+            if child_arr is None:
+                continue
+
+            for i in range(len(child_arr)):
+                child_value = child_arr[i]
+                if child_value is not None :
+                    if not isinstance(child_value, dict):
+                        child_id = child_value
+                        def make_col_success(current_i, current_arr):
+                            def child_success(child_attrs):
+                                current_arr[current_i] = child_attrs
+                                item_success()
+                            return child_success
+                        fetch_count += 1
+                        fetch_child(child_type, child_id, app, make_col_success(i, child_arr))
+                    else:
+                        fetch_count += 1
+                        fetch_children(child_type, child_value, app, item_success)
+
+    started = True
+    if fetch_count == 0:
+        success()
+
+def fetch_child(model_type, id, app, success):
+    cache = fetch_from_cache(model_type, id, app)
+    if cache is not None:
+        return success(cache)
+
+    def fetch_success(attrs):
+        def _success():
+            save_to_cache(model_type, attrs, app)
+            success(attrs)
+        fetch_children(model_type, attrs, app, _success)
+
+    params = {"type": "GET", "dataType": 'json'};
+    params.url = model_type.ref(id).url(app)
+    params.success = fetch_success
+    return JS("$.ajax(params)")
+
+
 def borobudur_sync (method, model, options=None):
+    app = options["app"]
+
+    prev_success = options.success
+
+    def fetch_success(attrs):
+        if isinstance(model, Model):
+            def _success():
+                prev_success(attrs)
+            fetch_children(model.__class__, attrs, app, _success)
+        else:
+            count = 0
+            def col_success():
+                global count
+                count += 1
+                if count == len(attrs):
+                    prev_success(attrs)
+            for item_attrs in attrs:
+                fetch_children(model.model, item_attrs, app, col_success)
+            if len(attrs) == 0:
+                prev_success(attrs)
+
+    options.success = fetch_success
+
     type = methodMap[method];
     params = {"type": type, "dataType": 'json'};
 
@@ -62,6 +178,8 @@ class Model(backbone.Model):
 
     sync = borobudur_sync
 
+    is_ref = False
+
     def __init__(self, attributes=None, parent=None):
         self.parent = parent
         self.idAttribute = self.id_attribute
@@ -72,7 +190,9 @@ class Model(backbone.Model):
     def ref(cls, id, parent=None):
         attrs = {}
         attrs[cls.id_attribute] = id
-        return cls(attrs, parent)
+        result = cls(attrs, parent)
+        result.is_ref = True
+        return result
 
     def url(self, app):
         id = None if self.isNew() else self.id
@@ -90,9 +210,6 @@ class Model(backbone.Model):
         return result
 
     def set(self, attrs, silent=False):
-        """
-        Performs model creation if child attribute schema are colander.Mapping or colander.Sequence
-        """
         copy = {}
 
         for key in iter(attrs):
@@ -102,29 +219,16 @@ class Model(backbone.Model):
             else:
                 current_child = None
 
-            if key in self.schema:
-                child_schema = self.schema[key]
+            #if new and old model have the id, use the old one by setting all new attributes to it
+            #this make all callbacks not lost
+            if isinstance(child, Model) and isinstance(current_child, Model) and current_child.id == child.id:
+                current_child.set(child.attributes)
+                child = current_child
 
-                #special case for setting id on ref
-                if child is not None:
-                    if not isinstance(child, Model) and isinstance(child_schema, RefNode):
-                        if key in self.attributes:
-                            current_child = self[key]
-                            if isinstance(current_child, Model):
-                                if current_child.id == child:
-                                    continue
-                                else:
-                                    raise ValueError("cannot change model attr to different id. attr %s. current %s set to %s" % (key, current_child.id, child))
-
-                #if new and old model have the id, use the old one by setting all new attributes to it
-                #this make all callbacks not lost
-                if isinstance(child, Model) and isinstance(current_child, Model) and current_child.id == child.id:
-                    current_child.set(child.attributes)
-                    child = current_child
                 #if new and old child is a collection, just reset that collection
-                if isinstance(child, Collection) and isinstance(current_child, Collection):
-                    current_child.reset(child.models)
-                    child = current_child
+            if isinstance(child, Collection) and isinstance(current_child, Collection):
+                current_child.reset(child.models)
+                child = current_child
 
             copy[key] = child
 
@@ -278,6 +382,8 @@ class ModelRef(object):
 
 
     def __init__(self, target, nullable=False):
+        if not target:
+            print "ea"
         self.target = target
         self.nullable = nullable
 
@@ -285,21 +391,30 @@ class ModelRef(object):
         if appstruct is None:
             if self.nullable:
                 return None
-            appstruct = self.target()
+            else:
+                return self.target().toJSON()
 
-        return appstruct.toJSON()
+        if appstruct.is_ref:
+            return str(appstruct.id)
+        else:
+            return appstruct.toJSON()
 
     def deserialize(self, node, cstruct=colander.null):
-        if cstruct is None and self.nullable:
+        if self.nullable and cstruct is None:
             return None
 
-        result = self.target()
-        result.set(result.parse(cstruct))
-
-        return result
+        if isinstance(cstruct, dict):
+            result = self.target()
+            result.set(result.parse(cstruct))
+            return result
+        else:
+            id = self.target.id_type(cstruct)
+            return self.target.ref(id)
 
 class ModelRefNode(RefNode):
     def __init__(self, target, nullable=False, **kwargs):
+        if not target:
+            print "ea"
         super(ModelRefNode, self).__init__(ModelRef(target, nullable), **kwargs)
 
         if self.widget is None:
@@ -395,6 +510,7 @@ class CollectionRef(colander.Sequence):
 
         if isinstance(appstruct, Collection):
             appstruct = appstruct.models
+
         return super(CollectionRef, self).serialize(node, appstruct)
 
 class CollectionRefNode(RefNode):

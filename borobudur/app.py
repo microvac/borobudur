@@ -1,4 +1,4 @@
-from borobudur.model import Model
+from borobudur.model import Model, fetch_children
 import pramjs.underscore as underscore
 
 import borobudur
@@ -15,15 +15,34 @@ class ServiceModelLoader(BaseLoader):
         self.service_attr = service_attr
 
     def load(self, app, model, callbacks):
-        def success(attrs):
+
+        def prev_success(attrs):
             parsed = model.parse(attrs)
             if isinstance(model, Model):
                 model.set(parsed)
             else:
                 model.reset(parsed)
             callbacks.success()
+
+        def fetch_success(attrs):
+            if isinstance(model, Model):
+                def _success():
+                    prev_success(attrs)
+                fetch_children(model.__class__, attrs, app, _success)
+            else:
+                count = 0
+                def col_success():
+                    global count
+                    count += 1
+                    if count == len(attrs):
+                        prev_success(attrs)
+                for item_attrs in attrs:
+                    fetch_children(model.model, item_attrs, app, col_success)
+                if len(attrs) == 0:
+                    prev_success(attrs)
+
         url = "%s/%s/%s" % (app.service_root, self.service_id, self.service_attr)
-        borobudur.query_el.getJSON(url, success)
+        borobudur.query_el.getJSON(url, fetch_success)
 
 class StorageModelLoader(BaseLoader):
 
@@ -261,3 +280,4 @@ class ClientApp(App):
         self.resource_root = settings["resource_root"]
         self.storage_root = self.resource_root+"storages"
         self.service_root = self.resource_root+"services"
+        self.model_caches = {}

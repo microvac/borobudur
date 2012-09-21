@@ -184,9 +184,7 @@ class BaseStorage(object):
                     storage = None
 
                 if storage is not None:
-                    result = schema.typ.target.ref(obj)
-                    storage.one(result)
-                    return result
+                    return schema.typ.target.ref(obj)
 
         return deserializers[type(schema.typ)](obj, schema, deserialize_child)
 

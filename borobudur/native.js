@@ -85,6 +85,7 @@ var Router = (function(){
             route = this._routeToRegExp(route);
             if (!callback) callback = this[name];
             history.route(route, _.bind(function(fragment) {
+                this.app.model_caches = {}
                 var document = {
                     el: document,
                     el_query: create_el_query(document),

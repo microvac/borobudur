@@ -6,7 +6,7 @@ from borobudur.form.compat import (
     string_types,
     text_type,
 )
-from borobudur.model import Model
+from borobudur.model import Model, ModelRefNode, CollectionRefNode, Collection
 from borobudur.schema import MappingNode
 import pramjs.underscore as underscore
 from prambanan import get_template
@@ -100,8 +100,10 @@ class Form(field.Field):
     fields = None
     removed_fields = None
 
-    def __init__(self, schema, action='', method='POST',
+    def __init__(self, action='', method='POST',
                  formid='deform', use_ajax=False, ajax_options='{}', **kw):
+
+        schema = self.schema
 
         if self.fields is not None:
             new_schema = MappingNode()
@@ -157,6 +159,11 @@ class Form(field.Field):
         self.element = element
 
         return element
+
+    def fill_model(self):
+        appstruct = self.validate(self.element)
+        self.m.set(appstruct)
+
 
     def add_button_handler(self, name, handler):
         self.event.on(name, handler)
