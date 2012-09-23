@@ -74,12 +74,6 @@ var Router = (function(){
             this.app_state = this.app.routing_policy.create_state();
             this.app_state.load(serialized_state);
 
-            var document = {
-                el: document,
-                el_query: create_el_query(document),
-                q_el: $(document)
-            }
-
             this.request = {app: this.app, document: document};
             history.start({pushState: true, root:this.app.root});
         },

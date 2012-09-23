@@ -1,5 +1,6 @@
 import prambanan
 import pramjs.elquery
+import pramjs.backbone
 from .native import *
 
 query_el = pramjs.elquery.ElQuery
@@ -17,21 +18,27 @@ def default_route_handler_factory(route_handler_id):
 
 class AppState(object):
 
+    rendered = False
+
     def load(self, serialized_state):
-        pass
+        self.rendered = True
 
     def dump(self):
         return {}
 
 class DefaultRoutingPolicy(object):
 
-    state_type = AppState
+    def apply(self, request, handler_id, app_state, callbacks):
+        if app_state.rendered:
+            app_state.rendered = False
+            callbacks.success()
+            return
 
-    def __init__(self, handler_id):
-        self.handler_id = handler_id
+        impl = prambanan.load_module_attr(handler_id)
+        impl(request, callbacks)
 
-    def apply(self, request, app_state, callbacks):
-        callbacks["success"](app_state)
+    def create_state(self):
+        return AppState()
 
 
 class App(object):

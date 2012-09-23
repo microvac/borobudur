@@ -18,6 +18,7 @@ from prambanan.compiler import RUNTIME_MODULES
 from prambanan.compiler.utils import ParseError
 from prambanan.compiler.manager import PrambananManager
 from prambanan.template import get_provider
+from pramjs.elquery import ElQuery
 
 logger = logging.getLogger("borobudur")
 
@@ -265,8 +266,8 @@ class AssetManager(object):
 
         assets = {"js":{}, "css":{}}
 
-        q_body = document.el_query("body")
-        q_head = document.el_query("head")
+        q_body = ElQuery("body", document)
+        q_head = ElQuery("head", document)
 
         for type, name, bundle in self.get_all_bundles(packs, styles):
             if type == "js":

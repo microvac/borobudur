@@ -1,6 +1,7 @@
 import borobudur
 from borobudur.page.loaders import Loaders
 import prambanan
+from pramjs.elquery import ElQuery
 
 class AppState(object):
     leaf_page=None
@@ -110,7 +111,9 @@ class PageOpener(object):
         except StopLoadException as e:
             stop_load = True
 
-        el_query = self.request.document.el_query
+        def el_query(selector):
+            return ElQuery(selector, self.request.document)
+
         if page is not None:
             if page.title is not None:
                 el_query("title").html(page.title)
@@ -147,7 +150,7 @@ class PageOpener(object):
 
     def finish(self):
         self.app_state.dumped_index = self.i
-        self.callbacks["success"](self.app_state)
+        self.callbacks.success()
 
 
 class Page(object):
@@ -239,7 +242,7 @@ class Page(object):
         prambanan:type view_type c(borobudur.view:View)
 
         """
-        el = self.request.document.el_query("#"+id)[0]
+        el = ElQuery("#"+id, self.request.document)[0]
         view = view_type(self, el, model, self.el_rendered)
         self.views.append((id, view))
 

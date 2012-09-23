@@ -12,12 +12,9 @@ from borobudur.model import Model
 from lxml import etree
 from borobudur.page import AppState
 
-class Document(object):
-    def __init__(self, el):
-        self.el = el
-        self.el_query = borobudur.create_el_query(el)
-        self.q_el = borobudur.query_el(el)
-
+class Callbacks(object):
+    def __init__(self, success):
+        self.success = success
 
 def wrap_pyramid_view(handler_type_id):
     """
@@ -29,15 +26,13 @@ def wrap_pyramid_view(handler_type_id):
         routing_policy = request.app.routing_policy
         app_state = routing_policy.create_state()
 
-        def page_success(app_state):
+        def page_success():
             request.app_config.asset_manager.write_all(request, handler_type_id, app_state.dump())
 
-        load_callbacks = {
-            "success": page_success
-        }
+        load_callbacks = Callbacks(page_success)
         routing_policy.apply(request, handler_type_id, app_state, load_callbacks)
 
-        html = etree.tostring(request.document.el, pretty_print=True, method="html")
+        html = etree.tostring(request.document, pretty_print=True, method="html")
 
         return Response("<!DOCTYPE html>\n" + html)
 
@@ -131,7 +126,7 @@ def get_document(request):
     el = etree.Element("div")
     request.app_config.base_template.render(el, Model())
     el = el[0]
-    return Document(el)
+    return el
 
 def add_global_bootstrap_subscriber(config, subscriber_qname):
     config.registry.registerUtility(subscriber_qname, IBootstrapSubscriber, name=subscriber_qname)
