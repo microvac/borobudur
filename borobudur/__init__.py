@@ -7,15 +7,6 @@ query_el = pramjs.elquery.ElQuery
 
 is_server = not prambanan.is_js
 
-def default_route_handler_factory(route_handler_id):
-    impl = prambanan.load_module_attr(route_handler_id)
-
-    def handler(request, route_callbacks):
-        impl(request)
-        route_callbacks["success"]()
-
-    return handler
-
 class AppState(object):
 
     rendered = False
