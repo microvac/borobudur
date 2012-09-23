@@ -58,56 +58,52 @@ var Router = (function(){
         __init__: function(app, options){
             this.app = app
             this.options = {};
-            var leafPages = app.get_leaf_pages();
-            _.each(leafPages, function(current){
+
+            _.each(app.routes, function(current){
                 var route = current[0];
                 var page_id = current[1];
-                var callback = current[2];
                 var name = page_id.replace(":", ".");
-                this.route(route, name, callback);
+                this.route(route, name, page_id);
             }, this);
         },
 
-        bootstrap: function(server_state){
+        bootstrap: function(serialized_state){
             if($lib.on_bootstrap){
                 $lib.on_bootstrap();
             }
-            this.app_state = {
-                leaf_page: null,
-                active_pages:  [],
-                load_info: server_state.load_info
-            };
+            this.app_state = this.app.routing_policy.create_state();
+            this.app_state.load(serialized_state);
+
+            var document = {
+                el: document,
+                el_query: create_el_query(document),
+                q_el: $(document)
+            }
+
+            this.request = {app: this.app, document: document};
             history.start({pushState: true, root:this.app.root});
         },
 
-        route: function(route, name, callback) {
+        route: function(route, name, handler_id) {
             history || (history = new History);
             route = this._routeToRegExp(route);
-            if (!callback) callback = this[name];
+            var routing_policy = this.app.routing_policy;
+
             history.route(route, _.bind(function(fragment) {
                 this.app.model_caches = {}
-                var document = {
-                    el: document,
-                    el_query: create_el_query(document),
-                    q_el: $(document)
-                }
                 var callbacks = {"success": function(){}};
-                var request = {
-                    document: document,
-                    matchdict: this._extractParameters(route, fragment),
-                    app: this.app
-                }
+                this.request.matchdict = this._extractParameters(route, fragment);
 
                 //save last route, used on refresh
                 this.last_route = {
-                    request: request,
-                    callback: callback,
+                    request: this.request,
+                    handler_id: handler_id,
                     callbacks: callbacks
                 }
 
-                callback && callback(request, this.app_state, callbacks);
-                this.trigger.call(this, ['route:' + name], request);
-                history.trigger('route', this, name, request);
+                routing_policy.apply(this.request, handler_id, this.app_state, callbacks);
+                this.trigger.call(this, ['route:' + name], this.request);
+                history.trigger('route', this, name, this.request);
             }, this));
             return this;
         },

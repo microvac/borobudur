@@ -201,7 +201,7 @@ class Model(backbone.Model):
                 id = current.id
             current = current.parent
 
-        result = "%s/%s" % (app.storage_root, self.model_url)
+        result = "%s/%s" % (app.settings["storage_root"], self.model_url)
         if id is not None:
             result = "%s/%s" % (result, id)
         return result
@@ -320,10 +320,8 @@ class Collection(backbone.Collection):
         options = {"model": model}
         super(Collection, self).__init__(models, options)
 
-    def url(self):
-        if not self.storage_root:
-            self.storage_root = "/app/storages"
-        return "%s/%s" % (self.storage_root, self.model.model_url)
+    def url(self, app):
+        return "%s/%s" % (app.settings["storage_root"], self.model.model_url)
 
     def create(self, app, model, success=None, error=None, options=None):
         model = self._prepareModel(model, options)

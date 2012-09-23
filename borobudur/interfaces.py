@@ -1,8 +1,11 @@
-from zope.interface.interface import Interface
+from zope.interface.interface import Interface, Attribute
 
 __author__ = 'h'
 
 class IApp(Interface):
+    pass
+
+class IAppConfigurator(Interface):
     pass
 
 class IAppResources(Interface):
@@ -10,7 +13,6 @@ class IAppResources(Interface):
     def get_storage(self, model):
         pass
 
-    def get_connection(self, connection_name):
-        pass
 
-
+class IBootstrapSubscriber(Interface):
+    pass

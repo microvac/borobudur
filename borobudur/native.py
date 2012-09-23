@@ -12,12 +12,12 @@ def create_el_query(el):
 
 
 class Router(object):
-    def __init__(self):
-        raise Exception()
+    def __init__(self, *args, **kwargs):
+        pass
 
     def navigate(self, url):
-        pass
+        raise Exception()
 
     def bootstrap(self, env):
-        pass
+        raise Exception()
 

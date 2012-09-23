@@ -4,6 +4,7 @@ from os.path import *
 from pkg_resources import resource_filename
 
 pylib_dir = resource_filename("borobudur", "pylib/")
+debugtoolbar_dir = resource_filename("borobudur", "debugtoolbar/")
 
 class BorobudurPrambananLibrary(PrambananLibrary):
     overridden_types = {}
@@ -17,6 +18,7 @@ class BorobudurPrambananLibrary(PrambananLibrary):
             PythonModule(join(pylib_dir, "colander.py"), "colander", self.import_cache),
             PythonModule(join(pylib_dir, "peppercorn.py"), "peppercorn", self.import_cache),
             PythonModule(join(pylib_dir, "bson_objectid.py"), "bson.objectid", self.import_cache),
+            JavascriptModule(join(debugtoolbar_dir, "client", "borobudur.debugtoolbar.client.asset.js"), "borobudur.debugtoolbar.client.asset")
             ]
         modules.extend(package_to_modules("borobudur", self.import_cache))
         self.modules = modules

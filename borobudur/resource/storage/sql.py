@@ -1,4 +1,4 @@
-from borobudur.storage import Storage
+from borobudur.resource.storage import Storage
 
 class SqlStorage(Storage):
 

@@ -150,24 +150,39 @@ class LessBundle(SelfCheckingBundle):
 
 bootstrap_template = """
     $(function(){
-        var app_settings = %s;
-        var state_info = %s;
-        var entry_point = %s;
-        var ClientApp = prambanan.import("borobudur.app").ClientApp;
-        var app = new ClientApp(app_settings, state_info);
-        if(entry_point){
-            prambanan.import("prambanan").load_module_attr(entry_point)(app);
+        var load = prambanan.import("prambanan").load_module_attr;
+
+        var handler_type_id = %s;
+
+        var app_name = %s;
+        var app_root = %s;
+        var routes = %s;
+        var routing_policy_type = load(%s);
+
+        var settings = %s;
+        var subscribers = %s;
+
+        var serialized_state = %s;
+
+        var loaded_assets = %s;
+
+        var routing_policy = new routing_policy_type();
+        var app_class = prambanan.import("borobudur").App;
+        var app = new app_class(app_root, routing_policy, routes, settings);
+
+        for(var i = 0; i &lt; subscribers.length; i++){
+            load(subscribers[i])(app_name, app, loaded_assets, handler_type_id);
         }
-        app.router.bootstrap(state_info);
+        app.router.bootstrap(serialized_state);
     });
 """
 class SimplePackCalculator(object):
-    def __init__(self, app):
-        self.app = app
+    def __init__(self, app_config):
+        self.app_config = app_config
         self.cached_results = {}
-        self.available_modules = get_available_modules(app.asset_manager.manager)
+        self.available_modules = get_available_modules(app_config.asset_manager.manager)
 
-    def __call__(self, app_name, page_type_id):
+    def __call__(self, app_name, subscribers, page_type_id):
         if page_type_id in self.cached_results:
             yield self.cached_results[page_type_id]
             return
@@ -178,12 +193,12 @@ class SimplePackCalculator(object):
         available_modules = self.available_modules
 
         default_modules = ["borobudur.app"]
-        entry_point = self.app.client_entry_point
-        if entry_point is not None:
-            entry_module = entry_point.split(":")[0]
-            default_modules.append(entry_module)
+        for subscriber in subscribers:
+            module_name = subscriber.split(":")[0]
+            if module_name not in default_modules:
+                default_modules.append(module_name)
 
-        main_modules, main_templates, main_templates_position = find_modules_and_templates(default_modules+self.app.module_names, available_modules)
+        main_modules, main_templates, main_templates_position = find_modules_and_templates(default_modules+self.app_config.module_names, available_modules)
 
         result.modules = RUNTIME_MODULES + main_modules.values()
         result.templates_position = main_templates_position+len(RUNTIME_MODULES)
@@ -238,16 +253,15 @@ class AssetManager(object):
         self.env.debug = False
 
 
-    def write_all(self, request, load_flow):
-        app = request.app
+    def write_all(self, request, handler_type_id, serialized_state):
         app_name = request.context.app_name
         document = request.document
 
-        page_type_id = load_flow.page_type_id
-        calculate = app.asset_calculator
+        calculate = request.app_config.asset_calculator
 
-        packs = list(calculate(app_name, page_type_id))
-        styles = [style for page_type in load_flow.page_types for style in page_type.styles]
+        subscribers =  request.app_config.get_bootstrap_subscribers(request)
+        packs = list(calculate(app_name, subscribers, handler_type_id))
+        styles = self.style_assets.keys()
 
         assets = {"js":{}, "css":{}}
 
@@ -267,17 +281,22 @@ class AssetManager(object):
                 urls.append(url)
             assets[type][name] = urls
 
-
-        state = {
-            "current_page": page_type_id,
-            "loaded_assets": assets,
-            "load_info": {"index": load_flow.i}
-        }
+        routing_policy_qname = "%s:%s" % (request.app.routing_policy.__class__.__module__, request.app.routing_policy.__class__.__name__)
 
         bootstrap = bootstrap_template % (
-            to_json(request.context.client_settings),
-            to_json(state),
-            to_json(app.client_entry_point)
+            to_json(handler_type_id),
+
+            to_json(app_name),
+
+            to_json(request.app.root),
+            to_json(request.app.routes),
+            to_json(routing_policy_qname),
+
+            to_json(request.app_config.settings),
+            to_json(subscribers),
+
+            to_json(serialized_state),
+            to_json(assets),
         )
         q_bootstrap = PyQuery(etree.Element("script")).html(bootstrap)
         q_body.append(q_bootstrap)

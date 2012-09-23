@@ -5,7 +5,8 @@
 
 Borobudur
 =====================================
-Yet another Python web frameworks that focus on sharing server's and client's code. It uses:
+is a Python web frameworks that helps building `single page applications <http://en.wikipedia.org/wiki/Single-page_application>`_
+and focus on sharing server's and client's code. It uses:
 
     * `pyramid <http://www.pylonsproject.org/>`_ Python web application framework
     * `backbone.js <http://www.backbonejs.org/>`_ Javascript client MVC framework

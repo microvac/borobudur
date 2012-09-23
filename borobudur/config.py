@@ -1,22 +1,16 @@
-import inspect
-import os
-from pyramid.response import Response, FileResponse
+from pyramid.response import Response
 from pyramid.renderers import render_to_response
-from pyramid.security import authenticated_userid
-from pyramid.view import view_config
-from zope.interface.interface import Interface
 
 import borobudur
-from borobudur.app import App
-from borobudur.interfaces import IApp
-import borobudur.schema
-import borobudur.storage
-import borobudur.storage.mongo
+from borobudur.interfaces import IApp, IAppConfigurator, IBootstrapSubscriber
+import borobudur.resource.storage
+import borobudur.resource.storage.mongo
 
 from borobudur.asset import SimplePackCalculator
-from borobudur.model import Model, CollectionRefNode
+from borobudur.model import Model
 
 from lxml import etree
+from borobudur.page import AppState
 
 class Document(object):
     def __init__(self, el):
@@ -24,97 +18,56 @@ class Document(object):
         self.el_query = borobudur.create_el_query(el)
         self.q_el = borobudur.query_el(el)
 
-class AppState(object):
-    leaf_page=None
-    active_pages = []
-    load_info = False
 
-def wrap_pyramid_view(page_callback):
+def wrap_pyramid_view(handler_type_id):
     """
     loaded_page: id
     loaded_bundles = list of bundles
     """
 
     def view(request):
-        def page_success(load_flow):
-            request.app.asset_manager.write_all(request, load_flow)
+        routing_policy = request.app.routing_policy
+        app_state = routing_policy.create_state()
+
+        def page_success(app_state):
+            request.app_config.asset_manager.write_all(request, handler_type_id, app_state.dump())
 
         load_callbacks = {
             "success": page_success
         }
-        app_state = AppState()
-        page_callback(request, app_state, load_callbacks)
+        routing_policy.apply(request, handler_type_id, app_state, load_callbacks)
 
         html = etree.tostring(request.document.el, pretty_print=True, method="html")
 
-        return Response("<!DOCTYPE html>\n"+html)
+        return Response("<!DOCTYPE html>\n" + html)
 
     return view
 
-def asset_list_view(request):
-    calculate = request.app.asset_calculator
-    page_type_id = request.matchdict["page_type_id"]
 
-    packs = list(calculate(request.context.app_name, page_type_id))
-    styles = ["bootstrap"]
-
-    results = {
-        "css": {},
-        "js": {},
-    }
-
-    asset_manager = request.app.asset_manager
-    for type, name, bundle in asset_manager.get_all_bundles(packs, styles):
-        results[type][name] = [url for url in bundle.urls(asset_manager.env)]
-
-    return render_to_response("json", results)
-
-
-def asset_changed_view(request):
-    calculate = request.app.asset_calculator
-    page_type_id = request.matchdict["page_type_id"]
-
-    import time
-    packs = list(calculate(request.context.app_name, page_type_id))
-    styles = ["bootstrap"]
-
-    results = {"js":[], "css":[]}
-
-    asset_manager = request.app.asset_manager
-
-    found = False
-    i = 0
-    while not found and i < 1000:
-        for type, name, bundle in asset_manager.get_all_bundles(packs, styles):
-            if asset_manager.env.updater.needs_rebuild(bundle, asset_manager.env):
-                results[type].append(name)
-                found = True
-            i += 0
-        if not found:
-            time.sleep(1)
-
-
-    return render_to_response("json", results)
 
 def expose(*exposers):
     def decorate(cls):
         setattr(cls, "_exposers", exposers)
         return cls
+
     return decorate
+
 
 def try_expose(cls, config, app, factory):
     if hasattr(cls, "_exposers"):
         for exposer in getattr(cls, "_exposers"):
             exposer(config, app, factory, cls)
 
+
 def create_factory(**kwargs):
     class Factory(object):
         def __init__(self, request):
             self.__dict__.update(kwargs)
+
     return Factory
 
-class AppResources(object):
 
+class AppResources(object):
     def __init__(self, request, resource_types, storage_type_map):
         self.request = request
         self.resource_types = resource_types
@@ -133,82 +86,102 @@ def add_resources(config, name, resource_types, root):
 
     storage_type_map = {}
     for resource_type in resource_types:
-        if issubclass(resource_type, borobudur.storage.mongo.MongoStorage) or issubclass(resource_type, borobudur.storage.mongo.EmbeddedMongoStorage):
+        if issubclass(resource_type, borobudur.resource.storage.mongo.MongoStorage) or issubclass(resource_type,
+            borobudur.resource.storage.mongo.EmbeddedMongoStorage):
             storage_type_map[resource_type.model] = resource_type
     r_map[name] = (storage_type_map, resource_types, root)
     for resource_type in resource_types:
         try_expose(resource_type, config, root, factory)
 
-def add_app(config, name, app, root, resource_name):
-    resource_root = r_map[name][2]
-    client_settings = app.make_client_settings(root, resource_root)
 
-    factory = create_factory(resource_name=resource_name, app_name=name, client_settings=client_settings)
+def add_borobudur(config, name, app_config, root="/" ):
+    app = borobudur.App(root, app_config.routing_policy, app_config.routes, app_config.settings)
 
-    for  route, page_type_id, callback in app.get_leaf_pages():
-        route_name = name+"."+page_type_id.replace(":", ".")
+    factory = create_factory(app_name=name)
 
-        route = root+route
+    for  route, route_handler_id in app.routes:
+        route_name = name + "." + route_handler_id.replace(":", ".")
+
+        route = root + route
         config.add_route(route_name, route, factory=factory)
 
-        view = wrap_pyramid_view(callback)
+        view = wrap_pyramid_view(route_handler_id)
         config.add_view(view, route_name=route_name)
 
-    al_route_name = name+"._api."+"asset.list"
-    config.add_route(al_route_name, resource_root+"assets/list/{page_type_id}", factory=factory)
-    config.add_view(asset_list_view, route_name=al_route_name)
-
-    ac_route_name = name+"._api."+"asset.changed"
-    config.add_route(ac_route_name, resource_root+"assets/changed/{page_type_id}", factory=factory)
-    config.add_view(asset_changed_view, route_name=ac_route_name)
-
     config.registry.registerUtility(app, IApp, name=name)
-
+    config.registry.registerUtility(app_config, IAppConfigurator, name=name)
 
 def get_resources(request):
     storage_type_map, resource_types, resource_root = r_map[request.context.resource_name]
     app_resources = AppResources(request, resource_types=resource_types, storage_type_map=storage_type_map)
     return app_resources
 
+
 def get_app(request):
     app_name = request.context.app_name
     return request.registry.queryUtility(IApp, name=app_name)
 
+
+def get_app_config(request):
+    app_name = request.context.app_name
+    return request.registry.queryUtility(IAppConfigurator, name=app_name)
+
+
 def get_document(request):
     el = etree.Element("div")
-    request.app.base_template.render(el, Model())
+    request.app_config.base_template.render(el, Model())
     el = el[0]
     return Document(el)
 
+def add_global_bootstrap_subscriber(config, subscriber_qname):
+    config.registry.registerUtility(subscriber_qname, IBootstrapSubscriber, name=subscriber_qname)
+
 def includeme(config):
-    config.add_directive('add_app', add_app)
+    config.add_directive('add_borobudur', add_borobudur)
     config.add_directive('add_resources', add_resources)
+    config.add_directive('add_global_bootstrap_subscriber', add_global_bootstrap_subscriber)
 
     config.set_request_property(get_resources, 'resources', reify=True)
     config.set_request_property(get_app, 'app', reify=True)
+    config.set_request_property(get_app_config, 'app_config', reify=True)
     config.set_request_property(get_document, 'document', reify=True)
 
-class ServerApp(App):
+class AppConfigurator(object):
+    settings = {}
 
-    def __init__(self, asset_manager, base_template, client_entry_point=None):
-        super(ServerApp, self).__init__([])
+    def __init__(self, asset_manager, base_template,
+                 routing_policy=None,
+                 app_state_type=AppState):
         self.asset_manager = asset_manager
         self.base_template = base_template
-        self.client_entry_point = client_entry_point
         self.asset_calculator = SimplePackCalculator(self)
+        self.module_names = []
+        self.routes = []
+        self.bootstrap_subscribers = []
 
-    def add_page(self, route, page_type):
-        page_type_id = "%s:%s" % (page_type.__module__, page_type.__name__)
-        self.add_page_conf(route, page_type_id)
+        if routing_policy is None:
+            routing_policy = borobudur.DefaultRoutingPolicy()
 
-    def make_client_settings(self, root, resource_root):
-        settings = {
-            "resource_root": resource_root,
-            "root": root,
-            "pages": []
-        }
-        for page in self.pages:
-            settings["pages"].append(page)
-        return settings
+        self.routing_policy = routing_policy
+        self.app_state_type = app_state_type
 
+    def add_route(self, route, handler_type):
+        handler_id = "%s:%s" % (handler_type.__module__, handler_type.__name__)
+        self.add_route_conf(route, handler_id)
+
+    def add_route_conf(self, route, route_handler_id):
+        self.routes.append((route, route_handler_id))
+
+        module = route_handler_id.split(":")[0]
+        if not module in self.module_names:
+            self.module_names.append(module)
+
+    def add_bootstrap_subscriber(self, subscriber_qname):
+        self.bootstrap_subscribers.append(subscriber_qname)
+
+    def get_bootstrap_subscribers(self, request):
+        results = self.bootstrap_subscribers[:]
+        for name, value in request.registry.getUtilitiesFor(IBootstrapSubscriber):
+            results.append(value)
+        return results
 

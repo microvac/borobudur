@@ -74,11 +74,11 @@ def make_storage_view(model_type):
             query = self.storage.model.deserialize_queries(self.request.params)
             sorts = None
             if sort_criteria and sort_order:
-                sorts = borobudur.storage.SearchSort(sort_criteria, sort_order)
+                sorts = borobudur.resource.storage.SearchSort(sort_criteria, sort_order)
             elif sort_criteria:
-                sorts = borobudur.storage.SearchSort(sort_criteria)
+                sorts = borobudur.resource.storage.SearchSort(sort_criteria)
 
-            config = borobudur.storage.SearchConfig(skip, limit, sorts)
+            config = borobudur.resource.storage.SearchConfig(skip, limit, sorts)
 
             self.storage.all(collection, query=query, config=config)
             return collection.toJSON()

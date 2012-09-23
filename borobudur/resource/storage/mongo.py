@@ -1,6 +1,6 @@
 import borobudur
 import bson
-from borobudur.storage import StorageException, SearchConfig
+from borobudur.resource.storage import StorageException, SearchConfig
 from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection, CollectionRef, ModelRef
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode, DateTime
 from datetime import datetime, date
@@ -452,7 +452,7 @@ def make_embedded_storage_view(model, level):
         def list(self):
             skip = self.request.params.get("ps", 0)
             limit = self.request.params.get("pl", 0)
-            config = borobudur.storage.SearchConfig(skip, limit)
+            config = borobudur.resource.storage.SearchConfig(skip, limit)
 
             results = self.storage.all(self.id, config=config, schema=self.schema)
             sequence_schema = borobudur.schema.SequenceNode(self.schema)

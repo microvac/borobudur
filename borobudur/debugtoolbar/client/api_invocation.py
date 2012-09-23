@@ -1,14 +1,15 @@
 import borobudur
-from borobudur.model import Model
+from borobudur.model import Model, Collection
 from borobudur.view import View, on_element
 from prambanan import get_template, JS
+from pramjs.elquery import ElQuery
 import pramjs.underscore as underscore
 
 class APIInvocationView(View):
-    template = get_template("zpt", ("borobudur", "dt/api_invocation.pt"))
+    template = get_template("zpt", ("borobudur", "debugtoolbar/client/api_invocation.pt"))
 
 class APIInvocationsView(View):
-    template = get_template("zpt", ("borobudur", "dt/api_invocations.pt"))
+    template = get_template("zpt", ("borobudur", "debugtoolbar/client/api_invocations.pt"))
     active_child = None
     q_active_tr = None
 
@@ -30,7 +31,7 @@ def bind_ajax_request(app, col):
     jQuery = borobudur.query_el
     prev_ajax = jQuery.ajax
     def ajax(settings):
-        if settings.url and settings.url.startswith(app.resource_root):
+        if settings.url and settings.url.startswith(app.settings["resource_root"]):
             type = None
             if settings.url.indexOf("/services/") != -1:
                 type = "Service"
@@ -63,4 +64,33 @@ def bind_ajax_request(app, col):
         else:
             return prev_ajax(settings)
     jQuery.ajax = ajax
+
+def main(app_name, app, assets):
+    invocations = Collection()
+
+    q_subtitle = ElQuery("li#pDebugAPIInvocationPanel a small")
+    q_subtitle.css({"font-family": "monospace"});
+    def updateSubtitle():
+        total = {"loading": 0, "success": 0, "error": 0}
+        def each_model(model):
+            total[model["status"]] += 1;
+        invocations.each(each_model)
+        q_subtitle.html("E:"+total.error+" | S:"+total.success+" | L:"+total.loading)
+    updateSubtitle();
+
+    invocations.on("add", updateSubtitle);
+    def on_add(model):
+        model.on("change:status", updateSubtitle)
+    invocations.on("add", on_add)
+
+    bind_ajax_request(app, invocations)
+
+    parent = {
+        "app": app,
+        "request": {
+            "app": app,
+        }
+    }
+
+    APIInvocationsView(parent, ElQuery("#pDebugAPIInvocation")[0], invocations, False)
 
