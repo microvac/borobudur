@@ -54,9 +54,9 @@ __init__.py:
                 asset_manager = asset_manager,
                 base_template=prambanan.get_template("zpt", ("roma", "templates/test/simple.pt")),
             )
-            app_config.add_bootstrap_subscriber("views:client_main")
             app_config.add_route("foo", views.foo)
             app_config.add_route("bar", views.bar)
+            app_config.add_bootstrap_subscriber("views:client_main")
 
             config.add_borobudur("hello", app_config, root="/")
 
@@ -115,17 +115,78 @@ Then you can run those file by:
         python __init__.py
 
 
-Asset Bundler
+Asset Manager
+-----------------------------------
+    .. code-block:: python
+
+            asset_manager = AssetManager(
+                base_dir="roma",
+                static_dir="static",
+                result_dir="gen",
+                prambanan_dir=".p",
+                prambanan_cache_file=".prambanan.cache",
+            )
+
+Asset manager, as the name implies, manage js and css assets, it is responsible for compiling python to javascript, combining javascript files,
+minifying css, etc
+
+And with the following line, you register file views.py to be compilable to javascript with views as its modname
+
+    .. code-block:: python
+
+        asset_manager.add_module(PythonModule("views.py", modname="views"))
+
+
+Single Page App Configurator
 -----------------------------------
 
-Registering module to be compileable to javascript
------------------------------------
+Before creating a single page application, create its configurator, with asset manager as parameter. Base template is used for template for any
+routes in the single page application
 
-Single App Configurator
------------------------------------
 
-Adding root
------------------------------------
+    .. code-block:: python
+
+            app_config = AppConfigurator(
+                asset_manager = asset_manager,
+                base_template=prambanan.get_template("zpt", ("roma", "templates/test/simple.pt")),
+            )
+
+You can add your route and its handler with
+
+    .. code-block:: python
+
+            app_config.add_route("foo", views.foo)
+            app_config.add_route("bar", views.bar)
 
 Subscribe to client bootstrap
 -----------------------------------
+You can listen to client app bootstrap by adding a bootstrap subscriber. This line
+
+    .. code-block:: python
+
+            app_config.add_bootstrap_subscriber("views:client_main")
+
+adds this subscriber
+
+    .. code-block:: python
+
+        def client_main(app_name, app):
+            def on_click(ev):
+                url = ElQuery(ev.currentTarget).attr("href")
+                app.router.navigate(url)
+                return False
+            ElQuery("a", prambanan.document).click(on_click)
+
+which binds every anchor click to be routed by client
+
+What routes handler do
+-----------------------------------
+This route handler create a text based on whether app is executed on client or server, then put it as #view content
+
+    .. code-block:: python
+
+        def foo(request, callbacks):
+            text = "foo rendered on %s" %("server" if borobudur.is_server else "client")
+            ElQuery("#view", request.document).html(text)
+            callbacks.success()
+
