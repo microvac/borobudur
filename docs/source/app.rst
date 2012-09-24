@@ -1,12 +1,15 @@
 Your first Borobudur single page application
 *********************
-A borobudur application is a  `single page application <http://en.wikipedia.org/wiki/Single-page_application>`_ except that first
-request will be routed and rendered in server. Then, your client code can routes and render subsequent urls with binding every `<a>` elements to `app.router.navigate()`
+A borobudur application is a  `single page application <http://en.wikipedia.org/wiki/Single-page_application>`_ with an exception
+that the first request of any page will be routed and rendered in server. After the first request is routed and rendered,
+the rest will be the same as single page application. Thus, the implication of this method is that the logic of application
+exists in server and client.
 
-Borobudur is based on `pyramid <http://www.pylonsproject.org/>`_ , and this guide assumes you have created a trivial pyramid application,
-if not, read `creating simple pyramid application <http://pyramid.readthedocs.org/en/latest/narr/firstapp.html>`_
+#Then, your client code can routes and render subsequent urls with binding every `<a>` elements to `app.router.navigate()`
 
-It also assumes you have already installed a python environment and pyramid, if not head to `installing pyramid <http://pyramid.readthedocs.org/en/latest/narr/install.html>`_
+Borobudur is based on `pyramid <http://www.pylonsproject.org/>`_ , and this guide assumes that:
+    #. you have an understanding in creating a `basic pyramid application <http://pyramid.readthedocs.org/en/latest/narr/firstapp.html>`_.
+    #. you have already installed a python environment and pyramid, if you haven't you can go to `installing pyramid <http://pyramid.readthedocs.org/en/latest/narr/install.html>`_
 
 Installing borobudur
 ====================================
@@ -17,14 +20,16 @@ Installing borobudur
 
 Simplest borobudur app
 =====================================
-The very simplest borobudur application requires 3 files, (yes, it sucks)
+The very simplest borobudur application requires a minimum of 3 files, (yes, it sucks)
 
-You can generate these file by these commands
+You can generate these files by these commands:
     .. code-block:: text
 
         mkdir test
         cd test
         borobudur create_simples
+
+Then, you create these three files:
 
 __init__.py:
     .. code-block:: python
@@ -54,9 +59,9 @@ __init__.py:
                 asset_manager = asset_manager,
                 base_template=prambanan.get_template("zpt", ("roma", "templates/test/simple.pt")),
             )
+            app_config.add_bootstrap_subscriber("views:client_main")
             app_config.add_route("foo", views.foo)
             app_config.add_route("bar", views.bar)
-            app_config.add_bootstrap_subscriber("views:client_main")
 
             config.add_borobudur("hello", app_config, root="/")
 
@@ -108,7 +113,7 @@ template.pt
             </body>
         </html>
 
-Then you can run those file by:
+The next step is running those files with command:
 
     .. code-block:: text
 
