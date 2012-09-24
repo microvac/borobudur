@@ -1,13 +1,131 @@
-Your first Borobudur application
+Your first Borobudur single page application
 *********************
-Borobudur is based on `pyramid <http://www.pylonsproject.org/>`_ , and these guide assumes you have created some trivial pyramid application
+A borobudur application is a  `single page application <http://en.wikipedia.org/wiki/Single-page_application>`_ except that first
+request will be routed and rendered in server. Then, your client code can routes and render subsequent urls with binding every `<a>` elements to `app.router.navigate()`
 
-.. py:currentmodule:: borobudur.page
+Borobudur is based on `pyramid <http://www.pylonsproject.org/>`_ , and this guide assumes you have created a trivial pyramid application,
+if not, read `creating simple pyramid application <http://pyramid.readthedocs.org/en/latest/narr/firstapp.html>`_
 
-Structuring your project
+It also assumes you have already installed a python environment and pyramid, if not head to `installing pyramid <http://pyramid.readthedocs.org/en/latest/narr/install.html>`_
+
+Installing borobudur
+====================================
+    .. code-block:: text
+
+        pip install borobudur
+
+
+Simplest borobudur app
 =====================================
+The very simplest borobudur application requires 3 files, (yes, it sucks)
 
-Routing and Pages
-=====================================
-.. autoclass:: Page
+You can generate these file by these commands
+    .. code-block:: text
 
+        mkdir test
+        cd test
+        borobudur create_simples
+
+__init__.py:
+    .. code-block:: python
+
+        from pyramid.config import Configurator
+        from borobudur.config import AppConfigurator
+        from borobudur.asset import AssetManager
+        from prambanan.library import PythonModule
+        from prambanan import get_template
+        from wsgiref.simple_server import make_server
+        import views
+
+        if __name__ == '__main__':
+            config = Configurator()
+            config.include("borobudur")
+
+            asset_manager = AssetManager(
+                base_dir="roma",
+                static_dir="static",
+                result_dir="gen",
+                prambanan_dir=".p",
+                prambanan_cache_file=".prambanan.cache",
+            )
+            asset_manager.add_module(PythonModule("views.py", modname="views"))
+
+            app_config = AppConfigurator(
+                asset_manager = asset_manager,
+                base_template=prambanan.get_template("zpt", ("roma", "templates/test/simple.pt")),
+            )
+            app_config.add_bootstrap_subscriber("views:client_main")
+            app_config.add_route("foo", views.foo)
+            app_config.add_route("bar", views.bar)
+
+            config.add_borobudur("hello", app_config, root="/")
+
+            wsgi_app = config.make_wsgi_app()
+            server = make_server('0.0.0.0', 8080, wsgi_app)
+            server.serve_forever()
+
+views.py
+    .. code-block:: python
+
+        import borobudur
+        import prambanan
+        from pramjs.elquery import ElQuery
+
+        __author__ = 'h'
+
+        def client_main(app_name, app):
+            def on_click(ev):
+                url = ElQuery(ev.currentTarget).attr("href")
+                app.router.navigate(url)
+                return False
+            ElQuery("a", prambanan.document).click(on_click)
+
+        def foo(request, callbacks):
+            text = "foo rendered on %s" %("server" if borobudur.is_server else "client")
+            ElQuery("#view", request.document).html(text)
+            callbacks.success()
+
+        def bar(request, callbacks):
+            text = "bar rendered on %s" %("server" if borobudur.is_server else "client")
+            ElQuery("#view", request.document).html(text)
+            callbacks.success()
+
+template.pt
+    .. code-block:: html
+
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Hello borobudur</title>
+            </head>
+
+            <body>
+                <div>
+                    <a href="foo">foo</a>
+                    <a href="bar">bar</a>
+                </div>
+                <div id="view"></div>
+            </body>
+        </html>
+
+Then you can run those file by:
+
+    .. code-block:: text
+
+        python __init__.py
+
+
+Asset Bundler
+-----------------------------------
+
+Registering module to be compileable to javascript
+-----------------------------------
+
+Single App Configurator
+-----------------------------------
+
+Adding root
+-----------------------------------
+
+Subscribe to client bootstrap
+-----------------------------------
