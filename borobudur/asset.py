@@ -151,6 +151,9 @@ class LessBundle(SelfCheckingBundle):
 
 bootstrap_template = """
     $(function(){
+        if (prambanan.has_error)
+            return;
+
         var load = prambanan.import("prambanan").load_module_attr;
 
         var handler_type_id = %s;
