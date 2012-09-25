@@ -242,7 +242,10 @@ class Page(object):
         prambanan:type view_type c(borobudur.view:View)
 
         """
-        el = ElQuery("#"+id, self.request.document)[0]
+        els = ElQuery("#"+id, self.request.document)
+        if not els.length:
+            raise ValueError("cannot find el with id '%s' on document" % id)
+        el = els[0]
         view = view_type(self, el, model, self.el_rendered)
         self.views.append((id, view))
 

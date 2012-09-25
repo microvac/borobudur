@@ -90,6 +90,9 @@ class View(object):
 
     def render_form(self, name, model):
         form_type = self.forms[name]
+        if not form_type:
+            raise KeyError("form with name '%s' doesn't registered to view" % name)
+
         form = prambanan.JS("new form_type()")
 
         button_handlers = self.find_decorated_buttons(name)
@@ -113,6 +116,9 @@ class View(object):
 
     def render_child(self, name, model, tag="div"):
         child_view_type = self.children[name]
+        if not child_view_type:
+            raise KeyError("form with name '%s' doesn't registered to view" % name)
+
         el = borobudur.query_el("<%s></%s>"% (tag, tag))[0]
         child_view = prambanan.JS("new child_view_type(self, el, model, false)")
         self.child_views.append(child_view)
