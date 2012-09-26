@@ -5,8 +5,6 @@ that the first request of any page will be routed and rendered in server. After 
 the rest will be the same as single page application. Thus, the implication of this method is that the logic of application
 exists in server and client.
 
-#Then, your client code can routes and render subsequent urls with binding every `<a>` elements to `app.router.navigate()`
-
 Borobudur is based on `pyramid <http://www.pylonsproject.org/>`_ , and this guide assumes that:
     #. you have an understanding in creating a `basic pyramid application <http://pyramid.readthedocs.org/en/latest/narr/firstapp.html>`_.
     #. you have already installed a python environment and pyramid, if you haven't you can go to `installing pyramid <http://pyramid.readthedocs.org/en/latest/narr/install.html>`_
@@ -31,9 +29,10 @@ You can generate these files by these commands:
 
 Then, you create these three files:
 
-__init__.py:
-    .. code-block:: python
+    .. pycco:: python
 
+        # **__init_.py** file which is executed in server only
+        #It create a pyramid wsgi app and add a borobudur ap to it
         from pyramid.config import Configurator
         from borobudur.config import AppConfigurator
         from borobudur.asset import AssetManager
@@ -43,9 +42,14 @@ __init__.py:
         import views
 
         if __name__ == '__main__':
+            #create pyramid configurator
             config = Configurator()
-            config.include("borobudur")
 
+            #tell config to execute 'borobudur.config' module
+            config.include("borobudur.config")
+
+            #Asset manager, as the name implies, manage js and css assets, it is responsible for compiling python to javascript,
+            #combining javascript files,minifying css, etc
             asset_manager = AssetManager(
                 base_dir="roma",
                 static_dir="static",
@@ -53,49 +57,76 @@ __init__.py:
                 prambanan_dir=".p",
                 prambanan_cache_file=".prambanan.cache",
             )
+
+            #register file views.py to be compilable to javascript with views as its modname
             asset_manager.add_module(PythonModule("views.py", modname="views"))
 
+            #Before creating a single page application, create its configurator, with asset manager as parameter.
+            #Base template is used for template for any routes in the single page application
             app_config = AppConfigurator(
                 asset_manager = asset_manager,
                 base_template=prambanan.get_template("zpt", ("roma", "templates/test/simple.pt")),
             )
-            app_config.add_bootstrap_subscriber("views:client_main")
+
+            #Add route handlers in views module with the respective url patterns
             app_config.add_route("foo", views.foo)
             app_config.add_route("bar", views.bar)
 
+
+            #Register 'views:client_main' function to be executed at client bootstrap.
+            app_config.add_bootstrap_subscriber("views:client_main")
+
+            #add the single page application to pyramid config
             config.add_borobudur("hello", app_config, root="/")
 
+            #serve the wsgi application
             wsgi_app = config.make_wsgi_app()
             server = make_server('0.0.0.0', 8080, wsgi_app)
             server.serve_forever()
 
-views.py
-    .. code-block:: python
+    .. pycco:: python
 
+        #**views.py** which is executed in client and server.
+        #it defines route handlers and a client bootstrap subscriber
         import borobudur
         import prambanan
         from pramjs.elquery import ElQuery
 
-        __author__ = 'h'
-
+        #a callback to be executed in client bootstrap
         def client_main(app_name, app):
             def on_click(ev):
+                #get `<a>` element href
                 url = ElQuery(ev.currentTarget).attr("href")
+
+                #tells client `app.router` to route and render the url
                 app.router.navigate(url)
+
+                #prevent default and stop propagation of click event
                 return False
+
+            #binds every a element in document with `on_click`,
+            #because it is executed in client, it has access to global `prambanan.document`
             ElQuery("a", prambanan.document).click(on_click)
 
+        #handler to '/foo' route
         def foo(request, callbacks):
+
+            #create some text depends on where this code is executed
             text = "foo rendered on %s" %("server" if borobudur.is_server else "client")
+
+            #put that text to `#view` inner html.
+            #Route handlers are executed in both client and server,
+            #so use `request.document` instead of global `prambanan.document`
             ElQuery("#view", request.document).html(text)
             callbacks.success()
 
+        #handler to '/bar' route
         def bar(request, callbacks):
             text = "bar rendered on %s" %("server" if borobudur.is_server else "client")
             ElQuery("#view", request.document).html(text)
             callbacks.success()
 
-template.pt
+and **template.pt**
     .. code-block:: html
 
         <!DOCTYPE html>
@@ -119,79 +150,4 @@ The next step is running those files with command:
 
         python __init__.py
 
-
-Asset Manager
------------------------------------
-    .. code-block:: python
-
-            asset_manager = AssetManager(
-                base_dir="roma",
-                static_dir="static",
-                result_dir="gen",
-                prambanan_dir=".p",
-                prambanan_cache_file=".prambanan.cache",
-            )
-
-Asset manager, as the name implies, manage js and css assets, it is responsible for compiling python to javascript, combining javascript files,
-minifying css, etc
-
-And with the following line, you register file views.py to be compilable to javascript with views as its modname
-
-    .. code-block:: python
-
-        asset_manager.add_module(PythonModule("views.py", modname="views"))
-
-
-Single Page App Configurator
------------------------------------
-
-Before creating a single page application, create its configurator, with asset manager as parameter. Base template is used for template for any
-routes in the single page application
-
-
-    .. code-block:: python
-
-            app_config = AppConfigurator(
-                asset_manager = asset_manager,
-                base_template=prambanan.get_template("zpt", ("roma", "templates/test/simple.pt")),
-            )
-
-You can add your route and its handler with
-
-    .. code-block:: python
-
-            app_config.add_route("foo", views.foo)
-            app_config.add_route("bar", views.bar)
-
-Subscribe to client bootstrap
------------------------------------
-You can listen to client app bootstrap by adding a bootstrap subscriber. This line
-
-    .. code-block:: python
-
-            app_config.add_bootstrap_subscriber("views:client_main")
-
-adds this subscriber
-
-    .. code-block:: python
-
-        def client_main(app_name, app):
-            def on_click(ev):
-                url = ElQuery(ev.currentTarget).attr("href")
-                app.router.navigate(url)
-                return False
-            ElQuery("a", prambanan.document).click(on_click)
-
-which binds every anchor click to be routed by client
-
-What routes handler do
------------------------------------
-This route handler create a text based on whether app is executed on client or server, then put it as #view content
-
-    .. code-block:: python
-
-        def foo(request, callbacks):
-            text = "foo rendered on %s" %("server" if borobudur.is_server else "client")
-            ElQuery("#view", request.document).html(text)
-            callbacks.success()
 

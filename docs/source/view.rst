@@ -1,5 +1,5 @@
-Render things
-****************************
+Views - Bridge your templates, models and listen to events
+**********************************************************
 
 Binding to element event
 =====================

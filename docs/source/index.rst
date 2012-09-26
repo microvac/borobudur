@@ -51,10 +51,12 @@ Guide
     :maxdepth: 2
 
     app
-    page
     model
+    template
     view
+    page
     resources
+    javascript
     script
     misc
 

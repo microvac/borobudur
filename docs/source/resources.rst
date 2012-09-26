@@ -1,4 +1,4 @@
-Resources -- REST service that resides on server
+Resources -- REST-like service that resides on server
 *************************************************
 todo
 
