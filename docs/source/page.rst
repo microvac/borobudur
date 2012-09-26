@@ -21,7 +21,7 @@ Here is a sample page:
 
         from borobudur.view import View
         from borobudur.page import Page
-        from borobudur.page.loaders import StorageModelLoader
+        from borobudur.page.loaders import StorageLoader
 
         class InquiryView(View):
             pass
@@ -56,9 +56,8 @@ Here is a sample page:
 
                 #initialize models
                 self.models["inquiry"] = Inquiry({"_id": self.request.matchdict["id"]})
-
                 #tell loaders to add fetch async operation to inquiry
-                loaders.add(StorageModelLoader(self.models["inquiry]))
+                loaders.add(StorageLoader(self.models["inquiry]))
 
             #This method will be invoked when previous `loaders` finish all its async operation
             def open(self):
@@ -79,4 +78,38 @@ When a Page is opened, borobudur will set html document attributes based on thes
 
 Loaders
 =======
-Todo
+page's `prepare` method manipulates `borobudur.page.loaders.Loaders` object. this object has `append` method to add
+new `Loader`. Borobudur provides two loader, `borobudur.page.loaders.StorageLoader` and `borobudur.page.loaders.ServiceLoader`
+
+`StorageLoader` accept model or collection in its constructor, for example
+
+    .. code-block:: python
+
+        model = User.with_id(121)
+        loaders.append(StorageLoader(model))
+
+`ServiceLoader` accept model or collection, `service_id`, and `service_attribute` in its constructor, for example
+
+    .. code-block:: python
+
+        model = Session()
+        loaders.append(ServiceLoader(model, "session", "get"))
+
+You can also define a custom loader, a loader must have `load` method which accept `request` and `callbacks`.
+`callbacks.success()` must be invoked when a loader finishes its load operation.
+
+
+
+    .. code-block:: python
+
+        class CustomLoader(object):
+            def __init__(self, model):
+                self.model = model
+
+            def load(self, request, callbacks):
+                def json_callback(json):
+                    self.model["info"] = json
+                    callbacks.success()
+
+                ElQuery.getJSON("somejsonurl", json_callback)
+
