@@ -29,12 +29,6 @@ class NullTemplate(object):
     def render(self, el, model, vars):
         print "rendering null template"
 
-translator = translationstring.Translator()
-
-view_utils = {
-    "pretty_time": lambda time: pretty_time(time, translator)
-}
-
 class View(object):
     """
     todorambanan:type children d(i(str), c(borobudur.view:View))
@@ -57,12 +51,7 @@ class View(object):
         self.child_views = []
         self.child_forms = {}
 
-        self.render_dict = {}
-        self.render_dict["view"] = self
-        self.render_dict["request"] = self.request
-        self.render_dict["app"] = self.app
-        self.render_dict["utils"] = view_utils
-        self.render_dict["translator"] = translator
+        self.renderdict = self.create_renderdict()
 
         self.delegate_events()
 
@@ -71,11 +60,18 @@ class View(object):
         if not el_rendered:
             self.render()
 
+    def create_renderdict(self):
+        renderdict = {}
+        renderdict["view"] = self
+        renderdict["request"] = self.request
+        renderdict["app"] = self.app
+        return renderdict
+
     def initialize(self):
         pass
 
     def render(self):
-        self.template.render(self.el, self.model, self.render_dict)
+        self.template.render(self.el, self.model, self.renderdict)
         return self
 
     def remove(self):
