@@ -174,7 +174,7 @@ class Page(object):
                 loaders.fetch_models("users")
 
             def open(self):
-                self.add_view("view-id", SomeView, self.models["users"])
+                self.add_view("#view-id", SomeView, self.models["users"])
 
     **Attributes**
 
@@ -227,7 +227,7 @@ class Page(object):
     def open(self ):
         pass
 
-    def add_view(self, id, view_type, model):
+    def add_view(self, selector, view_type, model):
         """
         add view to document
 
@@ -242,26 +242,31 @@ class Page(object):
         prambanan:type view_type c(borobudur.view:View)
 
         """
-        els = ElQuery("#"+id, self.request.document)
+        els = ElQuery(selector, self.request.document)
         if not els.length:
-            raise ValueError("cannot find el with id '%s' on document" % id)
+            raise ValueError("cannot find el with selector '%s' on document" % selector)
         el = els[0]
-        view = view_type(self, el, model, self.el_rendered)
-        self.views.append((id, view))
 
-    def get_view(self, id):
+        #clone to replace later when removed
+        cloned_el = ElQuery(el).clone()
+
+        view = view_type(self, el, model, self.el_rendered)
+
+        self.views.append((selector, view, cloned_el))
+
+    def get_view(self, selector):
         """
         get previously added view
         """
-        for view_id, view in self.views:
-            if id == view_id:
+        for view_selector, view, cloned_el in self.views:
+            if selector == view_selector:
                 return view
         return None
 
     def destroy(self):
         reversed_views = reversed(self.views)
-        for id, view in reversed_views:
-            view.el_query().replaceWith("<div id='"+id+"'/>")
+        for selector, view, cloned_el in reversed_views:
+            view.el_query().replaceWith(cloned_el)
             view.remove()
 
 class PagesGroup(object):

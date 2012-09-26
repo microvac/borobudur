@@ -2,6 +2,5 @@ page selector
 explicit loader
 borobudur create_simplest
 configure_with_npm()
-add_view selector
 
 define-bindable -> define-model
