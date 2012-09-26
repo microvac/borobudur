@@ -144,7 +144,7 @@ class PageOpener(object):
 
             self.current = page
 
-            loaders = Loaders(page)
+            loaders = Loaders(self.request)
             page.prepare(loaders)
             loaders.apply(self)
 

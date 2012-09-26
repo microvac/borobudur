@@ -8,28 +8,28 @@ __author__ = 'h'
 class BaseLoader(object):
     pass
 
-class ServiceModelLoader(BaseLoader):
+class ServiceLoader(BaseLoader):
 
-    def __init__(self, service_id, service_attr):
+    def __init__(self, model, service_id, service_attr):
         self.service_id = service_id
-
+        self.model = model
         self.service_attr = service_attr
 
-    def load(self, app, model, callbacks):
+    def load(self, request, callbacks):
 
         def prev_success(attrs):
-            parsed = model.parse(attrs)
-            if isinstance(model, Model):
-                model.set(parsed)
+            parsed = self.model.parse(attrs)
+            if isinstance(self.model, Model):
+                self.model.set(parsed)
             else:
-                model.reset(parsed)
+                self.model.reset(parsed)
             callbacks.success()
 
         def fetch_success(attrs):
-            if isinstance(model, Model):
+            if isinstance(self.model, Model):
                 def _success():
                     prev_success(attrs)
-                fetch_children(model.__class__, attrs, app, _success)
+                fetch_children(self.model.__class__, attrs, request.app, _success)
             else:
                 count = 0
                 def col_success():
@@ -38,20 +38,23 @@ class ServiceModelLoader(BaseLoader):
                     if count == len(attrs):
                         prev_success(attrs)
                 for item_attrs in attrs:
-                    fetch_children(model.model, item_attrs, app, col_success)
+                    fetch_children(self.model.model, item_attrs, request.app, col_success)
                 if len(attrs) == 0:
                     prev_success(attrs)
 
-        url = "%s/%s/%s" % (app.settings["service_root"], self.service_id, self.service_attr)
+        url = "%s/%s/%s" % (request.app.settings["service_root"], self.service_id, self.service_attr)
         borobudur.query_el.getJSON(url, fetch_success)
 
-class StorageModelLoader(BaseLoader):
+class StorageLoader(BaseLoader):
 
-    def load(self, app, model, callbacks):
+    def __init__(self, model):
+        self.model = model
+
+    def load(self, request, callbacks):
         options = {
             "data": self.params,
             }
-        model.fetch(app, callbacks.success, callbacks.error, options)
+        self.model.fetch(request.app, callbacks.success, callbacks.error, options)
 
 class ServiceInvoker(object):
 
@@ -77,19 +80,14 @@ class ServiceInvoker(object):
 
 class Loaders(object):
 
-    def __init__(self, page):
+    def __init__(self, request):
         self.loaders = []
-        self.page = page
-        self.models = page.models
+        self.request = request
         if prambanan.is_js:
             self.success = underscore.bind(self.success, self)
 
-    def add(self, name, loader):
-        self.loaders.append((name, loader))
-
-    def fetch_models(self, *names):
-        for name in names:
-            self.loaders.append((name, StorageModelLoader()))
+    def append(self, loader):
+        self.loaders.append(loader)
 
     def apply(self, load_flow):
         self.i = 0
@@ -110,9 +108,5 @@ class Loaders(object):
             self.load_flow.success()
 
     def next(self):
-        name, loader = self.loaders[self.i]
-        model = self.models[name]
-        loader.load(self.page.app, model, self)
-
-
-
+        loader = self.loaders[self.i]
+        loader.load(self.request, self)
