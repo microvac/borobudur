@@ -20,6 +20,21 @@ def on_form(selector, button_name, prevent_default=True):
         return fn
     return  decorate
 
+
+class Form(object):
+    """
+    Interface for form
+    """
+
+    def __init__(self):
+        pass
+
+    def render(self, model):
+        pass
+
+    def add_event_handler(self, event_name, event_handler):
+        pass
+
 class NullTemplate(object):
 
     def render(self, el, model, vars):
@@ -29,7 +44,6 @@ class View(object):
     """
     todorambanan:type children d(i(str), c(borobudur.view:View))
     """
-    events = {}
     children = {}
     forms = {}
     template = NullTemplate()
@@ -49,7 +63,7 @@ class View(object):
 
         self.renderdict = self.create_renderdict()
 
-        self.delegate_events()
+        self.delegate_element_events()
 
         self.initialize()
 
@@ -87,9 +101,9 @@ class View(object):
 
         form = prambanan.JS("new form_type()")
 
-        button_handlers = self.find_decorated_buttons(name)
-        for config, handler in button_handlers:
-            _, button_name, prevent_default = config
+        form_handlers = self.find_decorated_form_handlers(name)
+        for config, handler in form_handlers:
+            _, event_name, prevent_default = config
             handler = underscore.bind(handler, self)
             def make_handler(h):
                 def wrapped(ev):
@@ -97,7 +111,7 @@ class View(object):
                         ev.preventDefault()
                         h(ev, form.m, form, form.element)
                 return prambanan.wrap_on_error(wrapped)
-            form.add_button_handler(button_name, make_handler(handler))
+            form.add_event_handler(event_name, make_handler(handler))
 
         el = form.render(model)
         self.child_forms[name] = form
@@ -119,14 +133,13 @@ class View(object):
     def get_child_model(self, child_name):
         return self.model[child_name]
 
-    def delegate_events(self):
+    def delegate_element_events(self):
         if borobudur.is_server:
             return
 
-        events = prambanan.items(self.events)
-        events.extend(self.find_decorated_events())
+        self.undelegate_element_events()
 
-        self.undelegate_events()
+        element_handlers = self.find_decorated_element_handlers()
 
         def make_handler(method, prevent_default):
             def handler(ev):
@@ -135,7 +148,7 @@ class View(object):
                 method(ev)
             return handler
 
-        for config, method in events:
+        for config, method in element_handlers:
             selector, event_name, prevent_default = config
 
             if not underscore.isFunction(method):
@@ -155,13 +168,13 @@ class View(object):
             else:
                 self.q_el.delegate(selector, event_name, handler)
 
-    def undelegate_events(self):
+    def undelegate_element_events(self):
         if borobudur.is_server:
             return
 
         self.q_el.unbind(".delegateEvents"+self.cid)
 
-    def find_decorated_events(self):
+    def find_decorated_element_handlers(self):
         if borobudur.is_server:
             return {}
 
@@ -173,7 +186,7 @@ class View(object):
                     results.append([conf, value])
         return results
 
-    def find_decorated_buttons(self, name):
+    def find_decorated_form_handlers(self, name):
         if borobudur.is_server:
             return {}
 

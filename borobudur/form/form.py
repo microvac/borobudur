@@ -165,7 +165,7 @@ class Form(field.Field):
         self.m.set(appstruct)
 
 
-    def add_button_handler(self, name, handler):
+    def add_event_handler(self, name, handler):
         self.event.on(name, handler)
 
 class Button(object):
