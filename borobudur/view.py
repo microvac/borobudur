@@ -1,10 +1,6 @@
-import translationstring
-from borobudur.model import Collection, Model
 import prambanan
 import borobudur
 import pramjs.underscore as underscore
-from borobudur.form.form import Form, Button
-from borobudur.util.pretty_time import pretty_time
 
 delegate_event_splitter = prambanan.JS("/^(\S+)\s*(.*)$/")
 
