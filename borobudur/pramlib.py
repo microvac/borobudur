@@ -2,6 +2,7 @@ from prambanan.compiler import *
 from prambanan.compiler.library import PrambananLibrary
 from os.path import *
 from pkg_resources import resource_filename
+from prambanan.zpt.template import templates_to_modules
 
 pylib_dir = resource_filename("borobudur", "pylib/")
 debugtoolbar_dir = resource_filename("borobudur", "debugtoolbar/")
@@ -21,6 +22,8 @@ class BorobudurPrambananLibrary(PrambananLibrary):
             JavascriptModule(join(debugtoolbar_dir, "client", "borobudur.debugtoolbar.client.asset.js"), "borobudur.debugtoolbar.client.asset")
             ]
         modules.extend(package_to_modules("borobudur", self.import_cache))
+        modules.extend(templates_to_modules("borobudur", "form/templates", self.import_cache))
+        modules.extend(templates_to_modules("borobudur", "debugtoolbar/client", self.import_cache))
         self.modules = modules
 
     def get_overridden_types(self):

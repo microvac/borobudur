@@ -17,7 +17,6 @@ from prambanan.output import DirectoryOutputManager
 from prambanan.compiler import RUNTIME_MODULES
 from prambanan.compiler.utils import ParseError
 from prambanan.compiler.manager import PrambananManager
-from prambanan.template import get_provider
 from pramjs.elquery import ElQuery
 
 logger = logging.getLogger("borobudur")
@@ -64,10 +63,7 @@ class PrambananModuleBundle(SelfCheckingBundle):
             args = create_args(translate_parser, target=self.target)
             output_manager.new_job()
 
-            self.generate(args, output_manager, self.pack.modules[:self.pack.templates_position])
-            for type in self.pack.templates:
-                get_provider(type).compile(args, output_manager, self.manager, self.pack.templates[type])
-            self.generate(args, output_manager, self.pack.modules[self.pack.templates_position:])
+            self.generate(args, output_manager, self.pack.modules)
 
             if output_manager.current_job_files:
                 logger.info("generated files: %s" % ",".join(output_manager.current_job_files))
@@ -85,9 +81,6 @@ class PrambananModuleBundle(SelfCheckingBundle):
         output_manager = DirectoryOutputManager(abs_dir)
         if modules_changed(output_manager, self.manager, self.pack.modules):
             return SKIP_CACHE
-        for type in self.pack.templates:
-            if get_provider(type).changed(output_manager, self.manager, self.pack.templates[type]):
-                return SKIP_CACHE
         return False
 
     """
@@ -100,47 +93,9 @@ class PrambananModuleBundle(SelfCheckingBundle):
 
 
 
-def find_templates(modules):
-    results = {}
-    for name, module in modules.items():
-        for type, configs in module.templates.items():
-            if type not in results:
-                results[type] = []
-            for config in configs:
-                if config not in results[type]:
-                    results[type].append(config)
-    return results
-
-def find_templates_dependencies(templates):
-    results = []
-    for type in templates:
-        try:
-            provider = get_provider(type)
-        except KeyError:
-            print "Cannot find template provider '%s' in module '%s' for templates %s" % (type, templates[type])
-            continue
-        for template in templates[type]:
-            dependencies = provider.get_imports(template)
-            for dependency in dependencies:
-                if not dependency in results:
-                    results.append(dependency)
-    return results
-
-def find_modules_and_templates(module_names, available_modules):
-    modules = walk_imports(module_names, available_modules)
-    templates = find_templates(modules)
-    results = walk_imports(find_templates_dependencies(templates), available_modules)
-    template_position = len(results)
-    for name, module in modules.items():
-        if name not in results:
-            results[name] = module
-    return results, templates, template_position
-
 class Pack(object):
     name=None
     modules=None
-    templates=None
-    templates_position=0
 
 class LessBundle(SelfCheckingBundle):
 
@@ -195,7 +150,7 @@ class SimplePackCalculator(object):
     def __init__(self, app_config):
         self.app_config = app_config
         self.cached_results = {}
-        self.available_modules = get_available_modules(app_config.asset_manager.manager)
+        self.available_modules = get_available_modules(app_config.asset_manager.manager, app_config.asset_manager.manager.libraries)
 
     def __call__(self, app_name, subscribers, page_type_id):
         if page_type_id in self.cached_results:
@@ -213,11 +168,9 @@ class SimplePackCalculator(object):
             if module_name not in default_modules:
                 default_modules.append(module_name)
 
-        main_modules, main_templates, main_templates_position = find_modules_and_templates(default_modules+self.app_config.module_names, available_modules)
+        main_modules = walk_imports(default_modules+self.app_config.module_names, available_modules)
 
         result.modules = RUNTIME_MODULES + main_modules.values()
-        result.templates_position = main_templates_position+len(RUNTIME_MODULES)
-        result.templates = main_templates
 
         self.cached_results[page_type_id] = result
 
@@ -248,7 +201,7 @@ class AssetManager(object):
         self.prambanan_result_subdir = prambanan_result_subdir
 
         self.manager = PrambananManager([], prambanan_cache_file)
-        self.overridden_types = get_overridden_types(self.manager)
+        self.overridden_types = get_overridden_types(self.manager, self.manager.libraries)
         self.is_production = is_production
 
         updater = self.env.updater
@@ -334,11 +287,7 @@ class AssetManager(object):
 
     def packs_to_bundles(self, packs):
         for pack in packs:
-            templates_count = 0
-            for configs in pack.templates.values():
-                templates_count += len(configs)
-
-            if not pack.modules and not templates_count:
+            if not pack.modules:
                 continue
 
             if self.is_production:
