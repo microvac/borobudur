@@ -133,10 +133,10 @@
                                         linkUrl = linksUrl[i],
                                         newLink = document.createElement("link");
 
-                                    html.className = html.className.replace(/\s*livejs\-loading/gi, '') + ' livejs-loading';
                                     newLink.setAttribute("type", "text/css");
                                     newLink.setAttribute("rel", "stylesheet");
                                     newLink.setAttribute("href", linkUrl);
+                                    console.log("adding");
                                     next ? head.insertBefore(newLink, next) : head.appendChild(newLink);
                                     currentLinks[linkUrl] = newLink;
                                 }
@@ -169,11 +169,11 @@
                             var
                                 oldLink = oldLinks[url],
                                 html = document.body.parentNode;
-                            oldLink.parentNode.removeChild(oldLink);
+                            function del(){
+                                oldLink.parentNode.removeChild(oldLink);
+                            }
+                            setTimeout(del, 100);
                             delete oldLinks[url];
-                            setTimeout(function () {
-                                html.className = html.className.replace(/\s*livejs\-loading/gi, '');
-                            }, 100);
                         } catch (e) {
                             pending++;
                         }
