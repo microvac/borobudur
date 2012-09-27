@@ -51,11 +51,8 @@ Then, you create these three files:
             #Asset manager, as the name implies, manage js and css assets, it is responsible for compiling python to javascript,
             #combining javascript files,minifying css, etc
             asset_manager = AssetManager(
-                base_dir="roma",
-                static_dir="static",
-                result_dir="gen",
-                prambanan_dir=".p",
-                prambanan_cache_file=".prambanan.cache",
+                base_result_dir=os.path.join("roma", "static"),
+                base_result_url="/static/",
             )
 
             #register file views.py to be compilable to javascript with views as its modname
