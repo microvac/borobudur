@@ -49,13 +49,13 @@ class FileStorageExposer(object):
 
         storage_view = make_file_storage_view(storage_type)
 
-        config.add_route("upload_"+name, resource_root+"uploads/"+storage_url, factory=factory)
-        config.add_route("download_"+name, resource_root+"files/"+storage_url+"/{id}", factory=factory)
-        config.add_route("typed_download_"+name, resource_root+"files/"+storage_url+"/{id}/{type}", factory=factory)
+        config.add_route("file.upload."+name, resource_root+"uploads/"+storage_url, factory=factory)
+        config.add_route("file.download."+name, resource_root+"files/"+storage_url+"/{id}", factory=factory)
+        config.add_route("file.typed_download."+name, resource_root+"files/"+storage_url+"/{id}/{type}", factory=factory)
 
-        config.add_view(storage_view, route_name="upload_"+name, attr="upload", request_method="POST", renderer="json")
-        config.add_view(storage_view, route_name="download_"+name, attr="download", request_method="GET")
-        config.add_view(storage_view, route_name="typed_download_"+name, attr="download", request_method="GET")
+        config.add_view(storage_view, route_name="file.upload."+name, attr="upload", request_method="POST", renderer="json")
+        config.add_view(storage_view, route_name="file.download."+name, attr="download", request_method="GET")
+        config.add_view(storage_view, route_name="file.typed_download."+name, attr="download", request_method="GET")
 
 class FileStorage(object):
 

@@ -480,14 +480,14 @@ class EmbeddedStorageExposer(object):
         for i in range(level):
             storage_url += "/{id%d}" % i
 
-        config.add_route("non_id"+name, resource_root+"storages/"+storage_url, factory=factory)
-        config.add_route("id_"+name, resource_root+"storages/"+storage_url+"/{id}", factory=factory)
+        config.add_route("storage.non_id."+name, resource_root+"storages/"+storage_url, factory=factory)
+        config.add_route("storage.id."+name, resource_root+"storages/"+storage_url+"/{id}", factory=factory)
 
-        config.add_view(storage_view, route_name="non_id"+name, attr="list", request_method="GET", renderer="json")
-        config.add_view(storage_view, route_name="non_id"+name, attr="create", request_method="POST", renderer="json")
-        config.add_view(storage_view, route_name="id_"+name, attr="read", request_method="GET", renderer="json")
-        config.add_view(storage_view, route_name="id_"+name, attr="update", request_method="PUT", renderer="json")
-        config.add_view(storage_view, route_name="id_"+name, attr="delete", request_method="DELETE", renderer="json")
+        config.add_view(storage_view, route_name="storage.non_id."+name, attr="list", request_method="GET", renderer="json")
+        config.add_view(storage_view, route_name="storage.non_id."+name, attr="create", request_method="POST", renderer="json")
+        config.add_view(storage_view, route_name="storage.id."+name, attr="read", request_method="GET", renderer="json")
+        config.add_view(storage_view, route_name="storage.id."+name, attr="update", request_method="PUT", renderer="json")
+        config.add_view(storage_view, route_name="storage.id."+name, attr="delete", request_method="DELETE", renderer="json")
 
 class ConnectionHolder(object):
     """

@@ -22,6 +22,6 @@ class ServiceExposer(object):
         for method_name in exposed_methods:
             method = make_view(method_name)
 
-            route_name = "service_%s_%s" % (service_type.id, method_name)
+            route_name = "service.%s.%s" % (service_type.id, method_name)
             config.add_route(route_name, resource_root+"services/"+service_type.id+"/"+method_name, factory=factory)
             config.add_view(method, route_name=route_name, renderer="json")

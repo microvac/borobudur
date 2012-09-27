@@ -98,10 +98,10 @@ def add_borobudur(config, name, app_config, root="/" ):
         route_name = name + "." + route_handler_id.replace(":", ".")
 
         route = root + route
-        config.add_route(route_name, route, factory=factory)
+        config.add_route("page."+route_name, route, factory=factory)
 
         view = wrap_pyramid_view(route_handler_id)
-        config.add_view(view, route_name=route_name)
+        config.add_view(view, route_name="page."+route_name)
 
     config.registry.registerUtility(app, IApp, name=name)
     config.registry.registerUtility(app_config, IAppConfigurator, name=name)
