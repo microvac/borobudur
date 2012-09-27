@@ -219,13 +219,23 @@ def to_json(obj):
 
 class AssetManager(object):
 
-    def __init__(self, base_dir, static_dir, result_dir, prambanan_dir, prambanan_cache_file, is_production=False):
+    def __init__(self, base_result_dir, base_result_url, is_production=False, result_subdir=None, prambanan_cache_file=None, prambanan_result_subdir=None):
 
-        self.env = Environment(os.path.join(base_dir, static_dir), "/"+static_dir+"/")
+        if prambanan_cache_file is None:
+            prambanan_cache_file = ".prambanan.cache"
+
+        if result_subdir is None:
+            result_subdir = ".gen"
+
+        if prambanan_result_subdir is None:
+            prambanan_result_subdir = ".pram"
+
+        self.env = Environment(base_result_dir, base_result_url)
         self.style_assets = {}
 
-        self.result_dir = result_dir
-        self.target_dir = prambanan_dir
+        self.result_subdir = result_subdir
+        self.prambanan_result_subdir = prambanan_result_subdir
+
         self.manager = PrambananManager([], prambanan_cache_file)
         self.overridden_types = get_overridden_types(self.manager)
         self.is_production = is_production
@@ -238,10 +248,6 @@ class AssetManager(object):
             return prev_needs_rebuild(bundle, env)
         updater.needs_rebuild = needs_rebuild
 
-    @property
-    def full_result_dir(self):
-        return os.path.join(self.env.directory, self.result_dir)
-
     def define_style(self, id, type, output, *contents):
         if type not in ["less", "css"]:
             raise ValueError("type %s is not supported" % type)
@@ -249,8 +255,8 @@ class AssetManager(object):
 
     def configure_with_npm(self):
         if os.name == "nt":
-            self.env.config["UGLIFYJS_BIN"] = "node_modules\\.bin\\uglifyjs.cmd"
-            self.env.config["LESS_BIN"] = "node_modules\\.bin\\lessc.cmd"
+            self.env.config["UGLIFYJS_BIN"] = "uglifyjs.cmd"
+            self.env.config["LESS_BIN"] = "lessc.cmd"
         else:
             self.env.config["UGLIFYJS_BIN"] = "node_modules/.bin/uglifyjs"
             self.env.config["LESS_BIN"] = "node_modules/.bin/lessc"
@@ -322,15 +328,15 @@ class AssetManager(object):
                 continue
 
             if self.is_production:
-                yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name),
-                    self.manager, pack, self.overridden_types, output="%s/%s.js"%(self.result_dir, pack.name), filters="uglifyjs")
+                yield pack.name, PrambananModuleBundle(os.path.join(self.prambanan_result_subdir, pack.name),
+                    self.manager, pack, self.overridden_types, output="%s/%s.js"%(self.result_subdir, pack.name), filters="uglifyjs")
             else:
-                yield pack.name, PrambananModuleBundle(os.path.join(self.target_dir, pack.name), self.manager, pack, self.overridden_types)
+                yield pack.name, PrambananModuleBundle(os.path.join(self.prambanan_result_subdir, pack.name), self.manager, pack, self.overridden_types)
 
     def styles_to_bundles(self, ids):
         for id in ids:
             type, output, contents = self.style_assets[id]
-            output = "%s/%s" % (self.result_dir, output)
+            output = "%s/%s" % (self.result_subdir, output)
             if type == "less":
                 yield id, LessBundle(*contents, filters="less", output=output)
             else:
