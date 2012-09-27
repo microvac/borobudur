@@ -27,7 +27,6 @@ class SelfCheckingBundle(Bundle):
     def needs_rebuild(self, env):
         raise NotImplementedError()
 
-
 class PrambananModuleBundle(SelfCheckingBundle):
 
     def __init__(self, target_dir, manager, pack, overridden_types, target="", **options):
@@ -74,7 +73,8 @@ class PrambananModuleBundle(SelfCheckingBundle):
                 logger.info("generated files: %s" % ",".join(output_manager.current_job_files))
 
             for file in output_manager.files:
-                child = Bundle(os.path.join(self.target_dir, file).replace("\\", "/"))
+                name = os.path.join(self.target_dir, file).replace("\\", "/")
+                child = Bundle(name)
                 l.append((child, child))
 
             self._resolved_contents = l
@@ -89,6 +89,15 @@ class PrambananModuleBundle(SelfCheckingBundle):
             if get_provider(type).changed(output_manager, self.manager, self.pack.templates[type]):
                 return SKIP_CACHE
         return False
+
+    """
+    def urls(self, env=None, *args, **kwargs):
+        results = super(PrambananModuleBundle, self).urls(env, *args, **kwargs)
+        for result in results:
+            if env.debug:
+            """
+
+
 
 
 def find_templates(modules):
@@ -150,7 +159,9 @@ class LessBundle(SelfCheckingBundle):
         return False
 
 bootstrap_template = """
+    console.log("bootstrapper load time", new Date() - start);
     $(function(){
+        console.log("document ready time", new Date() - start);
         if (prambanan.has_error)
             return;
 
@@ -277,6 +288,9 @@ class AssetManager(object):
 
         q_body = ElQuery("body", document)
         q_head = ElQuery("head", document)
+
+        q_start = PyQuery(etree.Element("script")).html("start = new Date();")
+        q_body.append(q_start)
 
         for type, name, bundle in self.get_all_bundles(packs, styles):
             if type == "js":
