@@ -2,13 +2,8 @@ import borobudur
 import borobudur.form.widget as widget
 import borobudur.form.field as field
 
-from borobudur.form.compat import (
-    string_types,
-    text_type,
-)
-from borobudur.model import Model, ModelRefNode, CollectionRefNode, Collection
+from borobudur.model import Model
 from borobudur.schema import MappingNode
-import pramjs.underscore as underscore
 from prambanan import get_template
 
 button_template = get_template('zpt', ('borobudur', 'form/templates/button.pt'))

@@ -1,9 +1,7 @@
-import itertools
 import colander
 import peppercorn
 import borobudur
 
-import borobudur.form.decorator as decorator
 import borobudur.form.exception as exception
 import borobudur.form.template as template
 import borobudur.form.widget as widget

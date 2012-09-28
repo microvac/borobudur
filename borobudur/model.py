@@ -1,4 +1,3 @@
-import bson.objectid
 from bson.objectid import ObjectId
 import colander
 import pramjs.backbone as backbone
