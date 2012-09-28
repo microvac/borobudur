@@ -17,7 +17,6 @@ from borobudur.form.compat import (
     )
 
 
-from prambanan import get_template
 import prambanan
 import pramjs.underscore as underscore
 
@@ -168,8 +167,8 @@ class Widget(object):
           has an error (as per the ``error`` argument's ``children``
           attribute).
         """
-        if field.model["error"] is None:
-            field.model["error"] = error
+        if field.event["error"] is None:
+            field.event["error"] = error
         # XXX exponential time
         for e in error.children:
             for num, subfield in enumerate(field.children):
@@ -177,7 +176,7 @@ class Widget(object):
                     subfield.widget.handle_error(subfield, e)
 
     def clear_error(self, field):
-        field.model["error"] = None
+        field.event["error"] = None
         for subfield in field.children:
             subfield.widget.clear_error(subfield)
 
@@ -231,8 +230,8 @@ class TextInputWidget(Widget):
         The placeholder for required nonliteral elements when a mask
         is used.  Default: ``_`` (underscore).
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/textinput.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/textinput.pt'))
+    template = "textinput"
+    readonly_template = "readonly/textinput"
     size = None
     strip = True
     mask = None
@@ -313,8 +312,8 @@ class MoneyInputWidget(Widget):
             use this setting to prevent users from inputing negative values.
             default: ``False``
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/moneyinput.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/textinput.pt'))
+    template = "moneyinput"
+    readonly_template = "readonly/textinput"
     options = None
     size = None
     
@@ -411,8 +410,8 @@ class AutocompleteInputWidget(Widget):
         keypress to activate the autocomplete call.
         Defaults to ``10`` ms or ``400`` ms if a url is passed.
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/autocomplete_input.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/textinput.pt'))
+    template = "autocomplete_input"
+    readonly_template = "readonly/textinput"
 
     delay = None
     min_length = 2
@@ -472,8 +471,8 @@ class DateInputWidget(Widget):
         The template name used to render the widget in read-only mode.
         Default: ``readonly/textinput``.
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/dateinput.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/textinput.pt'))
+    template = "dateinput"
+    readonly_template = "readonly/textinput"
     size = None
     default_options = [('dateFormat', 'yyyy-mm-dd'),]
 
@@ -528,8 +527,8 @@ class DateTimeInputWidget(DateInputWidget):
         The template name used to render the widget in read-only mode.
         Default: ``readonly/textinput``.
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/datetimeinput.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/textinput.pt'))
+    template = "datetimeinput"
+    readonly_template = "readonly/textinput"
     size = None
     default_options = DateInputWidget.default_options
     default_options.extend(
@@ -590,8 +589,8 @@ class TextAreaWidget(TextInputWidget):
         If true, during deserialization, strip the value of leading
         and trailing whitespace (default ``True``).
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/textarea.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/textarea.pt'))
+    template = "textarea"
+    readonly_template = 'readonly/textarea'
     cols = None
     rows = None
     strip = True
@@ -644,8 +643,8 @@ class RichTextWidget(TextInputWidget):
     """
     height = 240
     width = 500
-    template = get_template('zpt', ('borobudur', 'form/templates/richtext.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/richtext.pt'))
+    template = 'richtext'
+    readonly_template = 'readonly/richtext'
     delayed_load = False
     strip = True
     skin = 'default'
@@ -673,8 +672,8 @@ class PasswordWidget(TextInputWidget):
         If true, during deserialization, strip the value of leading
         and trailing whitespace (default ``True``).
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/password.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/password.pt'))
+    template = 'password'
+    readonly_template = 'readonly/password'
 
 class HiddenWidget(Widget):
     """
@@ -686,7 +685,7 @@ class HiddenWidget(Widget):
         The template name used to render the widget.  Default:
         ``hidden``.
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/hidden.pt'))
+    template = 'templates/hidden'
     hidden = True
 
     def serialize(self, field, cstruct, readonly=False):
@@ -725,8 +724,8 @@ class CheckboxWidget(Widget):
     true_val = 'true'
     false_val = 'false'
 
-    template = get_template('zpt', ('borobudur', 'form/templates/checkbox.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/checkbox.pt'))
+    template = 'checkbox'
+    readonly_template = 'readonly/checkbox'
 
     def serialize(self, field, cstruct, readonly=False):
         template = readonly and self.readonly_template or self.template
@@ -770,8 +769,8 @@ class SelectWidget(Widget):
         Default: ``readonly/select``.
 
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/select.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/select.pt'))
+    template = 'select'
+    readonly_template ='readonly/select'
     null_value = ''
     values = ()
     size = None
@@ -816,8 +815,8 @@ class RadioChoiceWidget(SelectWidget):
         is passed to the ``serialize`` or ``deserialize`` method.
         Default: the empty string.
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/radio_choice.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/radio_choice.pt'))
+    template = 'radio_choice'
+    readonly_template = 'readonly/radio_choice'
 
 class CheckboxChoiceWidget(Widget):
     """
@@ -847,8 +846,8 @@ class CheckboxChoiceWidget(Widget):
         is passed to the ``serialize`` or ``deserialize`` method.
         Default: the empty string.
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/checkbox_choice.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/checkbox_choice.pt'))
+    template = 'checkbox_choice'
+    readonly_template = 'readonly/checkbox_choice'
     values = ()
 
     def serialize(self, field, cstruct, readonly=False):
@@ -915,8 +914,8 @@ class CheckedInputWidget(Widget):
         The placeholder for required nonliteral elements when a mask
         is used.  Default: ``_`` (underscore).
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/checked_input.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/checked_input.pt'))
+    template = 'checked_input'
+    readonly_template = 'readonly/checked_input'
     size = None
     mismatch_message = _('Fields did not match')
     subject = _('Value')
@@ -965,8 +964,8 @@ class CheckedPasswordWidget(CheckedInputWidget):
         The ``size`` attribute of the password input field (default:
         ``None``).
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/checked_password.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/checked_password.pt'))
+    template = 'checked_password'
+    readonly_template = 'readonly/checked_password'
     mismatch_message = _('Password did not match confirm')
     size = None
 
@@ -993,10 +992,10 @@ class MappingWidget(Widget):
         Default: ``readonly/mapping_item``.
 
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/mapping.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/mapping.pt'))
-    item_template = get_template('zpt', ('borobudur', 'form/templates/mapping_item.pt'))
-    readonly_item_template = get_template('zpt', ('borobudur', 'form/templates/readonly/mapping_item.pt'))
+    template = 'mapping'
+    readonly_template = 'readonly/mapping'
+    item_template = 'mapping_item'
+    readonly_item_template = 'readonly/mapping_item'
 
     error_class = None
     category = 'structural'
@@ -1056,8 +1055,8 @@ class FormWidget(MappingWidget):
         Default: ``readonly/mapping_item``.
 
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/form.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/form.pt'))
+    template = 'form'
+    readonly_template = 'readonly/form'
 
 class SequenceWidget(Widget):
     """Renders a sequence (0 .. N widgets, each the same as the other)
@@ -1113,10 +1112,10 @@ class SequenceWidget(Widget):
         will not allow more than this many subwidgets to be added to the
         sequence.
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/sequence.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/sequence.pt'))
-    item_template = get_template('zpt', ('borobudur', 'form/templates/sequence_item.pt'))
-    readonly_item_template = get_template('zpt', ('borobudur', 'form/templates/readonly/sequence_item.pt'))
+    template = 'sequence'
+    readonly_template = 'readonly/sequence'
+    item_template = 'sequence_item'
+    readonly_item_template = 'readonly/sequence_item'
 
     error_class = None
     add_subitem_text_template = _('Add ${subitem_title}')
@@ -1224,8 +1223,8 @@ class SequenceWidget(Widget):
         return result
 
     def handle_error(self, field, error):
-        if field.model["error"] is None:
-            field.model["error"] = error
+        if field.event["error"] is None:
+            field.event["error"] = error
         # XXX exponential time
         sequence_fields = getattr(field, 'sequence_fields', [])
         for e in error.children:
@@ -1234,7 +1233,7 @@ class SequenceWidget(Widget):
                     subfield.widget.handle_error(subfield, e)
 
     def clear_error(self, field):
-        field.model["error"] = None
+        field.event["error"] = None
         sequence_fields = getattr(field, 'sequence_fields', [])
         for subfield in sequence_fields:
             subfield.widget.clear_error(subfield)
@@ -1270,8 +1269,8 @@ class DatePartsWidget(Widget):
         2000+year.  Default: ``True``.
 
     """
-    template = get_template('zpt', ('borobudur', 'form/templates/dateparts.pt'))
-    readonly_template = get_template('zpt', ('borobudur', 'form/templates/readonly/dateparts.pt'))
+    template = 'dateparts'
+    readonly_template = 'readonly/dateparts'
     size = None
     assume_y2k = True
 

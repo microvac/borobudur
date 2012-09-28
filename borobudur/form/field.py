@@ -136,7 +136,7 @@ class Field(object):
         self.description = schema.description
         self.required = schema.required()
         self.children = []
-        self.model = Model({"error":None})
+        self.event = Model({"error":None})
         self.widget = self.make_widget()
 
         for child in schema.children:
@@ -222,7 +222,7 @@ class Field(object):
         cloned.widget = self.widget
         cloned.order = next(cloned.counter)
         cloned.oid = 'deformField%s' % cloned.order
-        cloned.model = self.model
+        cloned.event = self.event
         cloned.children = [ field.clone() for field in self.children ]
 
         return cloned

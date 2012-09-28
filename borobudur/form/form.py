@@ -120,7 +120,6 @@ class Form(field.Field):
         self.formid = formid
         self.use_ajax = use_ajax
         self.widget = widget.FormWidget()
-        self.event = Model()
         self.initialize()
 
     def initialize(self):
@@ -144,7 +143,7 @@ class Form(field.Field):
         :meth:`colander.SchemaNode.serialize` and
         :meth:`deform.widget.Widget.serialize` .
         """
-        self.m = model
+        self.model = model
 
         cstruct = self.schema.serialize(model.attributes)
 
@@ -157,7 +156,7 @@ class Form(field.Field):
 
     def fill_model(self):
         appstruct = self.validate(self.element)
-        self.m.set(appstruct)
+        self.model.set(appstruct)
 
 
     def add_event_handler(self, name, handler):
