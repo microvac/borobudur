@@ -1,8 +1,8 @@
 import borobudur
 import borobudur.form.widget as widget
 import borobudur.form.field as field
+import borobudur.form.template as template
 
-from borobudur.model import Model
 from borobudur.schema import MappingNode
 from prambanan import get_template
 
@@ -95,10 +95,19 @@ class Form(field.Field):
     fields = None
     removed_fields = None
 
+    widgets_provider = None
+    renderer = None
+
     def __init__(self, action='', method='POST',
-                 formid='deform', use_ajax=False, ajax_options='{}', **kw):
+                 formid='deform', **kw):
 
         schema = self.schema
+
+        if self.widgets_provider is None:
+            self.widgets_provider = widget.default_widgets_provider
+
+        if self.renderer is None:
+            self.renderer = template.default_renderer
 
         if self.fields is not None:
             new_schema = MappingNode()
@@ -113,12 +122,11 @@ class Form(field.Field):
                     new_schema.children.append(child)
             schema = new_schema
 
-        super(Form, self).__init__(schema, **kw)
+        super(Form, self).__init__(schema, self.widgets_provider, self.renderer, **kw)
 
         self.action = action
         self.method = method
         self.formid = formid
-        self.use_ajax = use_ajax
         self.widget = widget.FormWidget()
         self.initialize()
 

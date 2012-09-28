@@ -39,7 +39,7 @@
             <span pramtal:bind-change="# error">
                 <?python
                         import borobudur
-                        if field.model["error"] is None:
+                        if field.event["error"] is None:
                             borobudur.query_el("#item-%s" % field.oid).removeClass("error")
                         else:
                             borobudur.query_el("#item-%s" % field.oid).addClass("error")

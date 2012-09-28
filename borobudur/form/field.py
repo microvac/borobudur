@@ -3,9 +3,7 @@ import peppercorn
 import borobudur
 
 import borobudur.form.exception as exception
-import borobudur.form.template as template
 import borobudur.form.widget as widget
-import borobudur.form.schema as schema
 from borobudur.model import Model
 
 def _counter():
@@ -117,61 +115,38 @@ class Field(object):
     """
 
     error = None
-    default_renderer = template.default_renderer
     counter = _counter()
 
-    def __init__(self, schema, renderer=None, counter=None,
-                 resource_registry=None, **kw):
+    def __init__(self, schema, widgets_provider, renderer,
+                 counter=None, **kw):
+
+        self.widgets_provider = widgets_provider
+        self.renderer = renderer
+
         self.counter = counter or self.counter
         self.order = next(self.counter)
         self.oid = 'deformField%s' % self.order
+        self.event = Model({"error":None})
+
         self.schema = schema
         self.typ = self.schema.typ # required by Invalid exception
-        if renderer is None:
-            renderer = self.default_renderer
-        self.renderer = renderer
-        self.resource_registry = resource_registry
         self.name = schema.name
         self.title = schema.title
         self.description = schema.description
         self.required = schema.required()
+
         self.children = []
-        self.event = Model({"error":None})
-        self.widget = self.make_widget()
+        self.widget = self.make_widget(widgets_provider)
 
         for child in schema.children:
             self.children.append(Field(child,
-                                       renderer=renderer,
-                                       counter=self.counter,
-                                       resource_registry=resource_registry,
+                widgets_provider, renderer, counter=self.counter,
                                        **kw))
 
     def __iter__(self):
         """ Iterate over the children fields of this field. """
         return iter(self.children)
 
-    @classmethod
-    def set_zpt_renderer(cls, search_path, auto_reload=True,
-                         debug=True, encoding='utf-8',
-                         translator=None):
-        """ Create a :term:`Chameleon` ZPT renderer that will act as a
-        :term:`default renderer` for instances of the associated class
-        when no ``renderer`` argument is provided to the class'
-        constructor.  The arguments to this classmethod have the same
-        meaning as the arguments provided to a
-        :class:`deform.ZPTRendererFactory`.
-
-        Calling this method resets the :term:`default renderer`.
-
-        This method is effectively a shortcut for
-        ``cls.set_default_renderer(ZPTRendererFactory(...))``."""
-        cls.default_renderer = template.ZPTRendererFactory(
-            search_path,
-            auto_reload=auto_reload,
-            debug=debug,
-            encoding=encoding,
-            translator=translator,
-            )
 
     def translate(self, msgid):
         """ Use the translator passed to the renderer of this field to
@@ -183,17 +158,6 @@ class Field(object):
         if translate is not None:
             return translate(msgid)
         return msgid
-
-    @classmethod
-    def set_default_renderer(cls, renderer):
-        """ Set the callable that will act as a default renderer for
-        instances of the associated class when no ``renderer``
-        argument is provided to the class' constructor.  Useful when
-        you'd like to use an alternate templating system.
-
-        Calling this method resets the :term:`default renderer`.
-        """
-        cls.default_renderer = staticmethod(renderer)
 
     def __getitem__(self, name):
         """ Return the subfield of this field named ``name`` or raise
@@ -210,11 +174,9 @@ class Field(object):
         receives a new order attribute; it will be a number larger
         than the last renderered field of this set."""
 
-        cloned = self.__class__(self.schema)
+        cloned = self.__class__(self.schema, self.widgets_provider, self.renderer)
         cloned.schema = self.schema
         cloned.typ = self.typ # required by Invalid exception
-        cloned.renderer = self.renderer
-        cloned.resource_registry = self.resource_registry
         cloned.name = self.name
         cloned.title = self.title
         cloned.description = self.description
@@ -227,7 +189,7 @@ class Field(object):
 
         return cloned
 
-    def make_widget(self):
+    def make_widget(self, widgets_provider):
         """ If a widget is not assigned directly to a field, this
         function will be called to generate a default widget (only
         once). The result of this function will then be assigned as
@@ -237,12 +199,12 @@ class Field(object):
         wdg = getattr(self.schema, 'widget', None)
         if wdg is not None:
             return wdg
-        widget_maker = getattr(self.schema.typ, 'widget_maker', None)
-        if widget_maker is None:
-            widget_maker = schema.get_widget(
-                self.schema.typ.__class__)
+
+        widget_maker = widgets_provider.get_widget (self.schema.typ.__class__)
+
         if widget_maker is None:
             widget_maker = widget.TextInputWidget
+
         return widget_maker()
 
 

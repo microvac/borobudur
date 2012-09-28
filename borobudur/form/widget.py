@@ -1,4 +1,5 @@
 import json
+import colander
 import borobudur
 
 from colander import Invalid
@@ -1306,3 +1307,32 @@ class DatePartsWidget(Widget):
             return result
 
 
+class DefaultWidgetsProvider(object):
+
+    def get_widget(self, typ):
+        if typ == colander.Mapping:
+            return MappingWidget
+        elif typ == colander.Sequence:
+            return SequenceWidget
+        elif typ == colander.String:
+            return TextInputWidget
+        elif typ == colander.Integer:
+            return TextInputWidget
+        elif typ == colander.Float:
+            return TextInputWidget
+        elif typ == colander.Decimal:
+            return TextInputWidget
+        elif typ == colander.Boolean:
+            return CheckboxWidget
+        elif typ == colander.Date:
+            return DateInputWidget
+        elif typ == colander.DateTime:
+            return DateTimeInputWidget
+        elif typ == borobudur.schema.Currency:
+            return TextInputWidget
+        elif typ == borobudur.schema.ObjectId:
+            return HiddenWidget
+        else:
+            raise Exception("cannot find widget %s" % typ)
+
+default_widgets_provider = DefaultWidgetsProvider()

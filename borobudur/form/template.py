@@ -1,6 +1,7 @@
 import borobudur
+from prambanan import get_template
 
-def ZPTRendererFactory():
+def create_renderer(template_map):
     """
     Construct a Chameleon ZPT :term:`renderer`.
 
@@ -38,16 +39,34 @@ def ZPTRendererFactory():
        an interpolated translation.  Default: ``None`` (no translation
        performed).
     """
-    def __call__(template, field, **kw):
+    def __call__(template_name, field, **kw):
+        template = template_map[template_name]
+        if template is None:
+            raise ValueError("there is no template for % in map " % template_name)
+
         q_el = borobudur.query_el("<div></div>")
         element = q_el[0]
 
         vars = dict(kw)
         vars["field"] = field
-        template.render(element, field.model, vars)
+        template.render(element, field.event, vars)
         return q_el.children()[0]
 
     return __call__
 
+default_template_map = {
+    "form": get_template("zpt", ("borobudur", "form/templates/mapping.pt")),
+    "mapping": get_template("zpt", ("borobudur", "form/templates/mapping.pt")),
+    "mapping_item": get_template("zpt", ("borobudur", "form/templates/mapping_item.pt")),
+    "sequence": get_template("zpt", ("borobudur", "form/templates/sequence.pt")),
+    "sequence_item": get_template("zpt", ("borobudur", "form/templates/sequence_item.pt")),
+    "textinput": get_template("zpt", ("borobudur", "form/templates/textinput.pt")),
+    "password": get_template("zpt", ("borobudur", "form/templates/password.pt")),
+    "checked_password": get_template("zpt", ("borobudur", "form/templates/password.pt")),
+    "hidden": get_template("zpt", ("borobudur", "form/templates/hidden.pt")),
+    "checkbox": get_template("zpt", ("borobudur", "form/templates/checkbox.pt")),
+    "dateinput": get_template("zpt", ("borobudur", "form/templates/dateinput.pt")),
+    "datetimeinput": get_template("zpt", ("borobudur", "form/templates/datetimeinput.pt")),
+}
 
-default_renderer = ZPTRendererFactory()
+default_renderer = create_renderer(default_template_map)
