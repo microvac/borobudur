@@ -30,7 +30,7 @@
                     tmpl field.widget.item_template"
                 tal:repeat="f field.children"
                 tal:replace="structure
-                     rndr(tmpl, f,cstruct=cstruct[f.name])" />
+                     rndr.render(tmpl, f,cstruct=cstruct[f.name])" />
 
         <div class="form-actions">
             <tal:block repeat="button field.buttons">

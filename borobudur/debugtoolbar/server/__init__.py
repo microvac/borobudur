@@ -3,6 +3,7 @@ from borobudur.debugtoolbar.server.asset import AssetDebugPanel, asset_changed_v
 
 def includeme(config):
     config.add_static_view('_debug_toolbar_borobudur/static/', "borobudur.debugtoolbar:static/")
+    config.registry.settings['debugtoolbar.panels'] = [];
     config.registry.settings['debugtoolbar.panels'].extend([AssetDebugPanel, APIInvocationDebugPanel])#, StoragesDebugPanel])
     if not 'mako.directories' in config.registry.settings:
         config.registry.settings['mako.directories'] = []

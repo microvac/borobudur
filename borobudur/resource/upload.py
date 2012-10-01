@@ -30,7 +30,7 @@ def make_file_storage_view(storage_type):
             type = self.request.matchdict.get("type", self.storage.default_type)
 
             path = os.path.join(self.storage.directory, id, type)
-            response = FileResponse(path, request=self.request)
+            response = FileResponse(path, self.request, self.storage.cache_max_age)
 
             item = self.storage.model.with_id(id)
             self.storage.one(item)
@@ -62,6 +62,7 @@ class FileStorage(object):
     model=None
     directory=None
     default_type = "index"
+    cache_max_age=3600
 
     def __init__(self):
         if not os.path.exists(self.directory):

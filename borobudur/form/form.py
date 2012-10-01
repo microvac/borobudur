@@ -95,19 +95,13 @@ class Form(field.Field):
     fields = None
     removed_fields = None
 
-    widgets_provider = None
-    renderer = None
+    widgets_provider = widget.default_widgets_provider
+    renderer = template.default_renderer
 
     def __init__(self, action='', method='POST',
                  formid='deform', **kw):
 
         schema = self.schema
-
-        if self.widgets_provider is None:
-            self.widgets_provider = widget.default_widgets_provider
-
-        if self.renderer is None:
-            self.renderer = template.default_renderer
 
         if self.fields is not None:
             new_schema = MappingNode()

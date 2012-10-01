@@ -245,7 +245,7 @@ class TextInputWidget(Widget):
         if cstruct in (null, None):
             cstruct = ''
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, field, cstruct=cstruct)
+        return field.renderer.render(template, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if pstruct is null:
@@ -326,7 +326,7 @@ class MoneyInputWidget(Widget):
         if options is None:
             options = {}
         options = json.dumps(dict(options))
-        return field.renderer(template, field, mask_options=options,
+        return field.renderer.render(template, field, mask_options=options,
                               cstruct=cstruct)
     
     def deserialize(self, field, pstruct):
@@ -432,7 +432,7 @@ class AutocompleteInputWidget(Widget):
         options = json.dumps(options)
         values = json.dumps(self.values)
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, field,
+        return field.renderer.render(template, field,
                               cstruct=cstruct,
                               options=options,
                               values=values)
@@ -488,7 +488,7 @@ class DateInputWidget(Widget):
         if cstruct in (null, None):
             cstruct = ''
         template = readonly and self.readonly_template or self.template
-        result =  field.renderer(
+        result =  field.renderer.render(
             template,
             field,
             cstruct=cstruct,
@@ -544,7 +544,7 @@ class DateTimeInputWidget(DateInputWidget):
         if len(cstruct) == 25: # strip timezone if it's there
             cstruct = cstruct[:-6]
         cstruct = self.options['separator'].join(cstruct.split('T'))
-        result =  field.renderer(
+        result =  field.renderer.render(
             template,
             field,
             cstruct=cstruct,
@@ -686,13 +686,13 @@ class HiddenWidget(Widget):
         The template name used to render the widget.  Default:
         ``hidden``.
     """
-    template = 'templates/hidden'
+    template = 'hidden'
     hidden = True
 
     def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = ''
-        return field.renderer(self.template, field, cstruct=cstruct)
+        return field.renderer.render(self.template, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if not pstruct:
@@ -730,7 +730,7 @@ class CheckboxWidget(Widget):
 
     def serialize(self, field, cstruct, readonly=False):
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, field, cstruct=cstruct)
+        return field.renderer.render(template, field, cstruct=cstruct)
 
     def deserialize(self, field, pstruct):
         if pstruct is null:
@@ -780,7 +780,7 @@ class SelectWidget(Widget):
         if cstruct in (null, None):
             cstruct = self.null_value
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, field, cstruct=cstruct,
+        return field.renderer.render(template, field, cstruct=cstruct,
                               values=_normalize_choices(self.values))
 
     def deserialize(self, field, pstruct):
@@ -855,7 +855,7 @@ class CheckboxChoiceWidget(Widget):
         if cstruct in (null, None):
             cstruct = ()
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, field, cstruct=cstruct,
+        return field.renderer.render(template, field, cstruct=cstruct,
                               values=_normalize_choices(self.values))
 
     def deserialize(self, field, pstruct):
@@ -929,7 +929,7 @@ class CheckedInputWidget(Widget):
             cstruct = ''
         confirm = getattr(field, '%s-confirm' % (field.name,), cstruct)
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, field, cstruct=cstruct,
+        return field.renderer.render(template, field, cstruct=cstruct,
                               confirm=confirm, subject=self.subject,
                               confirm_subject=self.confirm_subject,
                               )
@@ -1005,7 +1005,7 @@ class MappingWidget(Widget):
         if cstruct in (null, None):
             cstruct = {}
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, field, cstruct=cstruct,
+        return field.renderer.render(template, field, cstruct=cstruct,
                               null=null)
 
     def deserialize(self, field, pstruct):
@@ -1128,7 +1128,7 @@ class SequenceWidget(Widget):
         # we clone the item field to bump the oid (for easier
         # automated testing; finding last node)
         item_field = field.children[0].clone()
-        proto = field.renderer(self.item_template, item_field,cstruct=null, parent=field)
+        proto = field.renderer.render(self.item_template, item_field,cstruct=null, parent=field)
         if isinstance(proto, string_types):
             proto = proto.encode('utf-8')
         #proto = url_quote(proto)
@@ -1175,7 +1175,7 @@ class SequenceWidget(Widget):
             add_subitem_text = _(self.add_subitem_text_template,
                                  mapping=add_template_mapping)
 
-        result = field.renderer(template, field,
+        result = field.renderer.render(template, field,
                               cstruct=cstruct,
                               subfields=subfields,
                               item_field=item_field,
@@ -1283,7 +1283,7 @@ class DatePartsWidget(Widget):
         else:
             year, month, day = cstruct.split('-', 2)
         template = readonly and self.readonly_template or self.template
-        return field.renderer(template, field, cstruct=cstruct,
+        return field.renderer.render(template, field, cstruct=cstruct,
                               year=year, month=month, day=day)
 
     def deserialize(self, field, pstruct):
@@ -1307,32 +1307,44 @@ class DatePartsWidget(Widget):
             return result
 
 
-class DefaultWidgetsProvider(object):
+class WidgetsProvider(object):
+
+    def __init__(self, typ_widgets):
+        self.typ_widgets = typ_widgets
 
     def get_widget(self, typ):
-        if typ == colander.Mapping:
-            return MappingWidget
-        elif typ == colander.Sequence:
-            return SequenceWidget
-        elif typ == colander.String:
-            return TextInputWidget
-        elif typ == colander.Integer:
-            return TextInputWidget
-        elif typ == colander.Float:
-            return TextInputWidget
-        elif typ == colander.Decimal:
-            return TextInputWidget
-        elif typ == colander.Boolean:
-            return CheckboxWidget
-        elif typ == colander.Date:
-            return DateInputWidget
-        elif typ == colander.DateTime:
-            return DateTimeInputWidget
-        elif typ == borobudur.schema.Currency:
-            return TextInputWidget
-        elif typ == borobudur.schema.ObjectId:
-            return HiddenWidget
-        else:
-            raise Exception("cannot find widget %s" % typ)
+        for current_typ, current_widget in self.typ_widgets:
+            if typ == current_typ:
+                return current_widget
+        raise Exception("cannot find widget for typ %s" % typ)
 
-default_widgets_provider = DefaultWidgetsProvider()
+    def set_typ_widgets(self, l):
+        for typ, widget in l:
+            found = False
+            for i in range(len(self.typ_widgets)):
+                current_typ = self.typ_widgets[i][0]
+                if current_typ == typ:
+                    self.typ_widgets[i][1]=widget
+                    found = True
+                    break
+            if not found:
+                self.typ_widgets.append([typ, widget])
+        return self
+
+    def clone(self):
+        typ_widgets = self.typ_widgets[:]
+        return self.__class__(typ_widgets)
+
+default_typ_widgets = [
+   [colander.Mapping, MappingWidget],
+   [colander.Sequence, SequenceWidget],
+   [colander.String, TextInputWidget],
+   [colander.Integer, TextInputWidget],
+   [colander.Float, TextInputWidget],
+   [colander.Decimal, TextInputWidget],
+   [colander.Boolean, CheckboxWidget],
+   [colander.Date, DateInputWidget],
+   [colander.DateTime, DateTimeInputWidget],
+]
+
+default_widgets_provider = WidgetsProvider(default_typ_widgets)

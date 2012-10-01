@@ -1,7 +1,7 @@
 import borobudur
 from prambanan import get_template
 
-def create_renderer(template_map):
+class ZPTRenderer(object):
     """
     Construct a Chameleon ZPT :term:`renderer`.
 
@@ -39,10 +39,14 @@ def create_renderer(template_map):
        an interpolated translation.  Default: ``None`` (no translation
        performed).
     """
-    def __call__(template_name, field, **kw):
-        template = template_map[template_name]
-        if template is None:
-            raise ValueError("there is no template for % in map " % template_name)
+    def __init__(self, template_map):
+        self.template_map = template_map
+
+    def render(self, template_name, field, **kw):
+        if template_name not in self.template_map:
+            raise ValueError("there is no template for '%s' in template_map map " % template_name)
+
+        template = self.template_map[template_name]
 
         q_el = borobudur.query_el("<div></div>")
         element = q_el[0]
@@ -52,10 +56,20 @@ def create_renderer(template_map):
         template.render(element, field.event, vars)
         return q_el.children()[0]
 
-    return __call__
+    def set_templates(self, d):
+        for key in d:
+            self.template_map[key] = d[key]
+        return self
+
+    def clone(self):
+        template_map_copy = {}
+        for key in self.template_map:
+            template_map_copy[key] = self.template_map[key]
+        return self.__class__(template_map_copy)
+
 
 default_template_map = {
-    "form": get_template("zpt", ("borobudur", "form/templates/mapping.pt")),
+    "form": get_template("zpt", ("borobudur", "form/templates/form.pt")),
     "mapping": get_template("zpt", ("borobudur", "form/templates/mapping.pt")),
     "mapping_item": get_template("zpt", ("borobudur", "form/templates/mapping_item.pt")),
     "sequence": get_template("zpt", ("borobudur", "form/templates/sequence.pt")),
@@ -69,4 +83,4 @@ default_template_map = {
     "datetimeinput": get_template("zpt", ("borobudur", "form/templates/datetimeinput.pt")),
 }
 
-default_renderer = create_renderer(default_template_map)
+default_renderer = ZPTRenderer(default_template_map)

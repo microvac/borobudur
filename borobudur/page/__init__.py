@@ -245,12 +245,17 @@ class Page(object):
         els = ElQuery(selector, self.request.document)
         if not els.length:
             raise ValueError("cannot find el with selector '%s' on document" % selector)
-        el = els[0]
+        q_el = els
 
         #clone to replace later when removed
-        cloned_el = ElQuery(el).clone()
+        cloned_el = q_el.clone()
 
-        view = view_type(self, el, model, self.el_rendered)
+        #render in cloned, avoid reflows
+        render_el = q_el.clone()
+
+        view = view_type(self, render_el[0], model, self.el_rendered)
+
+        q_el.replaceWith(render_el)
 
         self.views.append((selector, view, cloned_el))
 
