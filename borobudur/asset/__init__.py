@@ -11,6 +11,8 @@ from webassets import Environment
 from webassets.updater import SKIP_CACHE
 from webassets.version import TimestampVersion
 from borobudur.less_import_parser import get_all_less
+from borobudur.asset import magic
+from borobudur.interfaces import IAssetCalculator
 
 from prambanan.cmd import generate_modules, create_args, translate_parser, show_parse_error,walk_imports, get_available_modules, modules_changed, get_overridden_types
 from prambanan.output import DirectoryOutputManager
@@ -92,7 +94,6 @@ class PrambananModuleBundle(SelfCheckingBundle):
 
 
 
-
 class Pack(object):
     name=None
     modules=None
@@ -113,6 +114,116 @@ class LessBundle(SelfCheckingBundle):
                     return SKIP_CACHE
         return False
 
+class SimplePackCalculator(object):
+
+    def __init__(self, app_config, app_name, registry):
+        available_modules = get_available_modules(app_config.asset_manager.manager, app_config.asset_manager.manager.libraries)
+        subscribers =  app_config.get_bootstrap_subscribers(registry)
+
+        module_names = []
+
+        for route, route_handler_id in app_config.routes:
+            module = route_handler_id.split(":")[0]
+            if not module in module_names:
+                module_names.append(module)
+
+        result = Pack()
+        result.name = app_name
+        available_modules = available_modules
+
+        default_modules = []
+        for subscriber in subscribers:
+            module_name = subscriber.split(":")[0]
+            if module_name not in default_modules:
+                default_modules.append(module_name)
+
+        main_modules = walk_imports(default_modules+module_names, available_modules)
+
+        result.modules = RUNTIME_MODULES + main_modules.values()
+        self.result = result
+
+        self.pack_map = {}
+        for route, route_handler_id in app_config.routes:
+            self.pack_map[route_handler_id] = app_name
+
+    def calculate_one(self, page_type_id):
+        yield self.result
+
+    def calculate_all(self):
+        yield self.result
+
+class MagicPackCalculator(object):
+    def __init__(self, splitter, app_config, app_name, registry):
+        subscribers =  app_config.get_bootstrap_subscribers(registry)
+
+        default_modules = []
+        for subscriber in subscribers:
+            module_name = subscriber.split(":")[0]
+            if module_name not in default_modules:
+                default_modules.append(module_name)
+
+        self.handler_splits = {}
+
+        targets = {}
+
+        for route, route_handler_id in app_config.routes:
+            module = route_handler_id.split(":")[0]
+
+            target_name = splitter(module)
+            if target_name not in targets:
+                targets[target_name] = set(default_modules)
+
+            self.handler_splits[route_handler_id] = target_name
+            targets[target_name].add(module)
+
+        available_modules = get_available_modules(app_config.asset_manager.manager, app_config.asset_manager.manager.libraries)
+
+        runtime_pack = Pack()
+        runtime_pack.name = "%s.runtime" % app_name
+        runtime_pack.modules = RUNTIME_MODULES[:]
+
+        count_result = magic.count(targets, available_modules)
+
+        all_packs = {}
+        self.all_results = [runtime_pack]
+
+        for count_pack in count_result.all_packs:
+            pack = Pack()
+            pack.name = "%s.%d" % (app_name, count_pack.id)
+            modules = []
+            for module_name in count_pack.items:
+                modules.append(available_modules[module_name])
+            pack.modules = modules
+            all_packs[count_pack.id] = pack
+            self.all_results.append(pack)
+
+        self.results = {}
+        for split in targets:
+            split_results = [runtime_pack]
+            for count_pack in count_result.packs[split]:
+                split_results.append(all_packs[count_pack.id])
+            self.results[split] = split_results
+
+        self.pack_map = {}
+        for route, route_handler_id in app_config.routes:
+            name = self.handler_splits[route_handler_id]
+            self.pack_map[route_handler_id] = [pack.name for pack in self.results[name]]
+
+    def calculate_one(self, page_type_id):
+        return self.results[self.handler_splits[page_type_id]]
+
+    def calculate_all(self):
+        return self.all_results
+
+
+class MagicPackCalculatorFactory(object):
+
+    def __init__(self, splitter):
+        self.splitter = splitter
+
+    def __call__(self, app_config, app_name, registry):
+        return MagicPackCalculator(self.splitter, app_config, app_name, registry)
+
 bootstrap_template = """
     console.log("bootstrapper load time", new Date() - start);
     $(function(){
@@ -129,6 +240,10 @@ bootstrap_template = """
         var routes = %s;
         var routing_policy_type = load(%s);
 
+        var loaded_packs = %s;
+        var pack_map = %s;
+        var pack_urls = %s;
+
         var settings = %s;
         var subscribers = %s;
 
@@ -143,38 +258,9 @@ bootstrap_template = """
         for(var i = 0; i &lt; subscribers.length; i++){
             load(subscribers[i])(app_name, app, loaded_assets, handler_type_id);
         }
-        app.router.bootstrap(serialized_state);
+        app.router.bootstrap(serialized_state, loaded_packs, pack_map, pack_urls);
     });
 """
-class SimplePackCalculator(object):
-    def __init__(self, app_config):
-        self.app_config = app_config
-        self.cached_results = {}
-        self.available_modules = get_available_modules(app_config.asset_manager.manager, app_config.asset_manager.manager.libraries)
-
-    def __call__(self, app_name, subscribers, page_type_id):
-        if page_type_id in self.cached_results:
-            yield self.cached_results[page_type_id]
-            return
-
-        result = Pack()
-        result.name = app_name
-
-        available_modules = self.available_modules
-
-        default_modules = ["borobudur.app"]
-        for subscriber in subscribers:
-            module_name = subscriber.split(":")[0]
-            if module_name not in default_modules:
-                default_modules.append(module_name)
-
-        main_modules = walk_imports(default_modules+self.app_config.module_names, available_modules)
-
-        result.modules = RUNTIME_MODULES + main_modules.values()
-
-        self.cached_results[page_type_id] = result
-
-        yield result
 
 def to_json(obj):
     out = StringIO()
@@ -231,10 +317,10 @@ class AssetManager(object):
         app_name = request.context.app_name
         document = request.document
 
-        calculate = request.app_config.asset_calculator
+        calculator = request.registry.queryUtility(IAssetCalculator, name=app_name)
 
-        subscribers =  request.app_config.get_bootstrap_subscribers(request)
-        packs = list(calculate(app_name, subscribers, handler_type_id))
+        subscribers =  request.app_config.get_bootstrap_subscribers(request.registry)
+        packs = list(calculator.calculate_one(handler_type_id))
         styles = self.style_assets.keys()
 
         assets = {"js":{}, "css":{}}
@@ -258,6 +344,14 @@ class AssetManager(object):
                 urls.append(url)
             assets[type][name] = urls
 
+        loaded_packs = [pack.name for pack in packs]
+        all_packs = calculator.calculate_all()
+        pack_urls = {}
+        for name, bundle in self.packs_to_bundles(all_packs):
+            pack_urls[name] = []
+            for url in bundle.urls(self.env):
+                pack_urls[name].append(url)
+
         routing_policy_qname = "%s:%s" % (request.app.routing_policy.__class__.__module__, request.app.routing_policy.__class__.__name__)
 
         bootstrap = bootstrap_template % (
@@ -268,6 +362,10 @@ class AssetManager(object):
             to_json(request.app.root),
             to_json(request.app.routes),
             to_json(routing_policy_qname),
+
+            to_json(loaded_packs),
+            to_json(calculator.pack_map),
+            to_json(pack_urls),
 
             to_json(request.app_config.settings),
             to_json(subscribers),

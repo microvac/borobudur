@@ -28,6 +28,8 @@ class APIInvocationsView(View):
         self.active_child = APIInvocationView(self, self.el_query(".invocation div")[0], model, False)
 
 def bind_ajax_request(app, col):
+    if app:
+        return
     jQuery = borobudur.query_el
     prev_ajax = jQuery.ajax
     def ajax(settings):

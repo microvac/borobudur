@@ -5,6 +5,9 @@ __author__ = 'h'
 class IAppConfigurator(Interface):
     pass
 
+class IAssetCalculator(Interface):
+    pass
+
 class IAppRoot(Interface):
     pass
 

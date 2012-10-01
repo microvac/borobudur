@@ -3,13 +3,10 @@ var $lib = this.prambanan;
 if (console && console.error){
     var prevAjax = $.ajax;
     $.ajax = function(settings){
-        if(settings && settings.success){
+        if(settings && settings.success && _.isFunction(settings.success)){
             settings.success = $lib.helpers.wrap_on_error(settings.success);
-            return  prevAjax(settings);
         }
-        else {
-            return prevAjax.call(this, arguments);
-        }
+        return  prevAjax.apply($, arguments);
     }
 }
 
@@ -67,7 +64,14 @@ var Router = (function(){
             }, this);
         },
 
-        bootstrap: function(serialized_state){
+        bootstrap: function(serialized_state, loaded_packs, pack_map, pack_urls){
+            this.pack_map = pack_map;
+            this.pack_urls = pack_urls;
+
+            this.loaded_packs = {}
+            for (var i = 0; i < loaded_packs.length; i++)
+                this.loaded_packs[loaded_packs[i]] = true;
+
             if($lib.on_bootstrap){
                 $lib.on_bootstrap();
             }
@@ -95,9 +99,53 @@ var Router = (function(){
                     callbacks: callbacks
                 }
 
-                routing_policy.apply(this.request, handler_id, this.app_state, callbacks);
-                this.trigger.call(this, ['route:' + name], this.request);
-                history.trigger('route', this, name, this.request);
+                var self = this;
+
+                function apply(){
+                    routing_policy.apply(self.request, handler_id, self.app_state, callbacks);
+                    self.trigger.call(self, ['route:' + name], self.request);
+                    history.trigger('route', self, name, self.request);
+                }
+
+                var unloaded_packs = [];
+                var unloaded_urls = []
+                var required_packs = this.pack_map[handler_id];
+                for (var i = 0; i < required_packs.length; i++){
+                    var pack = required_packs[i];
+                    if (!this.loaded_packs[pack]){
+                        unloaded_packs.push(pack);
+                        for (var j = 0; j < this.pack_urls[pack].length; j++){
+                            unloaded_urls.push(this.pack_urls[pack][j])
+                        }
+                    }
+                }
+                if (unloaded_packs.length == 0){
+                    apply();
+                }
+                else {
+                    var helper = function(){
+                        for (var i = 0; i < unloaded_packs.length; i++){
+                            self.loaded_packs[unloaded_packs[i]] = true;
+                        }
+                        apply();
+                    }
+                    var head= document.getElementsByTagName('body')[0];
+                    var script = null;
+                    for (var i = 0; i < unloaded_urls.length; i++){
+                        var script= document.createElement('script');
+                        script.type= 'text/javascript';
+                        if (i == unloaded_urls.length - 1){
+                            if (script.attachEvent  && !(node.attachEvent.toString && node.attachEvent.toString().indexOf('[native code') < 0) ){
+                                script.attachEvent('onreadystatechange', helper)
+                            } else {
+                                script.addEventListener('load', helper, false);
+                            }
+                        }
+                        script.async = false;
+                        script.src= unloaded_urls[i];
+                        head.appendChild(script);
+                    }
+                }
             }, this));
             return this;
         },

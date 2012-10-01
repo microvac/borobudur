@@ -2,7 +2,7 @@ from pyramid.response import Response
 from pyramid.renderers import render_to_response
 
 import borobudur
-from borobudur.interfaces import IAppConfigurator, IBootstrapSubscriber, IAppRoot
+from borobudur.interfaces import IAppConfigurator, IBootstrapSubscriber, IAppRoot, IAssetCalculator
 import borobudur.resource.storage
 import borobudur.resource.storage.mongo
 
@@ -102,6 +102,8 @@ def add_borobudur(config, name, app_config, root="/" ):
         view = wrap_pyramid_view(route_handler_id)
         config.add_view(view, route_name="page."+route_name)
 
+    asset_calculator = app_config.asset_calculator_factory(app_config, name, config.registry)
+    config.registry.registerUtility(asset_calculator, IAssetCalculator, name=name)
     config.registry.registerUtility(app_config, IAppConfigurator, name=name)
 
 def get_resources(request):
@@ -146,11 +148,15 @@ class AppConfigurator(object):
 
     def __init__(self, asset_manager, base_template,
                  routing_policy=None,
-                 app_state_type=AppState):
+                 app_state_type=AppState,
+                 asset_calculator_factory=None):
+
+        if asset_calculator_factory is None:
+            asset_calculator_factory = SimplePackCalculator
+
         self.asset_manager = asset_manager
         self.base_template = base_template
-        self.asset_calculator = SimplePackCalculator(self)
-        self.module_names = []
+        self.asset_calculator_factory = asset_calculator_factory
         self.routes = []
         self.bootstrap_subscribers = []
 
@@ -167,16 +173,12 @@ class AppConfigurator(object):
     def add_route_conf(self, route, route_handler_id):
         self.routes.append((route, route_handler_id))
 
-        module = route_handler_id.split(":")[0]
-        if not module in self.module_names:
-            self.module_names.append(module)
-
     def add_bootstrap_subscriber(self, subscriber_qname):
         self.bootstrap_subscribers.append(subscriber_qname)
 
-    def get_bootstrap_subscribers(self, request):
+    def get_bootstrap_subscribers(self, registry):
         results = self.bootstrap_subscribers[:]
-        for name, value in request.registry.getUtilitiesFor(IBootstrapSubscriber):
+        for name, value in registry.getUtilitiesFor(IBootstrapSubscriber):
             results.append(value)
         return results
 
