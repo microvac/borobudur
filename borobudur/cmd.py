@@ -5,7 +5,6 @@ import shutil
 from pyramid.paster import (
     setup_logging,
     bootstrap)
-from borobudur.interfaces import IApp
 
 
 def usage(argv):

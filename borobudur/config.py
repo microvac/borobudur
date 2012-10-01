@@ -2,7 +2,7 @@ from pyramid.response import Response
 from pyramid.renderers import render_to_response
 
 import borobudur
-from borobudur.interfaces import IApp, IAppConfigurator, IBootstrapSubscriber
+from borobudur.interfaces import IAppConfigurator, IBootstrapSubscriber, IAppRoot
 import borobudur.resource.storage
 import borobudur.resource.storage.mongo
 
@@ -90,11 +90,10 @@ def add_resources(config, name, resource_types, root):
 
 
 def add_borobudur(config, name, app_config, root="/" ):
-    app = borobudur.App(root, app_config.routing_policy, app_config.routes, app_config.settings)
 
-    factory = create_factory(app_name=name)
+    factory = create_factory(app_name=name, app_root=root)
 
-    for  route, route_handler_id in app.routes:
+    for  route, route_handler_id in app_config.routes:
         route_name = name + "." + route_handler_id.replace(":", ".")
 
         route = root + route
@@ -103,7 +102,6 @@ def add_borobudur(config, name, app_config, root="/" ):
         view = wrap_pyramid_view(route_handler_id)
         config.add_view(view, route_name="page."+route_name)
 
-    config.registry.registerUtility(app, IApp, name=name)
     config.registry.registerUtility(app_config, IAppConfigurator, name=name)
 
 def get_resources(request):
@@ -113,8 +111,10 @@ def get_resources(request):
 
 
 def get_app(request):
-    app_name = request.context.app_name
-    return request.registry.queryUtility(IApp, name=app_name)
+    app_root = request.context.app_root
+    app_config = request.app_config
+    app = borobudur.App(app_root, app_config.routing_policy, app_config.routes, app_config.settings)
+    return app
 
 
 def get_app_config(request):

@@ -2,10 +2,10 @@ from zope.interface.interface import Interface, Attribute
 
 __author__ = 'h'
 
-class IApp(Interface):
+class IAppConfigurator(Interface):
     pass
 
-class IAppConfigurator(Interface):
+class IAppRoot(Interface):
     pass
 
 class IAppResources(Interface):
