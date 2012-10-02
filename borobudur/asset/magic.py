@@ -15,6 +15,15 @@ __all__ =["count"]
 import itertools
 
 def make_dependencies(available_modules):
+    """
+    convert available_modules to simple dict of dependencies, result will look like:
+    {
+        "time": set(),
+        "datetime": set("time"),
+        "math": set(),
+        "colander: set("datetime", "time")
+    }
+    """
     modules = available_modules.values()
     results = {}
     availables = set(available_modules.keys())
@@ -28,6 +37,10 @@ def make_dependencies(available_modules):
     return results
 
 def get_dependencies(module_names, available_modules):
+    """
+    create list of all dependencies, e.g.
+    ["math", "time", "datetime"]
+    """
     results = set()
     stack = []
     stack.extend(module_names)
@@ -45,6 +58,9 @@ def get_dependencies(module_names, available_modules):
     return results
 
 def toposort(data):
+    """
+    return input that is sort topologically
+    """
     for k, v in data.items():
         v.discard(k) # Ignore self dependencies
     extra_items_in_deps = reduce(set.union, data.values()) - set(data.keys())
@@ -107,6 +123,9 @@ class Bundler(object):
 
 
 def merge_pack(source, target, modules_in_between, simple):
+    """
+    merge packs with same targets if doesn't dependant to modules in between
+    """
     modules_in_between = set(modules_in_between)
     new_source_items = []
     for item in source.items:
