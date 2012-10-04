@@ -77,6 +77,7 @@ class App(object):
         routing_policy_type = prambanan.load_module_attr(serialized_routing_policy["qname"])
         routing_policy = prambanan.JS("new routing_policy_type()")
         routing_policy.load(self, serialized_routing_policy["value"])
+        self.routing_policy = routing_policy
 
         serialized_properties = serialized["properties"]
         for serialized_property in serialized_properties:

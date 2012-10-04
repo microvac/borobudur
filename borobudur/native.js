@@ -64,7 +64,7 @@ var Router = (function(){
             }, this);
         },
 
-        bootstrap: function(serialized_state, loaded_packs, pack_map, pack_urls){
+        bootstrap: function(loaded_packs, pack_map, pack_urls){
             this.pack_map = pack_map;
             this.pack_urls = pack_urls;
 
@@ -75,8 +75,6 @@ var Router = (function(){
             if($lib.on_bootstrap){
                 $lib.on_bootstrap();
             }
-            this.app_state = this.app.routing_policy.create_state();
-            this.app_state.load(serialized_state);
 
             this.request = {app: this.app, document: document};
             history.start({pushState: true, root:this.app.root});
@@ -85,7 +83,6 @@ var Router = (function(){
         route: function(route, name, handler_id) {
             history || (history = new History);
             route = this._routeToRegExp(route);
-            var routing_policy = this.app.routing_policy;
 
             history.route(route, _.bind(function(fragment) {
                 this.app.model_caches = {}
@@ -102,7 +99,7 @@ var Router = (function(){
                 var self = this;
 
                 function apply(){
-                    routing_policy.apply(self.request, handler_id, self.app_state, callbacks);
+                    self.app.routing_policy.apply(self.request, handler_id,  callbacks);
                     self.trigger.call(self, ['route:' + name], self.request);
                     history.trigger('route', self, name, self.request);
                 }
@@ -154,7 +151,7 @@ var Router = (function(){
             if (this.last_route){
                 var last_route = this.last_route;
                 var callback = last_route.callback;
-                callback && callback(last_route.request, this.app_state, last_route.callbacks);
+                callback && callback(last_route.request, last_route.callbacks);
             }
         },
 
@@ -163,7 +160,7 @@ var Router = (function(){
                 return;
             }
             options = options || {trigger: true}
-            this.app_state.load_info = false;
+            this.app.render_state.load_info = false;
             history.navigate(fragment, options);
         },
 

@@ -24,13 +24,12 @@ def wrap_pyramid_view(handler_type_id):
 
     def view(request):
         routing_policy = request.app.routing_policy
-        app_state = routing_policy.create_state()
 
         def page_success():
-            request.app_config.asset_manager.write_all(request, handler_type_id, app_state.dump())
+            request.app_config.asset_manager.write_all(request, handler_type_id)
 
         load_callbacks = Callbacks(page_success)
-        routing_policy.apply(request, handler_type_id, app_state, load_callbacks)
+        routing_policy.apply(request, handler_type_id, load_callbacks)
 
         html = etree.tostring(request.document, pretty_print=True, method="html")
 

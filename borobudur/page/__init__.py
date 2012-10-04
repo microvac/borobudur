@@ -44,32 +44,38 @@ class PageRoutingPolicy(object):
     prambanan:type page_types l(c(borobudur.page:Page))
     """
 
-    def apply(self, request, handler_id, app_state, callbacks):
-        opener = PageOpener(request, handler_id, app_state)
+    def apply(self, request, handler_id, callbacks):
+        if not hasattr(request.app, "render_state"):
+            setattr(request.app, "render_state", AppState())
+        opener = PageOpener(request, handler_id)
         opener.apply(callbacks)
 
-    def create_state(self):
-        return AppState()
+    def dump(self, app):
+        return app.render_state.dumped_index
+
+    def load(self, app, serialized):
+        app.render_state = AppState()
+        app.render_state.load(serialized)
 
 class PageOpener(object):
     """
     prambanan:type page_types l(c(borobudur.page:Page))
     """
 
-    def __init__(self, request, page_type_id, app_state):
+    def __init__(self, request, page_type_id):
         page_type = prambanan.load_module_attr(page_type_id)
 
         self.request = request
         self.page_type_id = page_type_id
-        self.app_state = app_state
+        self.render_state = render_state = request.app.render_state
 
-        loaded_index = -1 if app_state.processed_since_loaded else app_state.dumped_index
-        app_state.processed_since_loaded = True
+        loaded_index = -1 if render_state.processed_since_loaded else render_state.dumped_index
+        render_state.processed_since_loaded = True
         self.load_from = loaded_index + 1
 
         page_types = []
 
-        persist_page = find_LCA(app_state.leaf_page, page_type)
+        persist_page = find_LCA(render_state.leaf_page, page_type)
 
         current = persist_page
         while current is not None:
@@ -88,12 +94,12 @@ class PageOpener(object):
     def apply(self, callbacks):
         self.callbacks = callbacks
 
-        app_state = self.app_state
-        while app_state.leaf_page != self.persist_page:
-            it = app_state.leaf_page
+        render_state = self.render_state
+        while render_state.leaf_page != self.persist_page:
+            it = render_state.leaf_page
             it.destroy()
-            app_state.active_pages.pop()
-            app_state.leaf_page = it.parent_page
+            render_state.active_pages.pop()
+            render_state.leaf_page = it.parent_page
 
         if len(self.page_types) <= 0:
             return
@@ -122,9 +128,9 @@ class PageOpener(object):
             if page.description is not None:
                 el_query("meta[name='description']").attr("content", page.description)
 
-        app_state = self.app_state
-        app_state.leaf_page = page
-        app_state.active_pages.append(page)
+        render_state = self.render_state
+        render_state.leaf_page = page
+        render_state.active_pages.append(page)
 
         self.i += 1
         if not stop_load and self.i < len(self.page_types):
@@ -140,7 +146,7 @@ class PageOpener(object):
         else:
             page_el_rendered = self.i < self.load_from
             page = page_type(self.request, page_el_rendered)
-            page.parent_page = self.app_state.leaf_page
+            page.parent_page = self.render_state.leaf_page
 
             self.current = page
 
@@ -149,7 +155,7 @@ class PageOpener(object):
             loaders.apply(self)
 
     def finish(self):
-        self.app_state.dumped_index = self.i
+        self.render_state.dumped_index = self.i
         self.callbacks.success()
 
 

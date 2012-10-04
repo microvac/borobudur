@@ -238,7 +238,8 @@ bootstrap_template = """
         var app_name = %s;
         var app_root = %s;
         var routes = %s;
-        var routing_policy_type = load(%s);
+
+        var serialized = %s;
 
         var loaded_packs = %s;
         var pack_map = %s;
@@ -247,18 +248,16 @@ bootstrap_template = """
         var settings = %s;
         var subscribers = %s;
 
-        var serialized_state = %s;
-
         var loaded_assets = %s;
 
-        var routing_policy = new routing_policy_type();
         var app_class = prambanan.import("borobudur").App;
-        var app = new app_class(app_root, routing_policy, routes, settings);
+        var app = new app_class(app_root, null, routes, settings);
+        app.load(serialized);
 
         for(var i = 0; i &lt; subscribers.length; i++){
             load(subscribers[i])(app_name, app, loaded_assets, handler_type_id);
         }
-        app.router.bootstrap(serialized_state, loaded_packs, pack_map, pack_urls);
+        app.router.bootstrap(loaded_packs, pack_map, pack_urls);
     });
 """
 
@@ -313,7 +312,7 @@ class AssetManager(object):
         self.env.debug = False
 
 
-    def write_all(self, request, handler_type_id, serialized_state):
+    def write_all(self, request, handler_type_id):
         app_name = request.context.app_name
         document = request.document
 
@@ -352,8 +351,6 @@ class AssetManager(object):
             for url in bundle.urls(self.env):
                 pack_urls[name].append(url)
 
-        routing_policy_qname = "%s:%s" % (request.app.routing_policy.__class__.__module__, request.app.routing_policy.__class__.__name__)
-
         bootstrap = bootstrap_template % (
             to_json(handler_type_id),
 
@@ -361,7 +358,7 @@ class AssetManager(object):
 
             to_json(request.app.root),
             to_json(request.app.routes),
-            to_json(routing_policy_qname),
+            to_json(request.app.dump()),
 
             to_json(loaded_packs),
             to_json(calculator.pack_map),
@@ -370,7 +367,6 @@ class AssetManager(object):
             to_json(request.app_config.settings),
             to_json(subscribers),
 
-            to_json(serialized_state),
             to_json(assets),
         )
         q_bootstrap = PyQuery(etree.Element("script")).html(bootstrap)
