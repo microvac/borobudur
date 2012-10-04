@@ -116,8 +116,9 @@ def get_app(request):
     app_root = request.context.app_root
     app_config = request.app_config
     app = borobudur.App(app_root, app_config.routing_policy, app_config.routes, app_config.settings)
+    for name, factory in app_config.app_properties:
+        app.add_property(name, factory(request, app))
     return app
-
 
 def get_app_config(request):
     app_name = request.context.app_name
@@ -159,6 +160,7 @@ class AppConfigurator(object):
         self.asset_calculator_factory = asset_calculator_factory
         self.routes = []
         self.bootstrap_subscribers = []
+        self.app_properties = []
 
         if routing_policy is None:
             routing_policy = borobudur.DefaultRoutingPolicy()
@@ -175,6 +177,9 @@ class AppConfigurator(object):
 
     def add_bootstrap_subscriber(self, subscriber_qname):
         self.bootstrap_subscribers.append(subscriber_qname)
+
+    def set_app_property(self, name, factory):
+        self.app_properties.append((name, factory))
 
     def get_bootstrap_subscribers(self, registry):
         results = self.bootstrap_subscribers[:]
