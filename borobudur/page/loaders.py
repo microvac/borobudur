@@ -10,12 +10,13 @@ class BaseLoader(object):
 
 class ServiceLoader(BaseLoader):
 
-    def __init__(self, model, service_id, service_attr):
+    def __init__(self, resourcer, model, service_id, service_attr):
+        self.resourcer = resourcer
         self.service_id = service_id
         self.model = model
         self.service_attr = service_attr
 
-    def load(self, request, callbacks):
+    def load(self, callbacks):
 
         def prev_success(attrs):
             parsed = self.model.parse(attrs)
@@ -29,7 +30,7 @@ class ServiceLoader(BaseLoader):
             if isinstance(self.model, Model):
                 def _success():
                     prev_success(attrs)
-                fetch_children(self.model.__class__, attrs, request.app, _success)
+                fetch_children(self.model.__class__, attrs, self.resourcer, _success)
             else:
                 count = 0
                 def col_success():
@@ -38,23 +39,20 @@ class ServiceLoader(BaseLoader):
                     if count == len(attrs):
                         prev_success(attrs)
                 for item_attrs in attrs:
-                    fetch_children(self.model.model, item_attrs, request.app, col_success)
+                    fetch_children(self.model.model, item_attrs, self.resourcer, col_success)
                 if len(attrs) == 0:
                     prev_success(attrs)
 
-        url = "%s/%s/%s" % (request.app.settings["service_root"], self.service_id, self.service_attr)
-        borobudur.query_el.getJSON(url, fetch_success)
+        self.resourcer.service(self.service_id, self.service_attr, fetch_success, None).invoke()
 
 class StorageLoader(BaseLoader):
 
-    def __init__(self, model):
+    def __init__(self, resourcer, model):
+        self.resourcer = resourcer
         self.model = model
 
-    def load(self, request, callbacks):
-        options = {
-            "data": self.params,
-            }
-        self.model.fetch(request.app, callbacks.success, callbacks.error, options)
+    def load(self, callbacks):
+        self.resourcer.fetch(self.model, callbacks.success, callbacks.error)
 
 class ServiceInvoker(object):
 
@@ -109,4 +107,4 @@ class Loaders(object):
 
     def next(self):
         loader = self.loaders[self.i]
-        loader.load(self.request, self)
+        loader.load(self)

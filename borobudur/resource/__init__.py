@@ -1,6 +1,6 @@
 import borobudur
 from borobudur.model import Model, Collection, ModelRefNode, CollectionRefNode
-from prambanan import JS
+import prambanan
 from pramjs import underscore
 
 __author__ = 'h'
@@ -88,6 +88,17 @@ def fetch_children(model_type, attrs, resourcer, success):
     if fetch_count == 0:
         success()
 
+def client_fetch(model_type, id, resourcer, success):
+    params = {"type": "GET", "dataType": 'json'};
+    params.url = model_type.with_id(id).url(resourcer.resources_root)
+    params.success = success
+    return prambanan.JS("$.ajax(params)")
+
+def server_fetch(model_type, id, resourcer, success):
+    model = model_type.with_id(id)
+    resourcer.request.resources.get_storage(model_type).one(model)
+    success(model.toJSON())
+
 def fetch_child(model_type, id, resourcer, success):
     cache = fetch_from_cache(model_type, id, resourcer.model_caches)
     if cache is not None:
@@ -99,10 +110,10 @@ def fetch_child(model_type, id, resourcer, success):
             success(attrs)
         fetch_children(model_type, attrs, resourcer, _success)
 
-    params = {"type": "GET", "dataType": 'json'};
-    params.url = model_type.with_id(id).url(resourcer.resources_root)
-    params.success = fetch_success
-    return JS("$.ajax(params)")
+    if borobudur.is_server:
+        return server_fetch(model_type, id, resourcer, fetch_success)
+    else:
+        return client_fetch(model_type, id, resourcer, fetch_success)
 
 def client_sync (method, model, resourcer, success=None, error=None):
 
@@ -142,14 +153,46 @@ def client_sync (method, model, resourcer, success=None, error=None):
 
     if not options.data and model and (method == 'create' or method == 'update'):
         params.contentType = 'application/json';
-        params.data = JS("JSON.stringify(model.toJSON())");
+        params.data = prambanan.JS("JSON.stringify(model.toJSON())");
 
     # Don't process data on a non-GET request.
     if params.type != 'GET':
         params.processData = False;
 
     # Make the request, allowing the user to override any Ajax options.
-    return JS("$.ajax(_.extend(params, options))")
+    return prambanan.JS("$.ajax(_.extend(params, options))")
+
+
+class ServiceInvoker(object):
+
+    def __init__(self, resourcer, service_id, service_attr, on_success, on_error):
+        self.resourcer = resourcer
+        self.service_id = service_id
+        self.service_attr = service_attr
+        self.on_success = on_success
+        self.on_error = on_error
+
+    def client_invoke(self, *args):
+        json = prambanan.window.JSON
+        url = "%s/services/%s/%s" % (self.resourcer.resources_root, self.service_id, self.service_attr)
+        settings = {
+            "data": json.stringify(args),
+            "type": "POST",
+            "contentType": "application/json; charset=utf-8",
+            "dataType": "json",
+            "success": self.on_success,
+            "error": self.on_error,
+            "url": url,
+            }
+        borobudur.query_el.ajax(settings)
+
+    def server_invoke(self, *args):
+        service = self.resourcer.request.get_service(self.service_id)
+        method = getattr(service, self.service_attr)
+        result = method()
+        self.on_success(result.toJSON())
+
+    invoke = server_invoke if borobudur.is_server else client_invoke
 
 class Resourcer(object):
 
@@ -177,22 +220,33 @@ class Resourcer(object):
             model_type = model.__class__
             storage = self.request.resources.get_storage(model_type)
             storage.one(model)
+            attrs = model.toJSON()
+            def _success(attrs):
+                model.set(model.parse(attrs))
+                success()
+            fetch_children(model_type, attrs, self,_success)
         elif isinstance(model, Collection):
             model_type = model.model
             storage = self.request.resources.get_storage(model_type)
             storage.all(model)
+            attrs = model.toJSON()
+            def _csuccess(attrs):
+                model.reset(model.parse(attrs))
+                success()
+            fetch_children(model_type, attrs, self,_csuccess)
         else:
             raise ValueError("unsupported model")
-        if success is not None:
-            success()
 
     fetch = server_fetch if borobudur.is_server else client_fetch
 
+    def service(self, id, attr, success=None, error=None):
+        return ServiceInvoker(self, id, attr, success, error)
+
     def dump(self):
-        return {}
+        return {"resources_root": self.resources_root}
 
     def load(self, serialized):
-        pass
+        self.resources_root = serialized["resources_root"]
 
 class ResourcerFactory(object):
 

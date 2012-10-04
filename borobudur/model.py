@@ -190,7 +190,7 @@ class Model(backbone.Model):
         result = cls(attrs, parent)
         return result
 
-    def url(self, app):
+    def url(self, resource_root):
         id = None if self.isNew() else self.id
         current = self.parent
         while current is not None:
@@ -200,7 +200,7 @@ class Model(backbone.Model):
                 id = current.id
             current = current.parent
 
-        result = "%s/%s" % (app.settings["storage_root"], self.model_url)
+        result = "%s/storages/%s" % (resource_root, self.model_url)
         if id is not None:
             result = "%s/%s" % (result, id)
         return result
@@ -319,8 +319,8 @@ class Collection(backbone.Collection):
         options = {"model": model}
         super(Collection, self).__init__(models, options)
 
-    def url(self, app):
-        return "%s/%s" % (app.settings["storage_root"], self.model.model_url)
+    def url(self, resources_root):
+        return "%s/storages/%s" % (resources_root, self.model.model_url)
 
     def create(self, app, model, success=None, error=None, options=None):
         model = self._prepareModel(model, options)

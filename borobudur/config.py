@@ -62,10 +62,11 @@ def create_factory(**kwargs):
 
 
 class AppResources(object):
-    def __init__(self, request, resource_types, storage_type_map):
+    def __init__(self, request, resource_types, storage_type_map, service_id_map):
         self.request = request
         self.resource_types = resource_types
         self.storage_type_map = storage_type_map
+        self.service_id_map = service_id_map
 
     def get_storage(self, model):
         storage_type = self.storage_type_map.get(model, None)
@@ -73,17 +74,25 @@ class AppResources(object):
             return None
         return storage_type(self.request)
 
+    def get_service(self, id):
+        service_type = self.service_id_map[id]
+        return service_type(self.request)
+
 r_map = {}
 
 def add_resources(config, name, resource_types, root):
     factory = create_factory(resource_name=name)
 
     storage_type_map = {}
+    service_id_map = {}
     for resource_type in resource_types:
         if issubclass(resource_type, borobudur.resource.storage.mongo.MongoStorage) or issubclass(resource_type,
             borobudur.resource.storage.mongo.EmbeddedMongoStorage):
             storage_type_map[resource_type.model] = resource_type
-    r_map[name] = (storage_type_map, resource_types, root)
+        if hasattr(resource_type, "id"):
+            service_id_map[resource_type.id] = resource_type
+
+    r_map[name] = (storage_type_map, service_id_map, resource_types, root)
     for resource_type in resource_types:
         try_expose(resource_type, config, root, factory)
 
@@ -106,8 +115,8 @@ def add_borobudur(config, name, app_config, root="/" ):
     config.registry.registerUtility(app_config, IAppConfigurator, name=name)
 
 def get_resources(request):
-    storage_type_map, resource_types, resource_root = r_map[request.context.resource_name]
-    app_resources = AppResources(request, resource_types=resource_types, storage_type_map=storage_type_map)
+    storage_type_map, service_id_map, resource_types, resource_root = r_map[request.context.resource_name]
+    app_resources = AppResources(request, resource_types=resource_types, storage_type_map=storage_type_map, service_id_map=service_id_map)
     return app_resources
 
 
