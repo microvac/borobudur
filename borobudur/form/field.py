@@ -133,7 +133,11 @@ class Field(object):
         self.name = schema.name
         self.title = schema.title
         self.description = schema.description
-        self.required = schema.required()
+
+        if borobudur.is_server:
+            self.required = schema.required
+        else:
+            self.required = schema.required()
 
         self.children = []
         self.widget = self.make_widget(widgets_provider)

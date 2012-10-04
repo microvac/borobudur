@@ -81,7 +81,7 @@ class AppResources(object):
 r_map = {}
 
 def add_resources(config, name, resource_types, root):
-    factory = create_factory(resource_name=name)
+    factory = create_factory(resources_name=name)
 
     storage_type_map = {}
     service_id_map = {}
@@ -115,7 +115,7 @@ def add_borobudur(config, name, app_config, root="/" ):
     config.registry.registerUtility(app_config, IAppConfigurator, name=name)
 
 def get_resources(request):
-    storage_type_map, service_id_map, resource_types, resource_root = r_map[request.context.resource_name]
+    storage_type_map, service_id_map, resource_types, resource_root = r_map[request.context.resources_name]
     app_resources = AppResources(request, resource_types=resource_types, storage_type_map=storage_type_map, service_id_map=service_id_map)
     return app_resources
 

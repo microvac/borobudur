@@ -216,7 +216,8 @@ class Button(object):
         element = q_el[0]
         button_template.render(element, form.model, {"field":form, "button":self})
         result = q_el.children()[0]
-        borobudur.query_el(result).bind("click", self.make_handler(form))
+        if not borobudur.is_server:
+            borobudur.query_el(result).bind("click", self.make_handler(form))
         return result
 
     def make_handler(self, form):

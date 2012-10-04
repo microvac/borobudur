@@ -12,33 +12,36 @@ methodMap = {
     'read':   'GET'
 };
 
+class Counter(object):
+
+    def __init__(self, i):
+        self.i = i
+
 def fetch_from_cache(model_type, id, model_caches):
-    model_cache = model_caches[model_type.model_url]
-    if not model_cache:
-        return None
-    result = model_cache[id]
-    if result:
-        return result
-    else:
+    if model_type.model_url not in model_caches:
         return None
 
-def save_to_cache(model_type, attrs, model_caches):
     model_cache = model_caches[model_type.model_url]
-    if not model_cache:
-        model_cache = {}
-        model_caches[model_type.model_url] = model_cache
+    if id not in model_cache:
+        return None
+
+    return model_cache[id]
+
+def save_to_cache(model_type, attrs, model_caches):
+    if model_type.model_url not in model_caches:
+        model_caches[model_type.model_url] = {}
+    model_cache = model_caches[model_type.model_url]
     id = attrs[model_type.id_attribute]
     model_cache[id] = attrs
 
 def fetch_children(model_type, attrs, resourcer, success):
-    fetch_count = 0
+    fetch_count = Counter(0)
 
     started = False
 
     def item_success():
-        global fetch_count
-        fetch_count -= 1
-        if fetch_count == 0 and started:
+        fetch_count.i -= 1
+        if fetch_count.i == 0 and started:
             success()
 
     for child_schema in model_type.schema.children:
@@ -55,10 +58,10 @@ def fetch_children(model_type, attrs, resourcer, success):
                         return child_success
 
                     child_id = child_value
-                    fetch_count += 1
+                    fetch_count.i += 1
                     fetch_child(child_type, child_id, resourcer, make_model_success(child_schema.name))
                 else:
-                    fetch_count += 1
+                    fetch_count.i += 1
                     fetch_children(child_type, child_value, resourcer, item_success)
 
         if isinstance(child_schema, CollectionRefNode):
@@ -78,24 +81,24 @@ def fetch_children(model_type, attrs, resourcer, success):
                                 current_arr[current_i] = child_attrs
                                 item_success()
                             return child_success
-                        fetch_count += 1
+                        fetch_count.i += 1
                         fetch_child(child_type, child_id, resourcer, make_col_success(i, child_arr))
                     else:
-                        fetch_count += 1
+                        fetch_count.i += 1
                         fetch_children(child_type, child_value, resourcer, item_success)
 
     started = True
-    if fetch_count == 0:
+    if fetch_count.i == 0:
         success()
 
 def client_fetch(model_type, id, resourcer, success):
     params = {"type": "GET", "dataType": 'json'};
-    params.url = model_type.with_id(id).url(resourcer.resources_root)
+    params.url = model_type.with_id(model_type.id_type(id)).url(resourcer.resources_root)
     params.success = success
     return prambanan.JS("$.ajax(params)")
 
 def server_fetch(model_type, id, resourcer, success):
-    model = model_type.with_id(id)
+    model = model_type.with_id(model_type.id_type(id))
     resourcer.request.resources.get_storage(model_type).one(model)
     success(model.toJSON())
 
@@ -187,7 +190,7 @@ class ServiceInvoker(object):
         borobudur.query_el.ajax(settings)
 
     def server_invoke(self, *args):
-        service = self.resourcer.request.get_service(self.service_id)
+        service = self.resourcer.request.resources.get_service(self.service_id)
         method = getattr(service, self.service_attr)
         result = method()
         self.on_success(result.toJSON())
@@ -228,12 +231,16 @@ class Resourcer(object):
         elif isinstance(model, Collection):
             model_type = model.model
             storage = self.request.resources.get_storage(model_type)
-            storage.all(model)
+            #todo queries
+            storage.all(model, model_type.deserialize_queries({}))
             attrs = model.toJSON()
-            def _csuccess(attrs):
-                model.reset(model.parse(attrs))
-                success()
-            fetch_children(model_type, attrs, self,_csuccess)
+            count = Counter(0)
+            def col_success():
+                count.i += 1
+                if count.i == len(attrs) and success:
+                    success()
+            for item_attrs in attrs:
+                fetch_children(model.model, item_attrs, self, col_success)
         else:
             raise ValueError("unsupported model")
 

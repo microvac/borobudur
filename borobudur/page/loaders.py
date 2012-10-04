@@ -105,6 +105,9 @@ class Loaders(object):
         else:
             self.load_flow.success()
 
+    def error(self):
+        pass
+
     def next(self):
         loader = self.loaders[self.i]
         loader.load(self)

@@ -99,7 +99,10 @@ class View(object):
         if not form_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
 
-        form = prambanan.JS("new form_type()")
+        if borobudur.is_server:
+            form = form_type()
+        else:
+            form = prambanan.JS("new form_type()")
 
         form_handlers = self.find_decorated_form_handlers(name)
         for config, handler in form_handlers:

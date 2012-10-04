@@ -254,14 +254,13 @@ class Page(object):
         q_el = els
 
         #clone to replace later when removed
-        cloned_el = q_el.clone()
+        #pyquery buggy on cloned though, so don't clone on server
+        if borobudur.is_server:
+            cloned_el = q_el
+        else:
+            cloned_el = q_el.clone()
 
-        #render in cloned, avoid reflows
-        render_el = q_el.clone()
-
-        view = view_type(self, render_el[0], model, self.el_rendered)
-
-        q_el.replaceWith(render_el)
+        view = view_type(self, q_el[0], model, self.el_rendered)
 
         self.views.append((selector, view, cloned_el))
 
