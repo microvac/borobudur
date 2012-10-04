@@ -344,7 +344,7 @@ class Collection(backbone.Collection):
             return model
 
     def __iter__(self):
-        return self.models
+        return iter(self.models)
 
     def __len__(self):
         return self.length
