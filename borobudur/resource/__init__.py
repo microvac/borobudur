@@ -104,28 +104,27 @@ def fetch_child(model_type, id, resourcer, success):
     params.success = fetch_success
     return JS("$.ajax(params)")
 
-def client_sync (method, model, options=None):
-    resourcer = options["resourcer"]
-
-    prev_success = options.success
+def client_sync (method, model, resourcer, success=None, error=None):
 
     def fetch_success(attrs):
         if isinstance(model, Model):
             def _success():
-                prev_success(attrs)
+                if success :
+                    success(attrs)
             fetch_children(model.__class__, attrs, resourcer, _success)
         else:
             count = 0
             def col_success():
                 global count
                 count += 1
-                if count == len(attrs):
-                    prev_success(attrs)
+                if count == len(attrs) and success:
+                    success(attrs)
             for item_attrs in attrs:
                 fetch_children(model.model, item_attrs, resourcer, col_success)
-            if len(attrs) == 0:
-                prev_success(attrs)
+            if len(attrs) == 0 and success:
+                success(attrs)
 
+    options = {}
     options.success = fetch_success
 
     type = methodMap[method];
@@ -152,14 +151,6 @@ def client_sync (method, model, options=None):
     # Make the request, allowing the user to override any Ajax options.
     return JS("$.ajax(_.extend(params, options))")
 
-def get_sync_options(options, resourcer, success, error):
-    if options is None:
-        options = {}
-    options["resourcer"] = resourcer
-    options["success"] = success
-    options["error"] = error
-    return options
-
 class Resourcer(object):
 
     def __init__(self, request=None, resources_name=None, resources_root=None):
@@ -169,7 +160,17 @@ class Resourcer(object):
         self.model_caches = {}
 
     def client_fetch(self, model, success=None, error=None):
-        pass
+        def wrapped_success(resp, status, xhr):
+            if isinstance(model, Model):
+                if not model.set(model.parse(resp, xhr)):
+                    return False;
+            elif isinstance(model, Collection):
+                model.reset(model.parse(resp, xhr))
+            else:
+                raise ValueError("unsupported model")
+            if success:
+                success(model, resp);
+        return client_sync("read", model, self, wrapped_success, error)
 
     def server_fetch(self, model, success=None, error=None):
         if isinstance(model, Model):
