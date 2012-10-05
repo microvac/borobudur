@@ -227,7 +227,7 @@ class Resourcer(object):
             storage = self.request.resources.get_storage(model_type)
             storage.one(model)
             attrs = model.toJSON()
-            def _success(attrs):
+            def _success():
                 model.set(model.parse(attrs))
                 success()
             fetch_children(model_type, attrs, self,_success)
