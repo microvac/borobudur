@@ -91,6 +91,18 @@ def fetch_children(model_type, attrs, resourcer, success):
     if fetch_count.i == 0:
         success()
 
+def fetch_col_children(model_type, attrs, resourcer, success):
+    count = 0
+    def col_success():
+        global count
+        count += 1
+        if count == len(attrs) and success:
+            success()
+    for item_attrs in attrs:
+        fetch_children(model_type, item_attrs, resourcer, col_success)
+    if len(attrs) == 0 and success:
+        success()
+
 def client_fetch(model_type, id, resourcer, success):
     params = {"type": "GET", "dataType": 'json'};
     params.url = model_type.with_id(model_type.id_type(id)).url(resourcer.resources_root)
@@ -121,22 +133,13 @@ def fetch_child(model_type, id, resourcer, success):
 def client_sync (method, model, resourcer, success=None, error=None):
 
     def fetch_success(attrs):
+        def _success():
+            if success :
+                success(attrs)
         if isinstance(model, Model):
-            def _success():
-                if success :
-                    success(attrs)
             fetch_children(model.__class__, attrs, resourcer, _success)
         else:
-            count = 0
-            def col_success():
-                global count
-                count += 1
-                if count == len(attrs) and success:
-                    success(attrs)
-            for item_attrs in attrs:
-                fetch_children(model.model, item_attrs, resourcer, col_success)
-            if len(attrs) == 0 and success:
-                success(attrs)
+            fetch_col_children(model.model.__class__, attrs, resourcer, _success)
 
     options = {}
     options.success = fetch_success
@@ -250,10 +253,14 @@ class Resourcer(object):
         return ServiceInvoker(self, id, attr, success, error)
 
     def dump(self):
-        return {"resources_root": self.resources_root}
+        results = {}
+        results["resources_root"] = self.resources_root
+        results["model_caches"] = self.model_caches
+        return results
 
     def load(self, serialized):
         self.resources_root = serialized["resources_root"]
+        self.model_caches = serialized["model_caches"]
 
 class ResourcerFactory(object):
 

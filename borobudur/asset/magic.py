@@ -1,5 +1,5 @@
 """
-    this modules perform topological sort on dependency graphs and groups result in sorted list of ordered sets
+    this module performs topological sort on dependency graphs and groups result in sorted list of ordered sets
 
     i.e. magic
 

@@ -1,5 +1,6 @@
 import borobudur
 from borobudur.model import Model, fetch_children
+from borobudur.resource import fetch_col_children
 import prambanan
 from pramjs import underscore
 
@@ -27,21 +28,12 @@ class ServiceLoader(BaseLoader):
             callbacks.success()
 
         def fetch_success(attrs):
+            def _success():
+                prev_success(attrs)
             if isinstance(self.model, Model):
-                def _success():
-                    prev_success(attrs)
                 fetch_children(self.model.__class__, attrs, self.resourcer, _success)
             else:
-                count = 0
-                def col_success():
-                    global count
-                    count += 1
-                    if count == len(attrs):
-                        prev_success(attrs)
-                for item_attrs in attrs:
-                    fetch_children(self.model.model, item_attrs, self.resourcer, col_success)
-                if len(attrs) == 0:
-                    prev_success(attrs)
+                fetch_col_children(self.model.__class__, attrs, self.resourcer, _success)
 
         self.resourcer.service(self.service_id, self.service_attr, fetch_success, None).invoke()
 

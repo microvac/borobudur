@@ -263,7 +263,7 @@ bootstrap_template = """
 
 def to_json(obj):
     out = StringIO()
-    json.dump(obj, out)
+    json.dump(obj, out, sort_keys=True, indent=4 )
     return out.getvalue()
 
 class AssetManager(object):

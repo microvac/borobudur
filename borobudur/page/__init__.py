@@ -1,6 +1,8 @@
+from borobudur.model import Model, fetch_children, Collection
+from borobudur.resource import fetch_col_children
+import prambanan
 import borobudur
 from borobudur.page.loaders import Loaders
-import prambanan
 from pramjs.elquery import ElQuery
 
 class AppState(object):
@@ -51,11 +53,18 @@ class PageRoutingPolicy(object):
         opener.apply(callbacks)
 
     def dump(self, app):
-        return app.render_state.dumped_index
+        results = {}
+        results["state"] = app.render_state.dumped_index
+        pages = []
+        for page in app.render_state.active_pages:
+            pages.append(page.dump())
+        results["pages"] = pages
+        return results
 
     def load(self, app, serialized):
         app.render_state = AppState()
-        app.render_state.load(serialized)
+        app.render_state.load(serialized["state"])
+        app.dumped_pages = serialized["pages"]
 
 class PageOpener(object):
     """
@@ -66,6 +75,10 @@ class PageOpener(object):
         page_type = prambanan.load_module_attr(page_type_id)
 
         self.request = request
+        if hasattr(request.app, "dumped_pages"):
+            self.dumped_pages =  request.app.dumped_pages
+        else:
+            self.dumped_pages = []
         self.page_type_id = page_type_id
         self.render_state = render_state = request.app.render_state
 
@@ -150,9 +163,14 @@ class PageOpener(object):
 
             self.current = page
 
-            loaders = Loaders(self.request)
-            page.prepare(loaders)
-            loaders.apply(self)
+            if page_el_rendered:
+                dumped_page = self.dumped_pages[self.i]
+                page.load(dumped_page)
+                self.success()
+            else:
+                loaders = Loaders(self.request)
+                page.prepare(loaders)
+                loaders.apply(self)
 
     def finish(self):
         self.render_state.dumped_index = self.i
@@ -230,8 +248,42 @@ class Page(object):
     def will_reload(self, matchdict):
         return False
 
-    def open(self ):
+    def open(self):
         pass
+
+    def load(self, serialized):
+        ser_models = serialized["models"]
+        for name in ser_models:
+            ser_model = ser_models[name]
+            model_type = prambanan.load_module_attr(ser_model["model_qname"])
+            attrs = ser_model["value"]
+            def _success(attrs):
+                pass
+            if ser_model["is_collection"]:
+                model = Collection(model_type)
+                fetch_col_children(model_type, attrs, self.app.resourcer, _success)
+                model.reset(model.parse(attrs))
+            else:
+                model = prambanan.JS("new model_type()")
+                fetch_children(model_type, attrs, self.app.resourcer, _success)
+                model.set(model.parse(attrs))
+            self.models[name] = model
+
+    def dump(self):
+        results = {}
+        results["models"] = {}
+        for name in self.models:
+            model = self.models[name]
+            ser_model = {}
+            if isinstance(model, Model):
+                ser_model["is_collection"] = False
+                ser_model["model_qname"] = borobudur.get_qname(model.__class__)
+            else:
+                ser_model["is_collection"] = True
+                ser_model["model_qname"] = borobudur.get_qname(model.model)
+            ser_model["value"] = model.toJSON()
+            results["models"][name] = ser_model
+        return results
 
     def add_view(self, selector, view_type, model):
         """
