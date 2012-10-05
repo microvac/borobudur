@@ -10,7 +10,6 @@ from borobudur.asset import SimplePackCalculator
 from borobudur.model import Model
 
 from lxml import etree
-from borobudur.page import AppState
 
 class Callbacks(object):
     def __init__(self, success):
@@ -157,7 +156,6 @@ class AppConfigurator(object):
 
     def __init__(self, asset_manager, base_template,
                  routing_policy=None,
-                 app_state_type=AppState,
                  asset_calculator_factory=None):
 
         if asset_calculator_factory is None:
@@ -174,7 +172,6 @@ class AppConfigurator(object):
             routing_policy = borobudur.DefaultRoutingPolicy()
 
         self.routing_policy = routing_policy
-        self.app_state_type = app_state_type
 
     def add_route(self, route, handler_type):
         handler_id = "%s:%s" % (handler_type.__module__, handler_type.__name__)

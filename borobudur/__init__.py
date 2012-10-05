@@ -34,6 +34,12 @@ class DefaultRoutingPolicy(object):
 def get_qname(cls):
     return "%s:%s" % (cls.__module__, cls.__name__)
 
+def dotted_subscript(container, dotted_name):
+    result = container
+    for name in dotted_name.split("."):
+        result = result[name]
+    return result
+
 class App(object):
 
     def __init__(self, root, routing_policy, routes, settings):
@@ -45,6 +51,11 @@ class App(object):
 
         self.router = Router(self)
         self.model_caches = {}
+        self.counter = 0
+
+    def next_count(self):
+        self.counter += 1
+        return self.counter
 
     def add_property(self, name, value):
         self.property_names.append(name)
@@ -69,6 +80,7 @@ class App(object):
                 "value": property_value
             })
         results["properties"] = properties
+        results["counter"] = self.counter
 
         return results
 
@@ -86,4 +98,6 @@ class App(object):
             property = prambanan.JS("new property_type()")
             property.load(serialized_property["value"])
             self.add_property(property_name, property)
+
+        self.counter = serialized["counter"]
 

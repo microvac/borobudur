@@ -48,10 +48,11 @@ class View(object):
     forms = {}
     template = NullTemplate()
 
-    def __init__(self, parent, el, model, el_rendered):
+    def __init__(self, parent, el, model):
         self.parent = parent
         self.request = parent.request
         self.app = parent.app
+        self.id = self.app.next_count()
 
         self.model = model
         self.el = el
@@ -59,16 +60,13 @@ class View(object):
         self.q_el = borobudur.query_el(el)
 
         self.child_views = []
-        self.child_forms = {}
+        self.child_forms = []
 
         self.renderdict = self.create_renderdict()
 
         self.delegate_element_events()
 
         self.initialize()
-
-        if not el_rendered:
-            self.render()
 
     def create_renderdict(self):
         renderdict = {}
@@ -85,16 +83,23 @@ class View(object):
         return self
 
     def remove(self):
-        for child_view in self.child_views:
+        for name, child_view, dotted_model_name in self.child_views:
             child_view.remove()
         self.child_views = []
+
         self.q_el.remove()
+
         return self
 
     def parent_page(self):
         return self.parent.parent_page() if hasattr(self.parent, "parent_page") else self.parent
 
-    def render_form(self, name, model):
+    def render_form(self, name, dotted_model_name):
+        if dotted_model_name is not None:
+            model = borobudur.dotted_subscript(self.model, dotted_model_name)
+        else:
+            model = self.model
+
         form_type = self.forms[name]
         if not form_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
@@ -117,20 +122,23 @@ class View(object):
             form.add_event_handler(event_name, make_handler(handler))
 
         el = form.render(model)
-        self.child_forms[name] = form
-
-        form.el = el
+        self.child_forms.append((name, form, dotted_model_name))
 
         return el
 
-    def render_child(self, name, model, tag="div"):
+    def render_child(self, name, dotted_model_name, tag="div"):
+        if dotted_model_name is not None:
+            model = borobudur.dotted_subscript(self.model, dotted_model_name)
+        else:
+            model = self.model
+
         child_view_type = self.children[name]
         if not child_view_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
 
         el = borobudur.query_el("<%s></%s>"% (tag, tag))[0]
-        child_view = prambanan.JS("new child_view_type(self, el, model, false)")
-        self.child_views.append(child_view)
+        child_view = prambanan.JS("new child_view_type(self, el, model)")
+        self.child_views.append((name, child_view, dotted_model_name))
         return el
 
     def get_child_model(self, child_name):
@@ -200,5 +208,23 @@ class View(object):
                 for conf in value._on_form:
                     if conf[0] == name:
                         results.append([conf, value])
+        return results
+
+    def load(self, serialized):
+        for name, id, qname, dotted_model_name, value in serialized["child_views"]:
+            view_el = self.el_query("[data-view-id='%s']")
+            view_type = prambanan.load_module_attr(qname)
+            view_model = borobudur.dotted_subscript(self.model, dotted_model_name)
+            view = prambanan.JS("new view_type(self, view_el[0], view_model)")
+            self.child_views.append((name, view, dotted_model_name))
+
+    def dump(self):
+        results = {}
+
+        results["child_views"] = []
+        for name, child_view, dotted_model_name in self.child_views:
+            child_view.q_el.attr("data-view-id", str(child_view.id))
+            results["views"].append((name, child_view.id, borobudur.get_qname(child_view.__class__), dotted_model_name, child_view.dump()))
+
         return results
 

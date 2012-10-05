@@ -5,18 +5,6 @@ import borobudur
 from borobudur.page.loaders import Loaders
 from pramjs.elquery import ElQuery
 
-class AppState(object):
-    leaf_page=None
-    active_pages = []
-    dumped_index = -1
-    processed_since_loaded = False
-
-    def dump(self):
-        return self.dumped_index
-
-    def load(self, serialized_state):
-        self.dumped_index = serialized_state
-
 class StopLoadException(Exception):
     pass
 
@@ -47,52 +35,79 @@ class PageRoutingPolicy(object):
     """
 
     def apply(self, request, handler_id, callbacks):
-        if not hasattr(request.app, "render_state"):
-            setattr(request.app, "render_state", AppState())
-        opener = PageOpener(request, handler_id)
-        opener.apply(callbacks)
+        if not hasattr(request.app, "opener"):
+            setattr(request.app, "opener", PageOpener())
+
+        request.app.opener.apply(request, handler_id, callbacks)
 
     def dump(self, app):
         results = {}
-        results["state"] = app.render_state.dumped_index
-        pages = []
-        for page in app.render_state.active_pages:
-            pages.append(page.dump())
-        results["pages"] = pages
+        results["opener"] = app.opener.dump()
         return results
 
     def load(self, app, serialized):
-        app.render_state = AppState()
-        app.render_state.load(serialized["state"])
-        app.dumped_pages = serialized["pages"]
+        app.opener = PageOpener()
+        app.opener.load(serialized["opener"])
 
 class PageOpener(object):
     """
     prambanan:type page_types l(c(borobudur.page:Page))
     """
 
-    def __init__(self, request, page_type_id):
-        page_type = prambanan.load_module_attr(page_type_id)
+    def __init__(self):
+        self.leaf_page = None
+        self.active_pages = []
+        self.dumped = None
 
+    def apply(self, request, page_type_id, callbacks):
         self.request = request
-        if hasattr(request.app, "dumped_pages"):
-            self.dumped_pages =  request.app.dumped_pages
-        else:
-            self.dumped_pages = []
         self.page_type_id = page_type_id
-        self.render_state = render_state = request.app.render_state
+        self.callbacks = callbacks
 
-        loaded_index = -1 if render_state.processed_since_loaded else render_state.dumped_index
-        render_state.processed_since_loaded = True
-        self.load_from = loaded_index + 1
+        self.page_types = []
+        self.i = 0
+        self.current = None
+
+        if self.dumped is None:
+            self.init_new()
+        else:
+            self.init_dumped()
+
+        if len(self.page_types) <= 0:
+            return
+
+        if self.i < len(self.page_types):
+            self.next()
+
+    def init_dumped(self):
+        dumped_page_types = self.dumped["page_types"]
+        for dumped_page_type in dumped_page_types:
+            self.page_types.append(prambanan.load_module_attr(dumped_page_type))
+
+        dumped_pages = self.dumped["pages"]
+        self.i = 0
+        for dumped_page in dumped_pages:
+            page_type = prambanan.load_module_attr(dumped_page["qname"])
+            page = prambanan.JS("new page_type(self.request)")
+            page.parent_page = self.leaf_page
+            page.load(dumped_page["value"])
+            self.active_pages.append(page)
+            self.leaf_page = page
+            self.i += 1
+
+        self.dumped = None
+
+
+    def init_new(self):
+        page_type = prambanan.load_module_attr(self.page_type_id)
 
         page_types = []
 
-        persist_page = find_LCA(render_state.leaf_page, page_type)
+        persist_page = find_LCA(self.leaf_page, page_type)
 
         current = persist_page
         while current is not None:
-            if current.will_reload(request):
+            if current.will_reload(self.request):
                 persist_page = current.parent_page
             current = current.parent_page
 
@@ -101,26 +116,15 @@ class PageOpener(object):
             page_types.append(current)
             current = current.parent_page_type
 
-        self.persist_page = persist_page
         self.page_types = list(reversed(page_types))
 
-    def apply(self, callbacks):
-        self.callbacks = callbacks
-
-        render_state = self.render_state
-        while render_state.leaf_page != self.persist_page:
-            it = render_state.leaf_page
+        while self.leaf_page != persist_page:
+            it = self.leaf_page
             it.destroy()
-            render_state.active_pages.pop()
-            render_state.leaf_page = it.parent_page
+            self.active_pages.pop()
+            self.leaf_page = it.parent_page
 
-        if len(self.page_types) <= 0:
-            return
 
-        self.i = 0
-        self.current = None
-        if self.i < len(self.page_types):
-            self.next()
 
     def success(self):
         page = self.current
@@ -141,9 +145,8 @@ class PageOpener(object):
             if page.description is not None:
                 el_query("meta[name='description']").attr("content", page.description)
 
-        render_state = self.render_state
-        render_state.leaf_page = page
-        render_state.active_pages.append(page)
+        self.leaf_page = page
+        self.active_pages.append(page)
 
         self.i += 1
         if not stop_load and self.i < len(self.page_types):
@@ -154,28 +157,44 @@ class PageOpener(object):
     def next(self):
         page_type = self.page_types[self.i]
         if borobudur.is_server and page_type.client_only:
-            self.i -= 1
-            self.finish()
+            self.partial_finish()
         else:
-            page_el_rendered = self.i < self.load_from
-            page = page_type(self.request, page_el_rendered)
-            page.parent_page = self.render_state.leaf_page
+            page = page_type(self.request)
+            page.parent_page = self.leaf_page
 
             self.current = page
 
-            if page_el_rendered:
-                dumped_page = self.dumped_pages[self.i]
-                page.load(dumped_page)
-                self.success()
-            else:
-                loaders = Loaders(self.request)
-                page.prepare(loaders)
-                loaders.apply(self)
+            loaders = Loaders(self.request)
+            page.prepare(loaders)
+            loaders.apply(self)
 
     def finish(self):
-        self.render_state.dumped_index = self.i
         self.callbacks.success()
 
+    def partial_finish(self):
+        self.i -= 1
+        self.callbacks.success()
+
+    def load(self, serialized):
+        self.dumped = serialized
+
+    def dump(self):
+        results = {}
+        pages = []
+        for page in self.active_pages:
+            ser_page = {}
+            ser_page["qname"] = borobudur.get_qname(page.__class__)
+            ser_page["value"] = page.dump()
+            pages.append(ser_page)
+
+        page_types = []
+        for page_type in self.page_types:
+            page_types.append(borobudur.get_qname(page_type))
+
+        results["pages"] = pages
+        results["page_types"] = page_types
+
+        return results
 
 class Page(object):
     """
@@ -198,7 +217,7 @@ class Page(object):
                 loaders.fetch_models("users")
 
             def open(self):
-                self.add_view("#view-id", SomeView, self.models["users"])
+                self.add_view("#view-id", SomeView, "users")
 
     **Attributes**
 
@@ -232,7 +251,7 @@ class Page(object):
     keywords=None
     description=None
 
-    def __init__(self, request, el_rendered):
+    def __init__(self, request):
         self.created_matchdict = request.matchdict
         self.created_params = request.params
 
@@ -240,7 +259,6 @@ class Page(object):
         self.app = request.app
         self.models = {}
         self.views = []
-        self.el_rendered = el_rendered
 
     def prepare(self, loaders):
         pass
@@ -252,14 +270,12 @@ class Page(object):
         pass
 
     def load(self, serialized):
-        ser_models = serialized["models"]
-        for name in ser_models:
-            ser_model = ser_models[name]
-            model_type = prambanan.load_module_attr(ser_model["model_qname"])
-            attrs = ser_model["value"]
+        for name in serialized["models"]:
+            qname, is_collection, attrs = serialized["models"][name]
+            model_type = prambanan.load_module_attr(qname)
             def _success(attrs):
                 pass
-            if ser_model["is_collection"]:
+            if is_collection:
                 model = Collection(model_type)
                 fetch_col_children(model_type, attrs, self.app.resourcer, _success)
                 model.reset(model.parse(attrs))
@@ -269,23 +285,36 @@ class Page(object):
                 model.set(model.parse(attrs))
             self.models[name] = model
 
+        for view_selector, view_id, view_qname, dotted_model_name, view_value in serialized["views"]:
+            view_el = ElQuery("[data-view-id='%s']" % view_id,self.request.document)
+            view_type = prambanan.load_module_attr(view_qname)
+            view_model = borobudur.dotted_subscript(self.models, dotted_model_name)
+            view = prambanan.JS("new view_type(self, view_el[0], view_model)")
+            self.views.append((view_selector, view, view_el.clone(), dotted_model_name))
+
     def dump(self):
         results = {}
+
         results["models"] = {}
         for name in self.models:
             model = self.models[name]
-            ser_model = {}
             if isinstance(model, Model):
-                ser_model["is_collection"] = False
-                ser_model["model_qname"] = borobudur.get_qname(model.__class__)
+                is_collection = False
+                qname = borobudur.get_qname(model.__class__)
             else:
-                ser_model["is_collection"] = True
-                ser_model["model_qname"] = borobudur.get_qname(model.model)
-            ser_model["value"] = model.toJSON()
-            results["models"][name] = ser_model
+                is_collection = True
+                qname = borobudur.get_qname(model.model)
+            attrs = model.toJSON()
+            results["models"][name] = (qname, is_collection, attrs)
+
+        results["views"] = []
+        for view_selector, view, cloned_el, dotted_model_name in self.views:
+            view.q_el.attr("data-view-id", str(view.id))
+            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), dotted_model_name, view.dump()))
+
         return results
 
-    def add_view(self, selector, view_type, model):
+    def add_view(self, selector, view_type, dotted_model_name):
         """
         add view to document
 
@@ -300,6 +329,9 @@ class Page(object):
         prambanan:type view_type c(borobudur.view:View)
 
         """
+
+        model = borobudur.dotted_subscript(self.models, dotted_model_name)
+
         els = ElQuery(selector, self.request.document)
         if not els.length:
             raise ValueError("cannot find el with selector '%s' on document" % selector)
@@ -312,24 +344,27 @@ class Page(object):
         else:
             cloned_el = q_el.clone()
 
-        view = view_type(self, q_el[0], model, self.el_rendered)
+        view = view_type(self, q_el[0], model)
 
-        self.views.append((selector, view, cloned_el))
+        view.render()
+
+        self.views.append((selector, view, cloned_el, dotted_model_name))
 
     def get_view(self, selector):
         """
         get previously added view
         """
-        for view_selector, view, cloned_el in self.views:
+        for view_selector, view, cloned_el, dotted_model_name in self.views:
             if selector == view_selector:
                 return view
         return None
 
     def destroy(self):
         reversed_views = reversed(self.views)
-        for selector, view, cloned_el in reversed_views:
+        for selector, view, cloned_el, dotted_model_name in reversed_views:
             view.el_query().replaceWith(cloned_el)
             view.remove()
+
 
 class PagesGroup(object):
     def get_pages(self):

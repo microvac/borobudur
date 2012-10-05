@@ -92,11 +92,11 @@ def fetch_children(model_type, attrs, resourcer, success):
         success()
 
 def fetch_col_children(model_type, attrs, resourcer, success):
-    count = 0
+    count = Counter(0)
     def col_success():
         global count
-        count += 1
-        if count == len(attrs) and success:
+        count.i += 1
+        if count.i == len(attrs) and success:
             success()
     for item_attrs in attrs:
         fetch_children(model_type, item_attrs, resourcer, col_success)
