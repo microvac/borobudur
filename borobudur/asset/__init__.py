@@ -226,12 +226,9 @@ class MagicPackCalculatorFactory(object):
 
 bootstrap_template = """
     console.log("bootstrapper load time", new Date() - start);
-    $(function(){
-        console.log("document ready time", new Date() - start);
+    (function(){
         if (prambanan.has_error)
             return;
-
-        var load = prambanan.import("prambanan").load_module_attr;
 
         var handler_type_id = %s;
 
@@ -250,20 +247,26 @@ bootstrap_template = """
 
         var loaded_assets = %s;
 
+        var load = prambanan.import("prambanan").load_module_attr;
+
         var app_class = prambanan.import("borobudur").App;
         var app = new app_class(app_root, null, routes, settings);
         app.deserialize(serialized);
 
-        for(var i = 0; i < subscribers.length; i++){
-            load(subscribers[i])(app_name, app, loaded_assets, handler_type_id);
-        }
-        app.router.bootstrap(loaded_packs, pack_map, pack_urls);
-    });
+        $(function(){
+            console.log("document ready time", new Date() - start);
+
+            for(var i = 0; i < subscribers.length; i++){
+                load(subscribers[i])(app_name, app, loaded_assets, handler_type_id);
+            }
+            app.router.bootstrap(loaded_packs, pack_map, pack_urls);
+        });
+    })();
 """
 
 def to_json(obj):
     out = StringIO()
-    json.dump(obj, out, sort_keys=True, indent=4 )
+    json.dump(obj, out)
     return out.getvalue()
 
 class AssetManager(object):
