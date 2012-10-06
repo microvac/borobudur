@@ -100,10 +100,7 @@ class View(object):
         if not form_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
 
-        if borobudur.is_server:
-            form = form_type()
-        else:
-            form = prambanan.JS("new form_type()")
+        form = prambanan.ctor(form_type)()
 
         form_handlers = self.find_decorated_form_handlers(name)
         for config, handler in form_handlers:
@@ -128,10 +125,7 @@ class View(object):
             raise KeyError("form with name '%s' doesn't registered to view" % name)
 
         el = borobudur.query_el("<%s></%s>"% (tag, tag))[0]
-        if borobudur.is_server:
-            child_view = child_view_type(self, el, model)
-        else:
-            child_view = prambanan.JS("new child_view_type(self, el, model)")
+        child_view = prambanan.ctor(child_view_type)(self, el, model)
         child_view.render()
         self.child_views.append((name, child_view))
         return el
@@ -210,7 +204,7 @@ class View(object):
         for name, id, qname, value in serialized["child_views"]:
             view_el = self.el_query("[data-view-id='%s']")
             view_type = prambanan.load_module_attr(qname)
-            view = prambanan.JS("new view_type(self, view_el[0], null)")
+            view = prambanan.ctor(view_type)(self, view_el[0], None)
             view.deserialize(value)
             self.child_views.append((name, view))
 

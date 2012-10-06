@@ -87,7 +87,7 @@ class App(object):
     def deserialize(self, serialized):
         serialized_routing_policy = serialized["routing_policy"]
         routing_policy_type = prambanan.load_module_attr(serialized_routing_policy["qname"])
-        routing_policy = prambanan.JS("new routing_policy_type()")
+        routing_policy = prambanan.ctor(routing_policy_type)()
         routing_policy.deserialize(self, serialized_routing_policy["value"])
         self.routing_policy = routing_policy
 
@@ -95,7 +95,7 @@ class App(object):
         for serialized_property in serialized_properties:
             property_name = serialized_property["name"]
             property_type = prambanan.load_module_attr(serialized_property["qname"])
-            property = prambanan.JS("new property_type()")
+            property = prambanan.ctor(property_type)()
             property.deserialize(serialized_property["value"])
             self.add_property(property_name, property)
 

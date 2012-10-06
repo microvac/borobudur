@@ -95,7 +95,7 @@ class PageOpener(object):
         self.i = 0
         for dumped_page in dumped_pages:
             page_type = prambanan.load_module_attr(dumped_page["qname"])
-            page = prambanan.JS("new page_type(self.request)")
+            page = prambanan.ctor(page_type)(self.request)
             page.parent_page = self.leaf_page
             page.deserialize(dumped_page["value"])
             self.active_pages.append(page)
@@ -285,7 +285,7 @@ class Page(object):
             view_el = ElQuery("[data-view-id='%s']" % view_id,self.request.document)
             view_type = prambanan.load_module_attr(view_qname)
             cloned_el = ElQuery(cloned_html)
-            view = prambanan.JS("new view_type(self, view_el[0], null)")
+            view = prambanan.ctor(view_type)(self, view_el[0], None)
             view.deserialize(view_value)
             self.views.append((view_selector, view, cloned_el))
 
