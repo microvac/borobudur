@@ -285,14 +285,17 @@ class Page(object):
                 model.set(model.parse(attrs))
             self.models[name] = model
 
-        for view_selector, view_id, view_qname, dotted_model_name, view_value in serialized["views"]:
+        for view_selector, view_id, view_qname, dotted_model_name, cloned_html, view_value in serialized["views"]:
             view_el = ElQuery("[data-view-id='%s']" % view_id,self.request.document)
             view_type = prambanan.load_module_attr(view_qname)
             view_model = borobudur.dotted_subscript(self.models, dotted_model_name)
+            cloned_el = ElQuery(cloned_html)
             view = prambanan.JS("new view_type(self, view_el[0], view_model)")
-            self.views.append((view_selector, view, view_el.clone(), dotted_model_name))
+            self.views.append((view_selector, view, cloned_el, dotted_model_name))
 
     def dump(self):
+        import json
+        import StringIO
         results = {}
 
         results["models"] = {}
@@ -310,7 +313,10 @@ class Page(object):
         results["views"] = []
         for view_selector, view, cloned_el, dotted_model_name in self.views:
             view.q_el.attr("data-view-id", str(view.id))
-            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), dotted_model_name, view.dump()))
+            div = ElQuery("<div></div>")
+            div.append(cloned_el)
+            out = StringIO.StringIO()
+            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), dotted_model_name, div.html(), view.dump()))
 
         return results
 
@@ -338,11 +344,10 @@ class Page(object):
         q_el = els
 
         #clone to replace later when removed
-        #pyquery buggy on cloned though, so don't clone on server
+        #pyquery buggy on cloned though, so after cloning, find q_el again
+        cloned_el = q_el.clone()
         if borobudur.is_server:
-            cloned_el = q_el
-        else:
-            cloned_el = q_el.clone()
+            q_el = ElQuery(selector, self.request.document)
 
         view = view_type(self, q_el[0], model)
 

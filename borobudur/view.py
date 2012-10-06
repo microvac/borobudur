@@ -1,3 +1,4 @@
+from borobudur.model import Model
 import prambanan
 import borobudur
 import pramjs.underscore as underscore
@@ -95,10 +96,12 @@ class View(object):
         return self.parent.parent_page() if hasattr(self.parent, "parent_page") else self.parent
 
     def render_form(self, name, dotted_model_name):
-        if dotted_model_name is not None:
-            model = borobudur.dotted_subscript(self.model, dotted_model_name)
-        else:
+        if dotted_model_name is None:
+            model = Model()
+        elif dotted_model_name == "":
             model = self.model
+        else:
+            model = borobudur.dotted_subscript(self.model, dotted_model_name)
 
         form_type = self.forms[name]
         if not form_type:
@@ -127,17 +130,23 @@ class View(object):
         return el
 
     def render_child(self, name, dotted_model_name, tag="div"):
-        if dotted_model_name is not None:
-            model = borobudur.dotted_subscript(self.model, dotted_model_name)
-        else:
+        if dotted_model_name is None:
+            model = Model()
+        elif dotted_model_name == "":
             model = self.model
+        else:
+            model = borobudur.dotted_subscript(self.model, dotted_model_name)
 
         child_view_type = self.children[name]
         if not child_view_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
 
         el = borobudur.query_el("<%s></%s>"% (tag, tag))[0]
-        child_view = prambanan.JS("new child_view_type(self, el, model)")
+        if borobudur.is_server:
+            child_view = child_view_type(self, el, model)
+        else:
+            child_view = prambanan.JS("new child_view_type(self, el, model)")
+        child_view.render()
         self.child_views.append((name, child_view, dotted_model_name))
         return el
 
@@ -224,7 +233,7 @@ class View(object):
         results["child_views"] = []
         for name, child_view, dotted_model_name in self.child_views:
             child_view.q_el.attr("data-view-id", str(child_view.id))
-            results["views"].append((name, child_view.id, borobudur.get_qname(child_view.__class__), dotted_model_name, child_view.dump()))
+            results["child_views"].append((name, child_view.id, borobudur.get_qname(child_view.__class__), dotted_model_name, child_view.dump()))
 
         return results
 

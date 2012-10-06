@@ -254,7 +254,7 @@ bootstrap_template = """
         var app = new app_class(app_root, null, routes, settings);
         app.load(serialized);
 
-        for(var i = 0; i &lt; subscribers.length; i++){
+        for(var i = 0; i < subscribers.length; i++){
             load(subscribers[i])(app_name, app, loaded_assets, handler_type_id);
         }
         app.router.bootstrap(loaded_packs, pack_map, pack_urls);
@@ -369,8 +369,9 @@ class AssetManager(object):
 
             to_json(assets),
         )
-        q_bootstrap = PyQuery(etree.Element("script")).html(bootstrap)
-        q_body.append(q_bootstrap)
+        script = etree.Element("script")
+        script.text = etree.CDATA(bootstrap)
+        q_body.append(script)
 
     def get_all_bundles(self, packs, styles):
         for name, bundle in self.packs_to_bundles(packs):

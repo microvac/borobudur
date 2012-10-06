@@ -160,7 +160,6 @@ var Router = (function(){
                 return;
             }
             options = options || {trigger: true}
-            this.app.render_state.load_info = false;
             history.navigate(fragment, options);
         },
 
