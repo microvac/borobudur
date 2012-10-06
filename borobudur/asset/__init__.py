@@ -11,7 +11,7 @@ from webassets import Environment
 from webassets.updater import SKIP_CACHE
 from webassets.version import TimestampVersion
 from borobudur.asset import magic
-from borobudur.asset.less_import_parser import get_all_less
+from borobudur.asset.less_import_parser import is_any_modified_after
 from borobudur.interfaces import IAssetCalculator
 
 from prambanan.cmd import generate_modules, create_args, translate_parser, show_parse_error,walk_imports, get_available_modules, modules_changed, get_overridden_types
@@ -100,6 +100,10 @@ class Pack(object):
 
 class LessBundle(SelfCheckingBundle):
 
+    def __init__(self, *args, **kwargs):
+        self._less_cache = {}
+        super(LessBundle, self).__init__(*args, **kwargs)
+
     def needs_rebuild(self, env):
         try:
             resolved_output = self.resolve_output(env)
@@ -107,11 +111,8 @@ class LessBundle(SelfCheckingBundle):
         except OSError:
             return SKIP_CACHE
         for content in self.contents:
-            all_less = get_all_less(os.path.join(env.directory, content))
-            for less in all_less:
-                o_less = TimestampVersion.get_timestamp(less)
-                if o_less > o_modified:
-                    return SKIP_CACHE
+            if is_any_modified_after(os.path.join(env.directory, content), self._less_cache, o_modified):
+                return SKIP_CACHE
         return False
 
 class SimplePackCalculator(object):
