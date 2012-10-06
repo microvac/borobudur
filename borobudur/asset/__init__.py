@@ -283,7 +283,9 @@ class AssetManager(object):
             prambanan_result_subdir = ".pram"
 
         self.env = Environment(base_result_dir, base_result_url)
-        self.style_assets = {}
+
+        self.styles_bundles = {}
+        self.packs_bundles = {}
 
         self.result_subdir = result_subdir
         self.prambanan_result_subdir = prambanan_result_subdir
@@ -300,10 +302,15 @@ class AssetManager(object):
             return prev_needs_rebuild(bundle, env)
         updater.needs_rebuild = needs_rebuild
 
+
     def define_style(self, id, type, output, *contents):
         if type not in ["less", "css"]:
             raise ValueError("type %s is not supported" % type)
-        self.style_assets[id] = (type, output, contents)
+
+        if type == "less":
+             self.styles_bundles[id] = LessBundle(*contents, filters="less", output=output)
+        else:
+             self.styles_bundles[id] = Bundle(*contents, output=output)
 
     def configure_with_npm(self):
         if os.name == "nt":
@@ -323,7 +330,7 @@ class AssetManager(object):
 
         subscribers =  request.app_config.get_bootstrap_subscribers(request.registry)
         packs = list(calculator.calculate_one(handler_type_id))
-        styles = self.style_assets.keys()
+        styles = self.styles_bundles.keys()
 
         assets = {"js":{}, "css":{}}
 
@@ -388,17 +395,17 @@ class AssetManager(object):
             if not pack.modules:
                 continue
 
-            if self.is_production:
-                yield pack.name, PrambananModuleBundle(os.path.join(self.prambanan_result_subdir, pack.name),
-                    self.manager, pack, self.overridden_types, output="%s/%s.js"%(self.result_subdir, pack.name), filters="uglifyjs")
+            if pack.name in self.packs_bundles:
+                bundle = self.packs_bundles[pack.name]
             else:
-                yield pack.name, PrambananModuleBundle(os.path.join(self.prambanan_result_subdir, pack.name), self.manager, pack, self.overridden_types)
+                if self.is_production:
+                    bundle = PrambananModuleBundle(os.path.join(self.prambanan_result_subdir, pack.name),
+                        self.manager, pack, self.overridden_types, output="%s/%s.js"%(self.result_subdir, pack.name), filters="uglifyjs")
+                else:
+                    bundle = PrambananModuleBundle(os.path.join(self.prambanan_result_subdir, pack.name), self.manager, pack, self.overridden_types)
+                self.packs_bundles[pack.name] = bundle
+            yield pack.name, bundle
 
     def styles_to_bundles(self, ids):
         for id in ids:
-            type, output, contents = self.style_assets[id]
-            output = "%s/%s" % (self.result_subdir, output)
-            if type == "less":
-                yield id, LessBundle(*contents, filters="less", output=output)
-            else:
-                yield id, Bundle(*contents, output=output)
+            yield id, self.styles_bundles[id]
