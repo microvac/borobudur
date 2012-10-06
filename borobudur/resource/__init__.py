@@ -249,6 +249,9 @@ class Resourcer(object):
 
     fetch = server_fetch if borobudur.is_server else client_fetch
 
+    def on_new_request(self):
+        self.model_caches = {}
+
     def service(self, id, attr, success=None, error=None):
         return ServiceInvoker(self, id, attr, success, error)
 
@@ -262,7 +265,7 @@ class Resourcer(object):
         self.resources_root = serialized["resources_root"]
         self.model_caches = serialized["model_caches"]
 
-class ResourcerFactory(object):
+class ResourcerProperty(object):
 
     def __init__(self, resources_name, resources_root):
         self.resources_name = resources_name

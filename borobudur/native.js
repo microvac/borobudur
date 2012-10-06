@@ -55,6 +55,7 @@ var Router = (function(){
         __init__: function(app, options){
             this.app = app
             this.options = {};
+            this.started = false;
 
             _.each(app.routes, function(current){
                 var route = current[0];
@@ -78,6 +79,8 @@ var Router = (function(){
 
             this.request = {app: this.app, document: document};
             history.start({pushState: true, root:this.app.root});
+
+            this.started = true;
         },
 
         route: function(route, name, handler_id) {
@@ -85,8 +88,11 @@ var Router = (function(){
             route = this._routeToRegExp(route);
 
             history.route(route, _.bind(function(fragment) {
+                var self = this;
+
                 this.app.model_caches = {}
-                var callbacks = {"success": function(){}};
+                var callbacks = {"success": function(){
+                }};
                 this.request.matchdict = this._extractParameters(route, fragment);
 
                 //save last route, used on refresh
@@ -96,9 +102,12 @@ var Router = (function(){
                     callbacks: callbacks
                 }
 
-                var self = this;
-
                 function apply(){
+                    if (self.started){
+                        for (var i = 0; i < self.app.property_names.length; i++){
+                            self.app[self.app.property_names[i]].on_new_request(self.request);
+                        }
+                    }
                     self.app.routing_policy.apply(self.request, handler_id,  callbacks);
                     self.trigger.call(self, ['route:' + name], self.request);
                     history.trigger('route', self, name, self.request);

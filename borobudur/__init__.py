@@ -101,6 +101,46 @@ class App(object):
 
         self.counter = serialized["counter"]
 
+class AppEvents(object):
+
+    def __init__(self):
+        self._callbacks = {}
+
+    def on_new_request(self, request):
+        self._callbacks = {}
+
+    def serialize(self):
+        return {}
+
+    def deserialize(self, serialized):
+        pass
+
+    def on(self, name, callback):
+        if not name in self._callbacks:
+            self._callbacks[name] = []
+        self._callbacks[name].append(callback)
+        return self
+
+    def off(self, name, callback):
+        if not name in self._callbacks:
+            self._callbacks[name] = []
+        callbacks = self._callbacks[name]
+        for i in xrange(len(callbacks) - 1, -1, -1):
+            if callbacks[i] == callback:
+                del callbacks[i]
+        return self
+
+    def trigger(self, name, *args):
+        if name in self._callbacks:
+            for callbacks in self._callbacks[name]:
+                callbacks(*args)
+        return self
+
+class AppEventsProperty(object):
+
+    def __call__(self, request, app):
+        return AppEvents()
+
 class RouteRedirectException(Exception):
 
     def __init__(self, url):
