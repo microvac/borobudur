@@ -252,7 +252,7 @@ bootstrap_template = """
 
         var app_class = prambanan.import("borobudur").App;
         var app = new app_class(app_root, null, routes, settings);
-        app.load(serialized);
+        app.deserialize(serialized);
 
         for(var i = 0; i < subscribers.length; i++){
             load(subscribers[i])(app_name, app, loaded_assets, handler_type_id);
@@ -358,7 +358,7 @@ class AssetManager(object):
 
             to_json(request.app.root),
             to_json(request.app.routes),
-            to_json(request.app.dump()),
+            to_json(request.app.serialize()),
 
             to_json(loaded_packs),
             to_json(calculator.pack_map),

@@ -252,13 +252,13 @@ class Resourcer(object):
     def service(self, id, attr, success=None, error=None):
         return ServiceInvoker(self, id, attr, success, error)
 
-    def dump(self):
+    def serialize(self):
         results = {}
         results["resources_root"] = self.resources_root
         results["model_caches"] = self.model_caches
         return results
 
-    def load(self, serialized):
+    def deserialize(self, serialized):
         self.resources_root = serialized["resources_root"]
         self.model_caches = serialized["model_caches"]
 
@@ -280,7 +280,7 @@ class ModelDumper(object):
         self.resourcer = resourcer
         self.models = {}
 
-    def dump_model(self, model):
+    def dump(self, model):
         if model is None:
             return None
 
@@ -290,13 +290,13 @@ class ModelDumper(object):
             self.models[model.cid] = model
         return model.cid
 
-    def load_model(self, cid):
+    def load(self, cid):
         if cid is None:
             return None
 
         return self.models[cid]
 
-    def load(self, serialized):
+    def deserialize(self, serialized):
         self.models = {}
         for cid in serialized:
             is_collection, qname, attrs = serialized[cid]
@@ -313,7 +313,7 @@ class ModelDumper(object):
                 model.set(model.parse(attrs))
             self.models[cid] = model
 
-    def dump(self):
+    def serialize(self):
         results = {}
         for cid in self.models:
             model = self.models[cid]

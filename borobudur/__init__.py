@@ -61,19 +61,19 @@ class App(object):
         self.property_names.append(name)
         setattr(self, name, value)
 
-    def dump(self):
+    def serialize(self):
         results = {}
 
         routing_policy = {}
         routing_policy["qname"] = get_qname(self.routing_policy.__class__)
-        routing_policy["value"] = self.routing_policy.dump(self)
+        routing_policy["value"] = self.routing_policy.serialize(self)
         results["routing_policy"] = routing_policy
 
         properties = []
         for property_name in self.property_names:
             property = getattr(self, property_name)
             property_qname = get_qname(property.__class__)
-            property_value = property.dump()
+            property_value = property.serialize()
             properties.append({
                 "name": property_name,
                 "qname": property_qname,
@@ -84,11 +84,11 @@ class App(object):
 
         return results
 
-    def load(self, serialized):
+    def deserialize(self, serialized):
         serialized_routing_policy = serialized["routing_policy"]
         routing_policy_type = prambanan.load_module_attr(serialized_routing_policy["qname"])
         routing_policy = prambanan.JS("new routing_policy_type()")
-        routing_policy.load(self, serialized_routing_policy["value"])
+        routing_policy.deserialize(self, serialized_routing_policy["value"])
         self.routing_policy = routing_policy
 
         serialized_properties = serialized["properties"]
@@ -96,7 +96,7 @@ class App(object):
             property_name = serialized_property["name"]
             property_type = prambanan.load_module_attr(serialized_property["qname"])
             property = prambanan.JS("new property_type()")
-            property.load(serialized_property["value"])
+            property.deserialize(serialized_property["value"])
             self.add_property(property_name, property)
 
         self.counter = serialized["counter"]

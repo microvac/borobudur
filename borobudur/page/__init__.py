@@ -40,20 +40,20 @@ class PageRoutingPolicy(object):
         if not hasattr(request.app, "model_dumper"):
             setattr(request.app, "model_dumper", ModelDumper(request.app, request.app.resourcer))
             if hasattr(request.app, "dumped_model_dumper"):
-                request.app.model_dumper.load(request.app.dumped_model_dumper)
+                request.app.model_dumper.deserialize(request.app.dumped_model_dumper)
                 prambanan.JS("delete request.app.dumped_model_dumper")
 
         request.app.opener.apply(request, handler_id, callbacks)
 
-    def dump(self, app):
+    def serialize(self, app):
         results = {}
-        results["opener"] = app.opener.dump()
-        results["models"] = app.model_dumper.dump()
+        results["opener"] = app.opener.serialize()
+        results["models"] = app.model_dumper.serialize()
         return results
 
-    def load(self, app, serialized):
+    def deserialize(self, app, serialized):
         app.opener = PageOpener()
-        app.opener.load(serialized["opener"])
+        app.opener.deserialize(serialized["opener"])
         app.dumped_model_dumper = serialized["models"]
 
 class PageOpener(object):
@@ -97,7 +97,7 @@ class PageOpener(object):
             page_type = prambanan.load_module_attr(dumped_page["qname"])
             page = prambanan.JS("new page_type(self.request)")
             page.parent_page = self.leaf_page
-            page.load(dumped_page["value"])
+            page.deserialize(dumped_page["value"])
             self.active_pages.append(page)
             self.leaf_page = page
             self.i += 1
@@ -182,16 +182,16 @@ class PageOpener(object):
         self.i -= 1
         self.callbacks.success()
 
-    def load(self, serialized):
+    def deserialize(self, serialized):
         self.dumped = serialized
 
-    def dump(self):
+    def serialize(self):
         results = {}
         pages = []
         for page in self.active_pages:
             ser_page = {}
             ser_page["qname"] = borobudur.get_qname(page.__class__)
-            ser_page["value"] = page.dump()
+            ser_page["value"] = page.serialize()
             pages.append(ser_page)
 
         page_types = []
@@ -276,20 +276,20 @@ class Page(object):
     def open(self):
         pass
 
-    def load(self, serialized):
+    def deserialize(self, serialized):
         for name in serialized["models"]:
             model_cid = serialized["models"][name]
-            self.models[name] = self.app.model_dumper.load_model(model_cid)
+            self.models[name] = self.app.model_dumper.load(model_cid)
 
         for view_selector, view_id, view_qname, cloned_html, view_value in serialized["views"]:
             view_el = ElQuery("[data-view-id='%s']" % view_id,self.request.document)
             view_type = prambanan.load_module_attr(view_qname)
             cloned_el = ElQuery(cloned_html)
             view = prambanan.JS("new view_type(self, view_el[0], null)")
-            view.load(view_value)
+            view.deserialize(view_value)
             self.views.append((view_selector, view, cloned_el))
 
-    def dump(self):
+    def serialize(self):
         import json
         import StringIO
         results = {}
@@ -297,7 +297,7 @@ class Page(object):
         results["models"] = {}
         for name in self.models:
             model = self.models[name]
-            results["models"][name] = self.app.model_dumper.dump_model(model)
+            results["models"][name] = self.app.model_dumper.dump(model)
 
         results["views"] = []
         for view_selector, view, cloned_el in self.views:
@@ -305,7 +305,7 @@ class Page(object):
             div = ElQuery("<div></div>")
             div.append(cloned_el)
             out = StringIO.StringIO()
-            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), div.html(), view.dump()))
+            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), div.html(), view.serialize()))
 
         return results
 
