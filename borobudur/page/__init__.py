@@ -1,5 +1,5 @@
 from borobudur.model import Model, fetch_children, Collection
-from borobudur.resource import fetch_col_children
+from borobudur.resource import fetch_col_children, ModelDumper
 import prambanan
 import borobudur
 from borobudur.page.loaders import Loaders
@@ -37,17 +37,24 @@ class PageRoutingPolicy(object):
     def apply(self, request, handler_id, callbacks):
         if not hasattr(request.app, "opener"):
             setattr(request.app, "opener", PageOpener())
+        if not hasattr(request.app, "model_dumper"):
+            setattr(request.app, "model_dumper", ModelDumper(request.app, request.app.resourcer))
+            if hasattr(request.app, "dumped_model_dumper"):
+                request.app.model_dumper.load(request.app.dumped_model_dumper)
+                prambanan.JS("delete request.app.dumped_model_dumper")
 
         request.app.opener.apply(request, handler_id, callbacks)
 
     def dump(self, app):
         results = {}
         results["opener"] = app.opener.dump()
+        results["models"] = app.model_dumper.dump()
         return results
 
     def load(self, app, serialized):
         app.opener = PageOpener()
         app.opener.load(serialized["opener"])
+        app.dumped_model_dumper = serialized["models"]
 
 class PageOpener(object):
     """
@@ -271,27 +278,16 @@ class Page(object):
 
     def load(self, serialized):
         for name in serialized["models"]:
-            qname, is_collection, attrs = serialized["models"][name]
-            model_type = prambanan.load_module_attr(qname)
-            def _success(attrs):
-                pass
-            if is_collection:
-                model = Collection(model_type)
-                fetch_col_children(model_type, attrs, self.app.resourcer, _success)
-                model.reset(model.parse(attrs))
-            else:
-                model = prambanan.JS("new model_type()")
-                fetch_children(model_type, attrs, self.app.resourcer, _success)
-                model.set(model.parse(attrs))
-            self.models[name] = model
+            model_cid = serialized["models"][name]
+            self.models[name] = self.app.model_dumper.load_model(model_cid)
 
-        for view_selector, view_id, view_qname, dotted_model_name, cloned_html, view_value in serialized["views"]:
+        for view_selector, view_id, view_qname, cloned_html, view_value in serialized["views"]:
             view_el = ElQuery("[data-view-id='%s']" % view_id,self.request.document)
             view_type = prambanan.load_module_attr(view_qname)
-            view_model = borobudur.dotted_subscript(self.models, dotted_model_name)
             cloned_el = ElQuery(cloned_html)
-            view = prambanan.JS("new view_type(self, view_el[0], view_model)")
-            self.views.append((view_selector, view, cloned_el, dotted_model_name))
+            view = prambanan.JS("new view_type(self, view_el[0], null)")
+            view.load(view_value)
+            self.views.append((view_selector, view, cloned_el))
 
     def dump(self):
         import json
@@ -301,26 +297,19 @@ class Page(object):
         results["models"] = {}
         for name in self.models:
             model = self.models[name]
-            if isinstance(model, Model):
-                is_collection = False
-                qname = borobudur.get_qname(model.__class__)
-            else:
-                is_collection = True
-                qname = borobudur.get_qname(model.model)
-            attrs = model.toJSON()
-            results["models"][name] = (qname, is_collection, attrs)
+            results["models"][name] = self.app.model_dumper.dump_model(model)
 
         results["views"] = []
-        for view_selector, view, cloned_el, dotted_model_name in self.views:
+        for view_selector, view, cloned_el in self.views:
             view.q_el.attr("data-view-id", str(view.id))
             div = ElQuery("<div></div>")
             div.append(cloned_el)
             out = StringIO.StringIO()
-            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), dotted_model_name, div.html(), view.dump()))
+            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), div.html(), view.dump()))
 
         return results
 
-    def add_view(self, selector, view_type, dotted_model_name):
+    def add_view(self, selector, view_type, model):
         """
         add view to document
 
@@ -335,8 +324,6 @@ class Page(object):
         prambanan:type view_type c(borobudur.view:View)
 
         """
-
-        model = borobudur.dotted_subscript(self.models, dotted_model_name)
 
         els = ElQuery(selector, self.request.document)
         if not els.length:
@@ -353,20 +340,20 @@ class Page(object):
 
         view.render()
 
-        self.views.append((selector, view, cloned_el, dotted_model_name))
+        self.views.append((selector, view, cloned_el))
 
     def get_view(self, selector):
         """
         get previously added view
         """
-        for view_selector, view, cloned_el, dotted_model_name in self.views:
+        for view_selector, view, cloned_el in self.views:
             if selector == view_selector:
                 return view
         return None
 
     def destroy(self):
         reversed_views = reversed(self.views)
-        for selector, view, cloned_el, dotted_model_name in reversed_views:
+        for selector, view, cloned_el in reversed_views:
             view.el_query().replaceWith(cloned_el)
             view.remove()
 

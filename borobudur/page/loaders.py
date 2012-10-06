@@ -1,6 +1,6 @@
 import borobudur
-from borobudur.model import Model, fetch_children
-from borobudur.resource import fetch_col_children
+from borobudur.model import Model
+from borobudur.resource import fetch_col_children, fetch_children
 import prambanan
 from pramjs import underscore
 

@@ -84,7 +84,7 @@ class View(object):
         return self
 
     def remove(self):
-        for name, child_view, dotted_model_name in self.child_views:
+        for name, child_view in self.child_views:
             child_view.remove()
         self.child_views = []
 
@@ -95,14 +95,7 @@ class View(object):
     def parent_page(self):
         return self.parent.parent_page() if hasattr(self.parent, "parent_page") else self.parent
 
-    def render_form(self, name, dotted_model_name):
-        if dotted_model_name is None:
-            model = Model()
-        elif dotted_model_name == "":
-            model = self.model
-        else:
-            model = borobudur.dotted_subscript(self.model, dotted_model_name)
-
+    def render_form(self, name, model):
         form_type = self.forms[name]
         if not form_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
@@ -125,18 +118,11 @@ class View(object):
             form.add_event_handler(event_name, make_handler(handler))
 
         el = form.render(model)
-        self.child_forms.append((name, form, dotted_model_name))
+        self.child_forms.append((name, form, model))
 
         return el
 
-    def render_child(self, name, dotted_model_name, tag="div"):
-        if dotted_model_name is None:
-            model = Model()
-        elif dotted_model_name == "":
-            model = self.model
-        else:
-            model = borobudur.dotted_subscript(self.model, dotted_model_name)
-
+    def render_child(self, name, model, tag="div"):
         child_view_type = self.children[name]
         if not child_view_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
@@ -147,7 +133,7 @@ class View(object):
         else:
             child_view = prambanan.JS("new child_view_type(self, el, model)")
         child_view.render()
-        self.child_views.append((name, child_view, dotted_model_name))
+        self.child_views.append((name, child_view))
         return el
 
     def get_child_model(self, child_name):
@@ -220,20 +206,20 @@ class View(object):
         return results
 
     def load(self, serialized):
-        for name, id, qname, dotted_model_name, value in serialized["child_views"]:
+        self.model = self.app.model_dumper.load_model(serialized["model"])
+        for name, id, qname, value in serialized["child_views"]:
             view_el = self.el_query("[data-view-id='%s']")
             view_type = prambanan.load_module_attr(qname)
-            view_model = borobudur.dotted_subscript(self.model, dotted_model_name)
-            view = prambanan.JS("new view_type(self, view_el[0], view_model)")
-            self.child_views.append((name, view, dotted_model_name))
+            view = prambanan.JS("new view_type(self, view_el[0], null)")
+            view.load(value)
+            self.child_views.append((name, view))
 
     def dump(self):
         results = {}
-
+        results["model"] = self.app.model_dumper.dump_model(self.model)
         results["child_views"] = []
-        for name, child_view, dotted_model_name in self.child_views:
+        for name, child_view in self.child_views:
             child_view.q_el.attr("data-view-id", str(child_view.id))
-            results["child_views"].append((name, child_view.id, borobudur.get_qname(child_view.__class__), dotted_model_name, child_view.dump()))
-
+            results["child_views"].append((name, child_view.id, borobudur.get_qname(child_view.__class__), child_view.dump()))
         return results
 

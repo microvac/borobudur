@@ -139,7 +139,7 @@ def client_sync (method, model, resourcer, success=None, error=None):
         if isinstance(model, Model):
             fetch_children(model.__class__, attrs, resourcer, _success)
         else:
-            fetch_col_children(model.model.__class__, attrs, resourcer, _success)
+            fetch_col_children(model.model, attrs, resourcer, _success)
 
     options = {}
     options.success = fetch_success
@@ -271,3 +271,57 @@ class ResourcerFactory(object):
     def __call__(self, request, app):
         request.context.resources_name = self.resources_name
         return Resourcer(request, self.resources_name, self.resources_root)
+
+
+class ModelDumper(object):
+
+    def __init__(self, app, resourcer):
+        self.app = app
+        self.resourcer = resourcer
+        self.models = {}
+
+    def dump_model(self, model):
+        if model is None:
+            return None
+
+        if model.cid is None:
+            model.cid = self.app.next_count()
+        if model.cid not in self.models:
+            self.models[model.cid] = model
+        return model.cid
+
+    def load_model(self, cid):
+        if cid is None:
+            return None
+
+        return self.models[cid]
+
+    def load(self, serialized):
+        self.models = {}
+        for cid in serialized:
+            is_collection, qname, attrs = serialized[cid]
+            model_type = prambanan.load_module_attr(qname)
+            def _success(attrs):
+                pass
+            if is_collection:
+                model = Collection(model_type)
+                fetch_col_children(model_type, attrs, self.app.resourcer, _success)
+                model.reset(model.parse(attrs))
+            else:
+                model = prambanan.JS("new model_type()")
+                fetch_children(model_type, attrs, self.app.resourcer, _success)
+                model.set(model.parse(attrs))
+            self.models[cid] = model
+
+    def dump(self):
+        results = {}
+        for cid in self.models:
+            model = self.models[cid]
+            is_collection = isinstance(model, Collection)
+            if is_collection:
+                qname = borobudur.get_qname(model.model)
+            else:
+                qname = borobudur.get_qname(model.__class__)
+            attrs = model.toJSON()
+            results[cid] = (is_collection, qname, attrs)
+        return results
