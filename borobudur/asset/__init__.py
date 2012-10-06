@@ -10,8 +10,8 @@ from webassets.bundle import Bundle
 from webassets import Environment
 from webassets.updater import SKIP_CACHE
 from webassets.version import TimestampVersion
-from borobudur.less_import_parser import get_all_less
 from borobudur.asset import magic
+from borobudur.asset.less_import_parser import get_all_less
 from borobudur.interfaces import IAssetCalculator
 
 from prambanan.cmd import generate_modules, create_args, translate_parser, show_parse_error,walk_imports, get_available_modules, modules_changed, get_overridden_types
