@@ -9,162 +9,6 @@ from prambanan import get_template, JS
 class RefNode(colander.SchemaNode):
     pass
 
-def get_sync_options(options, app, success, error):
-    if options is None:
-        options = {}
-    options["app"] = app
-    options["success"] = success
-    options["error"] = error
-    return options
-
-methodMap = {
-    'create': 'POST',
-    'update': 'PUT',
-    'delete': 'DELETE',
-    'read':   'GET'
-};
-
-def fetch_from_cache(model_type, id, app):
-    model_cache = app.model_caches[model_type.model_url]
-    if not model_cache:
-        return None
-    result = model_cache[id]
-    if result:
-        return result
-    else:
-        return None
-
-def save_to_cache(model_type, attrs, app):
-    model_cache = app.model_caches[model_type.model_url]
-    if not model_cache:
-        model_cache = {}
-        app.model_caches[model_type.model_url] = model_cache
-    id = attrs[model_type.id_attribute]
-    model_cache[id] = attrs
-
-def fetch_children(model_type, attrs, app, success):
-    fetch_count = 0
-
-    started = False
-
-    def item_success():
-        global fetch_count
-        fetch_count -= 1
-        if fetch_count == 0 and started:
-            success()
-
-    for child_schema in model_type.schema.children:
-        if isinstance(child_schema, ModelRefNode):
-            child_value = attrs[child_schema.name]
-            child_type = child_schema.typ.target
-
-            if child_value is not None:
-                if not isinstance(child_value, dict):
-                    def make_model_success(current_name):
-                        def child_success(child_attrs):
-                            attrs[current_name] = child_attrs
-                            item_success()
-                        return child_success
-
-                    child_id = child_value
-                    fetch_count += 1
-                    fetch_child(child_type, child_id, app, make_model_success(child_schema.name))
-                else:
-                    fetch_count += 1
-                    fetch_children(child_type, child_value, app, item_success)
-
-        if isinstance(child_schema, CollectionRefNode):
-            child_arr = attrs[child_schema.name]
-            child_type = child_schema.children[0].typ.target
-
-            if child_arr is None:
-                continue
-
-            for i in range(len(child_arr)):
-                child_value = child_arr[i]
-                if child_value is not None :
-                    if not isinstance(child_value, dict):
-                        child_id = child_value
-                        def make_col_success(current_i, current_arr):
-                            def child_success(child_attrs):
-                                current_arr[current_i] = child_attrs
-                                item_success()
-                            return child_success
-                        fetch_count += 1
-                        fetch_child(child_type, child_id, app, make_col_success(i, child_arr))
-                    else:
-                        fetch_count += 1
-                        fetch_children(child_type, child_value, app, item_success)
-
-    started = True
-    if fetch_count == 0:
-        success()
-
-def fetch_child(model_type, id, app, success):
-    cache = fetch_from_cache(model_type, id, app)
-    if cache is not None:
-        return success(cache)
-
-    def fetch_success(attrs):
-        def _success():
-            save_to_cache(model_type, attrs, app)
-            success(attrs)
-        fetch_children(model_type, attrs, app, _success)
-
-    params = {"type": "GET", "dataType": 'json'};
-    params.url = model_type.with_id(id).url(app)
-    params.success = fetch_success
-    return JS("$.ajax(params)")
-
-
-def borobudur_sync (method, model, options=None):
-    app = options["app"]
-
-    prev_success = options.success
-
-    def fetch_success(attrs):
-        if isinstance(model, Model):
-            def _success():
-                prev_success(attrs)
-            fetch_children(model.__class__, attrs, app, _success)
-        else:
-            count = 0
-            def col_success():
-                global count
-                count += 1
-                if count == len(attrs):
-                    prev_success(attrs)
-            for item_attrs in attrs:
-                fetch_children(model.model, item_attrs, app, col_success)
-            if len(attrs) == 0:
-                prev_success(attrs)
-
-    options.success = fetch_success
-
-    type = methodMap[method];
-    params = {"type": type, "dataType": 'json'};
-
-    url = model.url(options["app"])
-    query = {}
-    if options.query:
-        query = underscore.extend(options.query)
-    i = 0
-    for key in query:
-        url += "?" if i == 0 else "&"
-        url += "%s=%s" % (key, query[key])
-    params.url = url
-
-    if not options.data and model and (method == 'create' or method == 'update'):
-        params.contentType = 'application/json';
-        params.data = JS("JSON.stringify(model.toJSON())");
-
-    # Don't process data on a non-GET request.
-    if params.type != 'GET':
-        params.processData = False;
-
-    # Make the request, allowing the user to override any Ajax options.
-    return JS("$.ajax(_.extend(params, options))")
-
 class Model(backbone.Model):
     """
     """
@@ -174,8 +18,6 @@ class Model(backbone.Model):
 
     schema = MappingNode()
     model_url = None
-
-    sync = borobudur_sync
 
     def __init__(self, attributes=None, parent=None):
         self.parent = parent
@@ -264,14 +106,6 @@ class Model(backbone.Model):
         return results
 
 
-    def fetch(self, app, success=None, error=None, options=None):
-        options = get_sync_options(options, app, success, error)
-        super(Model, self).fetch(options)
-
-    def save(self, app, attributes, success=None, error=None, options=None):
-        options = get_sync_options(options, app, success, error)
-        super(Model, self).save(attributes, options)
-
     @staticmethod
     def serialize_queries(queries):
         return {}
@@ -308,8 +142,6 @@ class Model(backbone.Model):
 
 class Collection(backbone.Collection):
 
-    sync = borobudur_sync
-
     def __init__(self, model=Model, models=None):
         if models is None:
             models = []
@@ -331,11 +163,6 @@ class Collection(backbone.Collection):
             else:
                 next_model.trigger('sync', model, resp, options)
         model.save(app, wrapped_success, error, options)
-
-    def fetch(self, app, success=None, error=None, options=None):
-        options = get_sync_options(options, app, success, error)
-        options["query"] = self.query
-        super(Collection, self).fetch(options)
 
     def _prepareModel(self, model, options=None):
         if type(model) != self.model:

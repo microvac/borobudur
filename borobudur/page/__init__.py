@@ -1,5 +1,4 @@
-from borobudur.model import Model, fetch_children, Collection
-from borobudur.resource import fetch_col_children, ModelDumper
+from borobudur.resource import ModelDumper
 import prambanan
 import borobudur
 from borobudur.page.loaders import Loaders
@@ -281,17 +280,16 @@ class Page(object):
             model_cid = serialized["models"][name]
             self.models[name] = self.app.model_dumper.load(model_cid)
 
-        for view_selector, view_id, view_qname, cloned_html, view_value in serialized["views"]:
+        for view_selector, view_id, view_qname, view_model_cid, cloned_html, view_value in serialized["views"]:
             view_el = ElQuery("[data-view-id='%s']" % view_id,self.request.document)
             view_type = prambanan.load_module_attr(view_qname)
+            view_model = self.app.model_dumper.load(view_model_cid)
             cloned_el = ElQuery(cloned_html)
-            view = prambanan.ctor(view_type)(self, view_el[0], None)
+            view = prambanan.ctor(view_type)(self, view_el[0], view_model)
             view.deserialize(view_value)
             self.views.append((view_selector, view, cloned_el))
 
     def serialize(self):
-        import json
-        import StringIO
         results = {}
 
         results["models"] = {}
@@ -304,8 +302,8 @@ class Page(object):
             view.q_el.attr("data-view-id", str(view.id))
             div = ElQuery("<div></div>")
             div.append(cloned_el)
-            out = StringIO.StringIO()
-            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), div.html(), view.serialize()))
+            model_cid = self.app.model_dumper.dump(view.model)
+            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), model_cid, div.html(), view.serialize()))
 
         return results
 

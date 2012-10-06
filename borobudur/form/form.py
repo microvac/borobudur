@@ -2,6 +2,7 @@ import borobudur
 import borobudur.form.widget as widget
 import borobudur.form.field as field
 import borobudur.form.template as template
+from borobudur.model import Model
 
 from borobudur.schema import MappingNode
 from prambanan import get_template
@@ -145,6 +146,10 @@ class Form(field.Field):
         :meth:`colander.SchemaNode.serialize` and
         :meth:`deform.widget.Widget.serialize` .
         """
+        if model is None:
+            model = Model()
+            model.schema = self.schema
+
         self.model = model
 
         cstruct = self.schema.serialize(model.attributes)

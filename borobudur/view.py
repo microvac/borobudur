@@ -200,20 +200,20 @@ class View(object):
         return results
 
     def deserialize(self, serialized):
-        self.model = self.app.model_dumper.load(serialized["model"])
-        for name, id, qname, value in serialized["child_views"]:
+        for name, id, qname, model_cid, value in serialized["child_views"]:
             view_el = self.el_query("[data-view-id='%s']")
             view_type = prambanan.load_module_attr(qname)
-            view = prambanan.ctor(view_type)(self, view_el[0], None)
+            view_model = self.app.model_dumper.load(model_cid)
+            view = prambanan.ctor(view_type)(self, view_el[0], view_model)
             view.deserialize(value)
             self.child_views.append((name, view))
 
     def serialize(self):
         results = {}
-        results["model"] = self.app.model_dumper.dump(self.model)
         results["child_views"] = []
         for name, child_view in self.child_views:
             child_view.q_el.attr("data-view-id", str(child_view.id))
-            results["child_views"].append((name, child_view.id, borobudur.get_qname(child_view.__class__), child_view.serialize()))
+            model_cid = self.app.model_dumper.dump(child_view.model)
+            results["child_views"].append((name, child_view.id, borobudur.get_qname(child_view.__class__), model_cid, child_view.serialize()))
         return results
 
