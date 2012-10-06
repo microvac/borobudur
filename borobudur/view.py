@@ -201,7 +201,7 @@ class View(object):
 
     def deserialize(self, serialized):
         for name, id, qname, model_cid, value in serialized["child_views"]:
-            view_el = self.el_query("[data-view-id='%s']")
+            view_el = self.el_query("[data-view-id='%s']" % id)
             view_type = prambanan.load_module_attr(qname)
             view_model = self.app.model_dumper.load(model_cid)
             view = prambanan.ctor(view_type)(self, view_el[0], view_model)

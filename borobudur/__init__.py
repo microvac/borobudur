@@ -101,3 +101,10 @@ class App(object):
 
         self.counter = serialized["counter"]
 
+class RouteRedirectException(Exception):
+
+    def __init__(self, url):
+        self.url = url
+        super(RouteRedirectException, self).__init__(url)
+
+
