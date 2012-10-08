@@ -211,7 +211,7 @@ class Form(field.Field):
         return results
 
     def fill_model(self):
-        appstruct = self.validate(self.element)
+        appstruct = self.validate(self.el)
         self.model.set(appstruct)
 
     def add_event_handler(self, name, handler):

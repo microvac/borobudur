@@ -76,7 +76,7 @@ default_template_map = {
     "sequence_item": get_template("zpt", ("borobudur", "form/templates/sequence_item.pt")),
     "textinput": get_template("zpt", ("borobudur", "form/templates/textinput.pt")),
     "password": get_template("zpt", ("borobudur", "form/templates/password.pt")),
-    "checked_password": get_template("zpt", ("borobudur", "form/templates/password.pt")),
+    "checked_password": get_template("zpt", ("borobudur", "form/templates/checked_password.pt")),
     "hidden": get_template("zpt", ("borobudur", "form/templates/hidden.pt")),
     "checkbox": get_template("zpt", ("borobudur", "form/templates/checkbox.pt")),
     "dateinput": get_template("zpt", ("borobudur", "form/templates/dateinput.pt")),
