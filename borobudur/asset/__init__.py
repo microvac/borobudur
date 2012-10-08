@@ -1,4 +1,6 @@
-import json
+try: import simplejson as json
+except ImportError: import json
+
 from lxml import etree
 import os
 import logging
@@ -270,9 +272,7 @@ bootstrap_template = """
 """
 
 def to_json(obj):
-    out = StringIO()
-    json.dump(obj, out)
-    return out.getvalue()
+    return json.dumps(obj)
 
 class AssetManager(object):
 

@@ -6,7 +6,11 @@ class ServiceExposer(object):
 
         def make_view(name):
             def view(request):
-                result =  getattr(service_type(request), name)()
+                json_body = request.json_body
+                args = []
+                if json_body is not None:
+                    args = json_body
+                result =  getattr(service_type(request), name)(*args)
                 if hasattr(result, "toJSON"):
                     return result.toJSON()
                 return result

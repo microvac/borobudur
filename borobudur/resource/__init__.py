@@ -195,8 +195,11 @@ class ServiceInvoker(object):
     def server_invoke(self, *args):
         service = self.resourcer.request.resources.get_service(self.service_id)
         method = getattr(service, self.service_attr)
-        result = method()
-        self.on_success(result.toJSON())
+        result = method(*args)
+        if hasattr(result, "toJSON"):
+            self.on_success(result.toJSON())
+        else:
+            self.on_success(result)
 
     invoke = server_invoke if borobudur.is_server else client_invoke
 
@@ -249,11 +252,20 @@ class Resourcer(object):
 
     fetch = server_fetch if borobudur.is_server else client_fetch
 
-    def on_new_request(self):
-        self.model_caches = {}
+    def save(self, model, success=None, error=None):
+        method = "create" if model.is_new() else "update"
+        def wrapped_success(resp, status, xhr):
+            if not model.set(model.parse(resp, xhr)):
+                return False;
+            if success:
+                success(model, resp);
+        return client_sync(method, model, self, wrapped_success, error)
 
     def service(self, id, attr, success=None, error=None):
         return ServiceInvoker(self, id, attr, success, error)
+
+    def on_new_request(self):
+        self.model_caches = {}
 
     def serialize(self):
         results = {}
