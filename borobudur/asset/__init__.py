@@ -39,6 +39,11 @@ class PrambananModuleBundle(SelfCheckingBundle):
 
         Bundle.__init__(self, **options)
 
+
+    @property
+    def is_container(self):
+        return False
+
     def generate(self, args, output_manager, modules):
         if len(modules) == 0:
             return
@@ -60,22 +65,21 @@ class PrambananModuleBundle(SelfCheckingBundle):
         if not os.path.exists(abs_dir):
             os.makedirs(abs_dir)
 
-        if getattr(self, '_resolved_contents', None) is None or force:
-            l = []
-            args = create_args(translate_parser, target=self.target)
-            output_manager.new_job()
+        l = []
+        args = create_args(translate_parser, target=self.target)
+        output_manager.new_job()
 
-            self.generate(args, output_manager, self.pack.modules)
+        self.generate(args, output_manager, self.pack.modules)
 
-            if output_manager.current_job_files:
-                logger.info("generated files: %s" % ",".join(output_manager.current_job_files))
+        if output_manager.current_job_files:
+            logger.info("generated files: %s" % ",".join(output_manager.current_job_files))
 
-            for file in output_manager.files:
-                name = os.path.join(self.target_dir, file).replace("\\", "/")
-                child = Bundle(name)
-                l.append((child, child))
+        for file in output_manager.files:
+            name = os.path.join(self.target_dir, file).replace("\\", "/")
+            result = env.resolver.resolve_source(name)
+            l.append((name, result))
 
-            self._resolved_contents = l
+        self._resolved_contents = l
         return self._resolved_contents
 
     def needs_rebuild(self, env):

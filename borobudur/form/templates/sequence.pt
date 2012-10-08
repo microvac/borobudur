@@ -4,12 +4,8 @@
                  item_tmpl field.widget.item_template;
                  min_len field.widget.min_len or 0;
                  max_len field.widget.max_len or 100000;
-                 now_len len(subfields)">
+                 now_len len(cstruct)">
 
-
-  <div class="deformSeqPrototype" style="display: none;">
-      <div tal:replace="structure field.widget.field_prototype(el, field)"></div>
-  </div>
 
   <!-- sequence -->
 
@@ -17,8 +13,8 @@
          class="deformProto"/>
 
     <div class="deformSeqContainer">
-        <div tal:repeat="tup subfields"
-             tal:replace="structure rndr.render(item_tmpl, tup[1], cstruct=tup[0],
+        <div tal:repeat="val cstruct"
+             tal:replace="structure rndr.render(item_tmpl, item_field, cstruct=val,
                           parent=field)"/>
 
         <span class="deformInsertBefore"

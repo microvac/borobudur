@@ -6,6 +6,7 @@ from borobudur.model import Model
 
 from borobudur.schema import MappingNode
 from prambanan import get_template
+from pramjs.elquery import ElQuery
 
 button_template = get_template('zpt', ('borobudur', 'form/templates/button.pt'))
 
@@ -99,8 +100,8 @@ class Form(field.Field):
     widgets_provider = widget.default_widgets_provider
     renderer = template.default_renderer
 
-    def __init__(self, action='', method='POST',
-                 formid='deform', **kw):
+    def __init__(self, app, action='', method='POST',
+                 **kw):
 
         schema = self.schema
 
@@ -117,12 +118,13 @@ class Form(field.Field):
                     new_schema.children.append(child)
             schema = new_schema
 
-        super(Form, self).__init__(schema, self.widgets_provider, self.renderer, **kw)
+        super(Form, self).__init__(app, schema, self.widgets_provider, self.renderer, **kw)
 
         self.action = action
         self.method = method
-        self.formid = formid
+        self.formid = "deform-%s" % self.order
         self.widget = widget.FormWidget()
+        self.el = None
         self.initialize()
 
     def initialize(self):
@@ -154,20 +156,71 @@ class Form(field.Field):
 
         cstruct = self.schema.serialize(model.attributes)
 
-        element = self.serialize(cstruct, readonly=readonly)
-        if self.element is not None:
-            borobudur.query_el(self.element).replaceWith(element)
-        self.element = element
+        el = self.serialize(cstruct, readonly=readonly)
 
-        return element
+        if self.el is not None:
+            borobudur.query_el(self.el).replaceWith(el)
+        self.el = el
+
+        self.bind(el)
+
+        return el
+
+    def attach(self, el, model, serialized, readonly=False):
+        """ Render the field (or form) to HTML using ``appstruct`` as
+        a set of default values.  ``appstruct`` is typically a
+        dictionary of application values matching the schema used by
+        this form, or ``None``.
+
+        Calling this method is the same as calling::
+
+           cstruct = form.schema.serialize(appstruct)
+           form.widget.serialize(field, cstruct)
+
+        The ``readonly`` argument causes the rendering to be entirely
+        read-only (no input elements at all).
+
+        See the documentation for
+        :meth:`colander.SchemaNode.serialize` and
+        :meth:`deform.widget.Widget.serialize` .
+        """
+        self.load(serialized)
+
+        if model is None:
+            model = Model()
+            model.schema = self.schema
+
+        self.model = model
+        self.el = el
+        self.formid = serialized["formid"]
+
+        self.bind(el)
+
+    def bind(self, el):
+        if borobudur.is_server:
+            return
+        super(Form, self).bind(el)
+        button_els = ElQuery(".form-actions button[name]", el).toArray()
+        for button_el in button_els:
+            q_button_el = ElQuery(button_el)
+            q_button_el.click(self.make_handler(q_button_el.attr("name")))
+
+    def dump(self):
+        results = super(Form, self).dump()
+        results["formid"] = self.formid
+        return results
 
     def fill_model(self):
         appstruct = self.validate(self.element)
         self.model.set(appstruct)
 
-
     def add_event_handler(self, name, handler):
         self.event.on(name, handler)
+
+    def make_handler(self, name):
+        def handler(ev):
+            self.event.trigger(name, ev)
+        return handler
 
 class Button(object):
     """
@@ -221,12 +274,6 @@ class Button(object):
         element = q_el[0]
         button_template.render(element, form.model, {"field":form, "button":self})
         result = q_el.children()[0]
-        if not borobudur.is_server:
-            borobudur.query_el(result).bind("click", self.make_handler(form))
         return result
 
-    def make_handler(self, form):
-        def handler(ev):
-            form.event.trigger(self.name, ev)
-        return handler
 

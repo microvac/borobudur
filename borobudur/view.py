@@ -100,8 +100,16 @@ class View(object):
         if not form_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
 
-        form = prambanan.ctor(form_type)()
+        form = prambanan.ctor(form_type)(self.app)
+        self._bind_form(form, name)
 
+
+        el = form.render(model)
+        self.child_forms.append((name, form, model))
+
+        return el
+
+    def _bind_form(self, form, name):
         form_handlers = self.find_decorated_form_handlers(name)
         for config, handler in form_handlers:
             _, event_name, prevent_default = config
@@ -110,14 +118,9 @@ class View(object):
                 def wrapped(ev):
                     if prevent_default:
                         ev.preventDefault()
-                        h(ev, form.model, form, form.element)
+                        h(ev, form.model, form, form.el)
                 return prambanan.wrap_on_error(wrapped)
             form.add_event_handler(event_name, make_handler(handler))
-
-        el = form.render(model)
-        self.child_forms.append((name, form, model))
-
-        return el
 
     def render_child(self, name, model, tag="div"):
         child_view_type = self.children[name]
@@ -201,12 +204,22 @@ class View(object):
 
     def deserialize(self, serialized):
         for name, id, qname, model_cid, value in serialized["child_views"]:
-            view_el = self.el_query("[data-view-id='%s']" % id)
+            view_el = self.el_query("[data-view-id='%s']" % id)[0]
             view_type = prambanan.load_module_attr(qname)
             view_model = self.app.model_dumper.load(model_cid)
-            view = prambanan.ctor(view_type)(self, view_el[0], view_model)
+            view = prambanan.ctor(view_type)(self, view_el, view_model)
             view.deserialize(value)
+            view.id = id
             self.child_views.append((name, view))
+
+        for name, formid, qname, model_cid, value in serialized["child_forms"]:
+            form_el = self.el_query("#%s" % formid)[0]
+            form_type = prambanan.load_module_attr(qname)
+            form_model = self.app.model_dumper.load(model_cid)
+            form = prambanan.ctor(form_type)(self.app)
+            self._bind_form(form, name)
+            form.attach(form_el, form_model, value)
+            self.child_forms.append((name, form, form_model))
 
     def serialize(self):
         results = {}
@@ -215,5 +228,11 @@ class View(object):
             child_view.q_el.attr("data-view-id", str(child_view.id))
             model_cid = self.app.model_dumper.dump(child_view.model)
             results["child_views"].append((name, child_view.id, borobudur.get_qname(child_view.__class__), model_cid, child_view.serialize()))
+
+        results["child_forms"] = []
+        for name, child_form, model in self.child_forms:
+            model_cid = self.app.model_dumper.dump(child_form.model)
+            results["child_forms"].append((name, child_form.formid, borobudur.get_qname(child_form.__class__), model_cid, child_form.dump()))
+
         return results
 

@@ -286,6 +286,7 @@ class Page(object):
             view_model = self.app.model_dumper.load(view_model_cid)
             cloned_el = ElQuery(cloned_html)
             view = prambanan.ctor(view_type)(self, view_el[0], view_model)
+            view.id = view_id
             view.deserialize(view_value)
             self.views.append((view_selector, view, cloned_el))
 

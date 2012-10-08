@@ -6,15 +6,6 @@ import borobudur.form.exception as exception
 import borobudur.form.widget as widget
 from borobudur.model import Model
 
-def _counter():
-    return {
-        "i": 0
-    }
-def next(ctr):
-    i = ctr["i"]
-    i += 1
-    ctr["i"] = i
-    return i
 
 class Field(object):
     """ Represents an individual form field (a visible object in a
@@ -79,11 +70,6 @@ class Field(object):
             renderer is not passed to the constructor, the default deform
             renderer will be used (the :term:`default renderer`).
 
-        counter
-            ``None`` or an instance of ``itertools.counter`` which is used
-            to generate sequential order-related attributes such as
-            ``oid`` and ``order``.
-
         resource_registry
             The :term:`resource registry` associated with this field.
 
@@ -115,17 +101,16 @@ class Field(object):
     """
 
     error = None
-    counter = _counter()
 
-    def __init__(self, schema, widgets_provider, renderer,
-                 counter=None, **kw):
+    def __init__(self, app, schema, widgets_provider, renderer,
+                 **kw):
 
+        self.app = app
         self.widgets_provider = widgets_provider
         self.renderer = renderer
 
-        self.counter = counter or self.counter
-        self.order = next(self.counter)
-        self.oid = 'deformField%s' % self.order
+        self.order = app.next_count()
+        self.oid = 'deform-field-%s' % self.order
         self.event = Model({"error":None})
 
         self.schema = schema
@@ -143,8 +128,8 @@ class Field(object):
         self.widget = self.make_widget(widgets_provider)
 
         for child in schema.children:
-            self.children.append(Field(child,
-                widgets_provider, renderer, counter=self.counter,
+            self.children.append(Field(app, child,
+                widgets_provider, renderer,
                                        **kw))
 
     def __iter__(self):
@@ -178,16 +163,14 @@ class Field(object):
         receives a new order attribute; it will be a number larger
         than the last renderered field of this set."""
 
-        cloned = self.__class__(self.schema, self.widgets_provider, self.renderer)
-        cloned.schema = self.schema
+        cloned = self.__class__(self.app, self.schema, self.widgets_provider, self.renderer)
         cloned.typ = self.typ # required by Invalid exception
         cloned.name = self.name
         cloned.title = self.title
         cloned.description = self.description
         cloned.required = self.required
         cloned.widget = self.widget
-        cloned.order = next(cloned.counter)
-        cloned.oid = 'deformField%s' % cloned.order
+        cloned.oid = 'deform-field-%s' % cloned.order
         cloned.event = self.event
         cloned.children = [ field.clone() for field in self.children ]
 
@@ -312,15 +295,35 @@ class Field(object):
             return None
         return getattr(self.error, 'msg', None)
 
+    def dump(self):
+        results = {}
+        results["oid"] = self.oid
+        results["order"] = self.order
+        results["children"] = {}
+        for child in self.children:
+            results["children"][child.name] = child.dump()
+        return results
+
+    def load(self, serialized):
+        self.oid = serialized["oid"]
+        self.order = serialized["order"]
+        for child in self.children:
+            child.load(serialized["children"][child.name])
+
+    def bind(self, el):
+        if borobudur.is_server:
+            return
+        self.widget.bind(self, el)
+
     def serialize(self, cstruct, readonly=False):
         """ Serialize the cstruct into HTML.  If ``readonly`` is
         ``True``, render a read-only rendering (no input fields)."""
-        return self.widget.serialize(self, cstruct, readonly)
+        el = self.widget.serialize(self, cstruct, readonly)
+        return el
 
     def deserialize(self, pstruct):
         """ Deserialize the pstruct into a cstruct."""
         return self.widget.deserialize(self, pstruct)
-
 
     def validate(self, el):
         """
@@ -389,12 +392,14 @@ class Field(object):
           else:
               return {'form':form.render()} # the form just needs rendering
         """
-        self.widget.clear_error(self)
+        self.widget.clear_error(self, el)
         fstruct = borobudur.query_el(el).serializeArray()
+
         controls = []
         for obj in fstruct:
             controls.append([obj.name,obj.value])
         pstruct = peppercorn.parse(controls)
+
         exc = None
 
         try:
@@ -409,7 +414,7 @@ class Field(object):
             appstruct = self.schema.deserialize(cstruct)
         except colander.Invalid as e:
             # fill in errors raised by schema nodes
-            self.widget.handle_error(self, e)
+            self.widget.handle_error(self, el, e)
             exc = e
 
         if exc:

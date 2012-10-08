@@ -19,6 +19,7 @@ from borobudur.form.compat import (
 
 
 import prambanan
+from pramjs.elquery import ElQuery
 import pramjs.underscore as underscore
 
 def _normalize_choices(values):
@@ -126,9 +127,14 @@ class Widget(object):
     error_class = 'error'
     css_class = None
 
+    can_handle_error = False
+
     def __init__(self, **kw):
         for name in kw:
             setattr(self, name, kw.get(name))
+
+    def bind(self, field, el):
+        pass
 
     def serialize(self, field, cstruct, readonly=False):
         """
@@ -156,30 +162,6 @@ class Widget(object):
         attached.
         """
         raise NotImplementedError
-
-    def handle_error(self, field, error):
-        """
-        The ``handle_error`` method of a widget must:
-
-        - Set the ``error`` attribute of the ``field`` object it is
-          passed, if the ``error`` attribute has not already been set.
-
-        - Call the ``handle_error`` method of each subfield which also
-          has an error (as per the ``error`` argument's ``children``
-          attribute).
-        """
-        if field.event["error"] is None:
-            field.event["error"] = error
-        # XXX exponential time
-        for e in error.children:
-            for num, subfield in enumerate(field.children):
-                if e.pos == num:
-                    subfield.widget.handle_error(subfield, e)
-
-    def clear_error(self, field):
-        field.event["error"] = None
-        for subfield in field.children:
-            subfield.widget.clear_error(subfield)
 
 
 class TextInputWidget(Widget):
@@ -1001,6 +983,8 @@ class MappingWidget(Widget):
     error_class = None
     category = 'structural'
 
+    can_handle_error = True
+
     def serialize(self, field, cstruct, readonly=False):
         if cstruct in (null, None):
             cstruct = {}
@@ -1032,6 +1016,44 @@ class MappingWidget(Widget):
             raise error
 
         return result
+
+    def bind(self, field, el):
+        for subfield in field.children:
+            q_subel = ElQuery("#item-%s" %subfield.oid, el)
+            subfield.bind(q_subel[0])
+
+    def handle_error(self, field, el, error):
+        """
+        The ``handle_error`` method of a widget must:
+
+        - Set the ``error`` attribute of the ``field`` object it is
+          passed, if the ``error`` attribute has not already been set.
+
+        - Call the ``handle_error`` method of each subfield which also
+          has an error (as per the ``error`` argument's ``children``
+          attribute).
+        """
+        # XXX exponential time
+        for e in error.children:
+            for num, subfield in enumerate(field.children):
+                if e.pos == num:
+                    q_subel = ElQuery("#item-%s" %subfield.oid, el)
+                    q_subel.addClass("error")
+                    if subfield.widget.can_handle_error:
+                        subfield.widget.handle_error(subfield, q_subel, e)
+                    else:
+                        ElQuery("#error-%s"%subfield.oid, q_subel).parent().show()
+                        ElQuery("#error-%s"%subfield.oid, q_subel).html("\n".join(e.messages()))
+
+    def clear_error(self, field, el):
+        for subfield in field.children:
+            q_subel = ElQuery("#item-%s" %subfield.oid, el)
+            q_subel.removeClass("error")
+            if subfield.widget.can_handle_error:
+                subfield.widget.clear_error(subfield, q_subel[0])
+            else:
+                ElQuery("#error-%s"%subfield.oid, q_subel).parent().hide()
+                ElQuery("#error-%s"%subfield.oid).html("")
 
 class FormWidget(MappingWidget):
     """
@@ -1124,15 +1146,7 @@ class SequenceWidget(Widget):
     min_len = None
     max_len = None
 
-    def field_prototype(self, el, field):
-        # we clone the item field to bump the oid (for easier
-        # automated testing; finding last node)
-        item_field = field.children[0].clone()
-        proto = field.renderer.render(self.item_template, item_field,cstruct=null, parent=field)
-        if isinstance(proto, string_types):
-            proto = proto.encode('utf-8')
-        #proto = url_quote(proto)
-        return proto
+    can_handle_error = True
 
     def serialize(self, field, cstruct, readonly=False):
         if (self.render_initial_item and self.min_len is None):
@@ -1153,15 +1167,8 @@ class SequenceWidget(Widget):
 
         item_field = field.children[0]
 
-        if getattr(field, 'sequence_fields', None):
-            # this serialization is being performed as a result of a
-            # validation failure (``deserialize`` was previously run)
-            assert(len(cstruct) == len(field.sequence_fields))
-            subfields = list(zip(cstruct, field.sequence_fields))
-        else:
-            # this serialization is being performed as a result of a
-            # first-time rendering
-            subfields = [ (val, item_field.clone()) for val in cstruct ]
+        # this serialization is being performed as a result of a
+        # first-time rendering
 
         template = readonly and self.readonly_template or self.template
         add_template_mapping = dict(
@@ -1177,23 +1184,32 @@ class SequenceWidget(Widget):
 
         result = field.renderer.render(template, field,
                               cstruct=cstruct,
-                              subfields=subfields,
                               item_field=item_field,
                               add_subitem_text=add_subitem_text)
 
-        q_prototype = borobudur.query_el(borobudur.query_el(".deformSeqPrototype", result).children()[0])
-        q_container = borobudur.query_el(".deformSeqContainer", result)
+        return result
+
+    def bind(self, field, el):
+        subfield = field.children[0]
+        subels = ElQuery(".deformSeqItem", el).toArray()
+
+        for subel in subels:
+            subfield.bind(subel)
+
+        q_container = borobudur.query_el(".deformSeqContainer", el)
 
         def add_click():
-            print "ea"
-            q_container.append(q_prototype.clone())
-        borobudur.query_el(result).delegate(".deformSeqAdd", "click", add_click)
+            val = subfield.schema.serialize(None)
+
+            new_el = subfield.renderer.render(self.item_template, subfield, cstruct=val, parent=field)
+            subfield.bind(new_el)
+            q_container.append(new_el)
 
         def remove_click(ev):
             borobudur.query_el(ev.currentTarget).parent().remove()
-        borobudur.query_el(result).delegate(".deformSeqRemove", "click", remove_click)
 
-        return result
+        borobudur.query_el(el).delegate(".deformSeqAdd", "click", add_click)
+        borobudur.query_el(el).delegate(".deformSeqRemove", "click", remove_click)
 
     def deserialize(self, field, pstruct):
         result = []
@@ -1223,22 +1239,29 @@ class SequenceWidget(Widget):
 
         return result
 
-    def handle_error(self, field, error):
-        if field.event["error"] is None:
-            field.event["error"] = error
+    def handle_error(self, field, el, error):
         # XXX exponential time
-        sequence_fields = getattr(field, 'sequence_fields', [])
+        subfield = field.children[0]
+        subels = ElQuery(".deformSeqItem", el).toArray()
+
         for e in error.children:
-            for num, subfield in enumerate(sequence_fields):
+            for num, subel in enumerate(subels):
                 if e.pos == num:
-                    subfield.widget.handle_error(subfield, e)
+                    if subfield.widget.can_handle_error:
+                        subfield.widget.handle_error(subfield, subel, e)
+                    else:
+                        ElQuery("#error-%s"%subfield.oid, subel).parent().show()
+                        ElQuery("#error-%s"%subfield.oid, subel).html("\n".join(e.messages()))
 
-    def clear_error(self, field):
-        field.event["error"] = None
-        sequence_fields = getattr(field, 'sequence_fields', [])
-        for subfield in sequence_fields:
-            subfield.widget.clear_error(subfield)
-
+    def clear_error(self, field, el):
+        subfield = field.children[0]
+        subels = ElQuery(".deformSeqItem", el).toArray()
+        for subel in subels:
+            if subfield.widget.can_handle_error:
+                subfield.widget.clear_error(subfield, subel)
+            else:
+                ElQuery("#error-%s"%subfield.oid, subel).parent().hide()
+                ElQuery("#error-%s"%subfield.oid).html("")
 
 class DatePartsWidget(Widget):
     """
