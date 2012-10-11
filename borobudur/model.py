@@ -233,8 +233,6 @@ class ModelRef(object):
 
 class ModelRefNode(RefNode):
     def __init__(self, target, nullable=False, is_ref=True, **kwargs):
-        if not target:
-            print "ea"
         super(ModelRefNode, self).__init__(ModelRef(target, nullable, is_ref), **kwargs)
 
         if self.widget is None:
