@@ -97,6 +97,8 @@ class Form(field.Field):
     fields = None
     removed_fields = None
 
+    schema = None
+
     widgets_provider = widget.default_widgets_provider
     renderer = template.default_renderer
 
@@ -148,11 +150,11 @@ class Form(field.Field):
         :meth:`colander.SchemaNode.serialize` and
         :meth:`deform.widget.Widget.serialize` .
         """
+        self.model = model
+
         if model is None:
             model = Model()
             model.schema = self.schema
-
-        self.model = model
 
         cstruct = self.schema.serialize(model.attributes)
 
@@ -162,7 +164,7 @@ class Form(field.Field):
             borobudur.query_el(self.el).replaceWith(el)
         self.el = el
 
-        self.bind(el)
+        self.bind(cstruct, el)
 
         return el
 
@@ -185,21 +187,23 @@ class Form(field.Field):
         :meth:`deform.widget.Widget.serialize` .
         """
         self.load(serialized)
+        self.model = model
 
         if model is None:
             model = Model()
             model.schema = self.schema
 
-        self.model = model
         self.el = el
         self.formid = serialized["formid"]
 
-        self.bind(el)
+        cstruct = self.schema.serialize(model.attributes)
 
-    def bind(self, el):
+        self.bind(cstruct, el)
+
+    def bind(self, cstruct, el):
         if borobudur.is_server:
             return
-        super(Form, self).bind(el)
+        super(Form, self).bind(cstruct, el)
         button_els = ElQuery(".form-actions button[name]", el).toArray()
         for button_el in button_els:
             q_button_el = ElQuery(button_el)

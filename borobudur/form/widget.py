@@ -133,7 +133,7 @@ class Widget(object):
         for name in kw:
             setattr(self, name, kw.get(name))
 
-    def bind(self, field, el):
+    def bind(self, field, cstruct, el):
         pass
 
     def serialize(self, field, cstruct, readonly=False):
@@ -1017,10 +1017,11 @@ class MappingWidget(Widget):
 
         return result
 
-    def bind(self, field, el):
+    def bind(self, field, cstruct, el):
         for subfield in field.children:
+            subval = cstruct[subfield.name]
             q_subel = ElQuery("#item-%s" %subfield.oid, el)
-            subfield.bind(q_subel[0])
+            subfield.bind(subval, q_subel[0])
 
     def handle_error(self, field, el, error):
         """
@@ -1189,12 +1190,12 @@ class SequenceWidget(Widget):
 
         return result
 
-    def bind(self, field, el):
+    def bind(self, field, cstruct, el):
         subfield = field.children[0]
         subels = ElQuery(".deformSeqItem", el).toArray()
 
-        for subel in subels:
-            subfield.bind(subel)
+        for num, subel in enumerate(subels):
+            subfield.bind(cstruct[num], subel)
 
         q_container = borobudur.query_el(".deformSeqContainer", el)
 
@@ -1202,7 +1203,7 @@ class SequenceWidget(Widget):
             val = subfield.schema.serialize(None)
 
             new_el = subfield.renderer.render(self.item_template, subfield, cstruct=val, parent=field)
-            subfield.bind(new_el)
+            subfield.bind(val, new_el)
             q_container.append(new_el)
 
         def remove_click(ev):

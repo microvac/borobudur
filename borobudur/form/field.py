@@ -127,7 +127,7 @@ class Field(object):
         self.children = []
         self.widget = self.make_widget(widgets_provider)
 
-        for child in schema.children:
+        for child in sorted(schema.children, key = lambda s: s._order):
             self.children.append(Field(app, child,
                 widgets_provider, renderer,
                                        **kw))
@@ -310,10 +310,10 @@ class Field(object):
         for child in self.children:
             child.load(serialized["children"][child.name])
 
-    def bind(self, el):
+    def bind(self, cstruct, el):
         if borobudur.is_server:
             return
-        self.widget.bind(self, el)
+        self.widget.bind(self, cstruct, el)
 
     def serialize(self, cstruct, readonly=False):
         """ Serialize the cstruct into HTML.  If ``readonly`` is
