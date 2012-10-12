@@ -17,7 +17,7 @@ class Counter(object):
     def __init__(self, i):
         self.i = i
 
-def client_sync (method, model, resourcer, success=None, error=None):
+def client_sync (method, model, resourcer, query, success=None, error=None):
 
     def fetch_success(attrs):
         def _success():
@@ -35,13 +35,11 @@ def client_sync (method, model, resourcer, success=None, error=None):
     params = {"type": type, "dataType": 'json'};
 
     url = model.url(resourcer.resources_root)
-    query = {}
-    if options.query:
-        query = underscore.extend(options.query)
-    i = 0
-    for key in query:
-        url += "?" if i == 0 else "&"
-        url += "%s=%s" % (key, query[key])
+    if query:
+        i = 0
+        for key in query:
+            url += "?" if i == 0 else "&"
+            url += "%s=%s" % (key, query[key])
     params.url = url
 
     if not options.data and model and (method == 'create' or method == 'update'):
@@ -109,7 +107,10 @@ class Resourcer(object):
                 raise ValueError("unsupported model")
             if success:
                 success(model, resp);
-        return client_sync("read", model, self, wrapped_success, error)
+        query = None
+        if isinstance(model, Collection):
+            query = model.query
+        return client_sync("read", model, self, query, wrapped_success, error)
 
     def server_fetch(self, model, success=None, error=None):
         if isinstance(model, Model):
@@ -125,7 +126,7 @@ class Resourcer(object):
             model_type = model.model
             storage = self.request.resources.get_storage(model_type)
             #todo queries
-            storage.all(model, model_type.deserialize_queries({}))
+            storage.all(model, model_type.deserialize_queries(model.query))
             attrs = model.toJSON()
             count = Counter(0)
             def col_success():

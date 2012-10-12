@@ -32,7 +32,7 @@ class ServiceLoader(BaseLoader):
             if isinstance(self.model, Model):
                 self.resourcer.fill_children(self.model.__class__, attrs, _success)
             else:
-                self.resourcer.fill__col_children(self.model.__class__, attrs, self.resourcer, _success)
+                self.resourcer.fill_col_children(self.model.model, attrs, _success)
 
         self.resourcer.service(self.service_id, self.service_attr, fetch_success, None).invoke()
 
