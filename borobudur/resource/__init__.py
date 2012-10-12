@@ -147,7 +147,7 @@ class Resourcer(object):
                 return False;
             if success:
                 success(model, resp);
-        return client_sync(method, model, self, wrapped_success, error)
+        return client_sync(method, model, self, None, wrapped_success, error)
 
     def service(self, id, attr, success=None, error=None):
         return ServiceInvoker(self, id, attr, success, error)
