@@ -321,17 +321,26 @@ class EmbeddedMongoStorage(BaseStorage):
 
         return result.attributes
 
-    def update(self, parent_id, obj, schema=None):
-        parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_one(parent_id, parent_schema)
+    def update(self, model):
+        parent = model.parent
+        self.parent_storage.one(parent)
 
         collection = parent[self.attribute_path]
-        index = self.find(obj[self.model.id_attribute], collection)
-        collection.models[index] = obj
-        update_result = self.parent_update(parent_id, parent, parent_schema)
-        result = update_result[self.attribute_path][index]
+        index = self.find(model.id, collection)
 
-        return result.attributes
+        collection[index] = model
+        self.parent_storage.update(parent)
+
+        model.set(collection[index].attributes)
+
+    def one(self, model):
+        parent = model.parent
+        self.parent_storage.one(parent)
+
+        collection = parent[self.attribute_path]
+        index = self.find(model.id, collection)
+
+        model.set(collection[index].attributes)
 
     def pre_insert(self, appstruct):
         pass
@@ -347,14 +356,6 @@ class EmbeddedMongoStorage(BaseStorage):
 
         return True
 
-    def one(self, parent_id, id, schema=None):
-        parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_one(parent_id, parent_schema)
-
-        collection = parent[self.attribute_path]
-        index = self.find(self.model.id_type(id), collection)
-
-        return collection[index].attributes
 
     def all(self, parent_id, query=None, config=None, schema=None):
         parent_schema = self.build_parent_schema(schema)
@@ -394,7 +395,7 @@ class EmbeddedMongoStorage(BaseStorage):
 
     def find(self, id, sequence):
         for index, item in enumerate(sequence.models):
-            if item.get(self.model.id_attribute) == id:
+            if item.id == id:
                 return index
         return None
 
@@ -411,23 +412,32 @@ class EmbeddedMongoStorage(BaseStorage):
     def __str__(self):
         return "%s mongo embedded storage with parent %s on %s" % (self.model.__name__, self.parent_storage.__class__.__name__, self.attribute_path)
 
-def make_embedded_storage_view(model, level):
+def make_embedded_storage_view(model_type, level):
 
     class View(object):
 
         def __init__(self, request):
             self.request = request
-            self.schema = model.schema
-            self.storage = request.resources.get_storage(model)
+            self.schema = model_type.schema
+            self.storage = request.resources.get_storage(model_type)
 
-            id = None
+            parents = []
             current_id_level = 0
+            current_storage = self.storage
             while current_id_level < level:
                 id_name = "id%d" % current_id_level
-                id = (self.request.matchdict[id_name], id)
+                current_storage = current_storage.parent_storage
+                id = current_storage.model.id_type(self.request.matchdict[id_name])
+                parents.append(current_storage.model.with_id(id))
                 current_id_level += 1
 
-            self.id = id
+            self.parents = parents
+
+        def set_parents(self, model):
+            current = model
+            for parent in self.parents:
+                current.parent = parent
+                current = parent
 
         def create(self):
             appstruct = self.schema.deserialize(self.request.json_body)
@@ -436,15 +446,17 @@ def make_embedded_storage_view(model, level):
             return serialized
 
         def read(self):
-            result = self.storage.one(self.id, self.request.matchdict["id"], self.schema)
-            serialized = self.schema.serialize(result)
-            return serialized
+            model = model_type.with_id(model_type.id_type(self.request.matchdict["id"]))
+            self.set_parents(model)
+            self.storage.one(model)
+            return model.toJSON()
 
         def update(self):
-            appstruct = self.schema.deserialize(self.request.json_body)
-            result = self.storage.update(self.id, appstruct, self.schema)
-            serialized = self.schema.serialize(result)
-            return serialized
+            model = model_type()
+            model.set(model.parse(self.request.json_body))
+            self.set_parents(model)
+            self.storage.update(model)
+            return model.toJSON()
 
         def delete(self):
             pass
