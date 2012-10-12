@@ -180,9 +180,7 @@ class Resourcer(object):
         self.request.resources.get_storage(model_type).one(model)
         success(model.toJSON())
 
-    bare_fetch = server_bare_fetch if borobudur.is_server  else client_bare_fetch
-
-    def fetch_child(self, model_type, id, success):
+    def bare_fetch(self, model_type, id, success):
         cache = self.fetch_from_cache(model_type, id)
         if cache is not None:
             return success(cache)
@@ -193,7 +191,10 @@ class Resourcer(object):
                 success(attrs)
             self.fill_children(model_type, attrs, _success)
 
-        self.bare_fetch(model_type, id, fetch_success)
+        if borobudur.is_server:
+            self.server_bare_fetch(model_type, id, fetch_success)
+        else:
+            self.client_bare_fetch(model_type, id, fetch_success)
 
 
     def fill_children(self, model_type, attrs, success):
@@ -221,7 +222,7 @@ class Resourcer(object):
 
                         child_id = child_value
                         fetch_count.i += 1
-                        self.fetch_child(child_type, child_id, make_model_success(child_schema.name))
+                        self.bare_fetch(child_type, child_id, make_model_success(child_schema.name))
                     else:
                         fetch_count.i += 1
                         self.fill_children(child_type, child_value, item_success)
@@ -244,7 +245,7 @@ class Resourcer(object):
                                     item_success()
                                 return child_success
                             fetch_count.i += 1
-                            self.fetch_child(child_type, child_id, make_col_success(i, child_arr))
+                            self.bare_fetch(child_type, child_id, make_col_success(i, child_arr))
                         else:
                             fetch_count.i += 1
                             self.fill_children(child_type, child_value, item_success)
