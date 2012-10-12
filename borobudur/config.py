@@ -1,3 +1,4 @@
+from pyramid.httpexceptions import HTTPFound
 from pyramid.response import Response
 from pyramid.renderers import render_to_response
 
@@ -27,8 +28,11 @@ def wrap_pyramid_view(handler_type_id):
         def page_success():
             request.app_config.asset_manager.write_all(request, handler_type_id)
 
-        load_callbacks = Callbacks(page_success)
-        routing_policy.apply(request, handler_type_id, load_callbacks)
+        try:
+            load_callbacks = Callbacks(page_success)
+            routing_policy.apply(request, handler_type_id, load_callbacks)
+        except borobudur.RouteRedirectException as e:
+            raise HTTPFound(e.url)
 
         html = etree.tostring(request.document, pretty_print=True, method="html")
 

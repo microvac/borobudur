@@ -137,8 +137,16 @@ class PageOpener(object):
         stop_load = False
         try:
             page.open()
-        except StopLoadException as e:
-            stop_load = True
+        except Exception as e:
+            if isinstance(e, StopLoadException):
+                stop_load = True
+            elif (not borobudur.is_server) and isinstance(e, borobudur.RouteRedirectException):
+                stop_load = True
+                def load_end():
+                    self.request.app.router.navigate(e.url)
+                prambanan.window.setTimeout(load_end, 0)
+            else:
+                raise e
 
         def el_query(selector):
             return ElQuery(selector, self.request.document)
