@@ -293,7 +293,7 @@ class AssetManager(object):
         self.packs_bundles = {}
 
         self.result_subdir = result_subdir
-        self.prambanan_result_subdir = prambanan_result_subdir
+        self.prambanan_result_subdir = os.path.join(result_subdir, prambanan_result_subdir)
 
         self.manager = PrambananManager([], prambanan_cache_file)
         self.overridden_types = get_overridden_types(self.manager, self.manager.libraries)
@@ -311,6 +311,8 @@ class AssetManager(object):
     def define_style(self, id, type, output, *contents):
         if type not in ["less", "css"]:
             raise ValueError("type %s is not supported" % type)
+
+        output = "%s/%s" % (self.result_subdir, output)
 
         if type == "less":
              self.styles_bundles[id] = LessBundle(*contents, filters="less", output=output)
