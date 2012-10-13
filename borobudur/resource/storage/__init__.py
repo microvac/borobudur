@@ -1,6 +1,9 @@
 import borobudur
+from borobudur import NotFoundException
 from zope.interface.interface import Interface
 from borobudur.model import Collection
+from pyramid.response import Response
+import json
 
 class StorageException(Exception):
     pass
@@ -30,6 +33,16 @@ class SearchConfig(object):
             sorts = []
         self.sorts = sorts
 
+def wrap_error(fn):
+    def wrapped(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except NotFoundException as e:
+            err = {}
+            err["type"] = "Not Found"
+            return Response(json.dumps(err), status=404, content_type="application/json")
+    return wrapped
+
 def make_storage_view(model_type):
 
 
@@ -40,30 +53,35 @@ def make_storage_view(model_type):
             self.storage = request.resources.get_storage(model_type)
             self.schema = model_type.schema
 
+        @wrap_error
         def create(self):
             model = model_type()
             model.set(model.parse(self.request.json_body))
             self.storage.insert(model)
             return model.toJSON()
 
+        @wrap_error
         def update(self):
             model = model_type()
             model.set(model.parse(self.request.json_body))
             self.storage.update(model)
             return model.toJSON()
 
+        @wrap_error
         def read(self):
             id = model_type.id_type(self.request.matchdict["id"])
             model = model_type.with_id(id)
             self.storage.one(model)
             return model.toJSON()
 
+        @wrap_error
         def delete(self):
             id = model_type.id_type(self.request.matchdict["id"])
             model = model_type.with_id(id)
             self.storage.delete(model)
             return True
 
+        @wrap_error
         def list(self):
             collection = Collection(model_type)
 

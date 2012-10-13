@@ -1,5 +1,6 @@
 import borobudur
 import bson
+from borobudur import NotFoundException
 from borobudur.resource.storage import StorageException, SearchConfig
 from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection, CollectionRef, ModelRef
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode, DateTime
@@ -202,6 +203,16 @@ class MongoStorage(BaseStorage):
         self.db = self.connection[self.db_name]
         self.collection = self.db[self.collection_name]
 
+    def one(self, model):
+        query_doc = {model.id_attribute: model.id}
+
+        result = self.collection.find_one(query_doc)
+        if not result:
+            raise NotFoundException()
+
+        deserialized = mapping_deserializer(result, model.schema, self.deserialize)
+        model.set(deserialized)
+
     def insert(self, model):
         #todo bad smell, asymmetric model serializer yet mapping deserializer
         serialized = model_serializer(model, model.schema, self.serialize)
@@ -214,6 +225,9 @@ class MongoStorage(BaseStorage):
         query_doc = {model.id_attribute: model.id}
 
         previous = self.collection.find_one(query_doc)
+        if not previous:
+            raise NotFoundException()
+
         serialized = merge_document(serialized, previous)
 
         self.collection.update(query_doc, serialized)
@@ -225,16 +239,10 @@ class MongoStorage(BaseStorage):
         query_doc = {model.id_attribute: model.id}
         result = self.collection.find_one(query_doc)
         if not result:
-            raise ValueError("Error in deleting - There is no such id as: %s" % id.__str__())
+            raise NotFoundException()
 
         self.collection.remove(query_doc)
 
-    def one(self, model):
-        query_doc = {model.id_attribute: model.id}
-        result = self.collection.find_one(query_doc)
-        if result:
-            deserialized = mapping_deserializer(result, model.schema, self.deserialize)
-            model.set(deserialized)
 
     def all(self, collection, query=None, config=None):
         if config is None:
@@ -308,18 +316,17 @@ class EmbeddedMongoStorage(BaseStorage):
         self.request = request
         self.parent_storage = self.parent_storage(request)
 
-    def insert(self, parent_id, obj, schema=None):
-        parent_schema = self.build_parent_schema(schema)
-        parent = self.parent_one(parent_id, parent_schema)
+    def insert(self, model):
+        parent = model.parent
+        self.parent_storage.one(parent)
 
-        self.pre_insert(obj)
         collection = parent[self.attribute_path]
-        collection.add(obj)
-        index = len(collection) - 1
-        update_result = self.parent_update(parent_id, parent, parent_schema)
-        result = update_result[self.attribute_path][index]
+        index = len(collection)
 
-        return result.attributes
+        collection.add(model)
+        self.parent_storage.update(parent)
+
+        model.set(collection[index].attributes)
 
     def update(self, model):
         parent = model.parent
@@ -342,20 +349,8 @@ class EmbeddedMongoStorage(BaseStorage):
 
         model.set(collection[index].attributes)
 
-    def pre_insert(self, appstruct):
-        pass
-
-    def delete(self, parent_id, id):
-        parent_schema = self.build_parent_schema()
-        parent = self.parent_one(parent_id, parent_schema)
-
-        collection = parent[self.attribute_path]
-        index = self.find(id, collection)
-        collection.models.pop(index)
-        update_result = self.parent_update(parent_id, parent, parent_schema)
-
-        return True
-
+    def delete(self, model):
+        raise NotImplementedError()
 
     def all(self, parent_id, query=None, config=None, schema=None):
         parent_schema = self.build_parent_schema(schema)
@@ -384,13 +379,6 @@ class EmbeddedMongoStorage(BaseStorage):
             result = self.parent_storage.one(parent_id[0], schema)
         else:
             result = self.parent_storage.one(parent_id[1], schema)
-        return result
-
-    def parent_update(self, parent_id, obj, schema):
-        if parent_id[1] is None:
-            result = self.parent_storage.update(obj, schema)
-        else:
-            result = self.parent_storage.update(parent_id[1], obj, schema)
         return result
 
     def find(self, id, sequence):

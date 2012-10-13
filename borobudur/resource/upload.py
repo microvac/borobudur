@@ -26,10 +26,11 @@ def make_file_storage_view(storage_type):
             return {"success":True, "file": result.toJSON()}
 
         def download(self):
-            id = self.request.matchdict["id"]
+            str_id = self.request.matchdict["id"]
+            id = self.storage.model.id_type(str_id)
             type = self.request.matchdict.get("type", self.storage.default_type)
 
-            path = os.path.join(self.storage.directory, id, type)
+            path = os.path.join(self.storage.directory, str_id, type)
             response = FileResponse(path, self.request, self.storage.cache_max_age)
 
             item = self.storage.model.with_id(id)

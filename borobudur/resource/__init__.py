@@ -325,7 +325,7 @@ class ModelDumper(object):
                 self.app.resourcer.fill_col_children(model_type, attrs,  _success)
                 model.reset(model.parse(attrs))
             else:
-                model = prambanan.JS("new model_type()")
+                model = prambanan.ctor(model_type)()
                 self.app.resourcer.fill_children(model_type, attrs, _success)
                 model.set(model.parse(attrs))
             self.models[cid] = model

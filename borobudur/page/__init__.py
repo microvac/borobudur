@@ -140,7 +140,7 @@ class PageOpener(object):
         except Exception as e:
             if isinstance(e, StopLoadException):
                 stop_load = True
-            elif (not borobudur.is_server) and isinstance(e, borobudur.RouteRedirectException):
+            elif (not borobudur.is_server) and isinstance(e, borobudur.RedirectException):
                 stop_load = True
                 def load_end():
                     self.request.app.router.navigate(e.url)

@@ -141,10 +141,12 @@ class AppEventsProperty(object):
     def __call__(self, request, app):
         return AppEvents()
 
-class RouteRedirectException(Exception):
+class RedirectException(Exception):
 
     def __init__(self, url):
         self.url = url
-        super(RouteRedirectException, self).__init__(url)
+        super(RedirectException, self).__init__(url)
 
+class NotFoundException(Exception):
+    pass
 

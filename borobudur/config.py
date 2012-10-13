@@ -31,7 +31,7 @@ def wrap_pyramid_view(handler_type_id):
         try:
             load_callbacks = Callbacks(page_success)
             routing_policy.apply(request, handler_type_id, load_callbacks)
-        except borobudur.RouteRedirectException as e:
+        except borobudur.RedirectException as e:
             raise HTTPFound(e.url)
 
         html = etree.tostring(request.document, pretty_print=True, method="html")
