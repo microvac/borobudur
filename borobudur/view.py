@@ -1,4 +1,3 @@
-from borobudur.model import Model
 import prambanan
 import borobudur
 import pramjs.underscore as underscore
@@ -70,10 +69,7 @@ class View(object):
         self.initialize()
 
     def create_renderdict(self):
-        renderdict = {}
-        renderdict["view"] = self
-        renderdict["request"] = self.request
-        renderdict["app"] = self.app
+        renderdict = {"view": self, "request": self.request, "app": self.app}
         return renderdict
 
     def initialize(self):
@@ -208,6 +204,7 @@ class View(object):
             view_type = prambanan.load_qname(qname)
             view_model = self.app.model_dumper.load(model_cid)
             view = prambanan.ctor(view_type)(self, view_el, view_model)
+
             view.deserialize(value)
             view.id = id
             self.child_views.append((name, view))
@@ -217,19 +214,19 @@ class View(object):
             form_type = prambanan.load_qname(qname)
             form_model = self.app.model_dumper.load(model_cid)
             form = prambanan.ctor(form_type)(self.app)
+
             self._bind_form(form, name)
             form.attach(form_el, form_model, value)
             self.child_forms.append((name, form, form_model))
 
     def serialize(self):
-        results = {}
-        results["child_views"] = []
+        results = {"child_views": [], "child_forms": []}
+
         for name, child_view in self.child_views:
             child_view.q_el.attr("data-view-id", str(child_view.id))
             model_cid = self.app.model_dumper.dump(child_view.model)
             results["child_views"].append((name, child_view.id, prambanan.to_qname(child_view.__class__), model_cid, child_view.serialize()))
 
-        results["child_forms"] = []
         for name, child_form, model in self.child_forms:
             model_cid = self.app.model_dumper.dump(child_form.model)
             results["child_forms"].append((name, child_form.formid, prambanan.to_qname(child_form.__class__), model_cid, child_form.dump()))
