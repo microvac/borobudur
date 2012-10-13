@@ -19,13 +19,13 @@ class APIInvocationsView(View):
             self.q_active_tr.removeClass("pDebugEven")
             self.active_child.remove()
             self.active_child = None
-            self.el_query(".invocation").append(borobudur.query_el("<div></div>"))
+            self.q(".invocation").append(borobudur.query_el("<div></div>"))
 
         q_el = self.q_active_tr = borobudur.query_el(ev.currentTarget)
         q_el.addClass("pDebugEven")
         cid = q_el.attr("data-key")
         model = self.model.getByCid(cid)
-        self.active_child = APIInvocationView(self, self.el_query(".invocation div")[0], model, False)
+        self.active_child = APIInvocationView(self, self.q(".invocation div")[0], model, False)
 
 def bind_ajax_request(app, col):
     if app:

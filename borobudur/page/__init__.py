@@ -148,16 +148,16 @@ class PageOpener(object):
             else:
                 raise e
 
-        def el_query(selector):
+        def q(selector):
             return ElQuery(selector, self.request.document)
 
         if page is not None:
             if page.title is not None:
-                el_query("title").html(page.title)
+                q("title").html(page.title)
             if page.keywords is not None:
-                el_query("meta[name='keywords']").attr("content", page.keywords)
+                q("meta[name='keywords']").attr("content", page.keywords)
             if page.description is not None:
-                el_query("meta[name='description']").attr("content", page.description)
+                q("meta[name='description']").attr("content", page.description)
 
         self.leaf_page = page
         self.active_pages.append(page)
@@ -361,7 +361,7 @@ class Page(object):
     def destroy(self):
         reversed_views = reversed(self.views)
         for selector, view, cloned_el in reversed_views:
-            view.el_query().replaceWith(cloned_el)
+            view.q_el.replaceWith(cloned_el)
             view.remove()
 
 

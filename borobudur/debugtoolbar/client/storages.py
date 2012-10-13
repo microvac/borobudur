@@ -21,11 +21,11 @@ class StorageView(View):
 
     @on_element("change", "select.schema-chooser")
     def show_form(self):
-        schema_name = self.el_query("select.schema-chooser").val()
+        schema_name = self.q("select.schema-chooser").val()
         model = self.model_type(schema_name=schema_name)
 
-        q_form_el = self.el_query(".schema-form")
-        self.el_query(".schema-form").html("")
+        q_form_el = self.q(".schema-form")
+        self.q(".schema-form").html("")
         self.render_form(q_form_el[0], model, schema_name)
 
 class StoragesView(View):
@@ -39,10 +39,10 @@ class StoragesView(View):
             self.q_active_tr.removeClass("pDebugEven")
             self.active_child.remove()
             self.active_child = None
-            self.el_query(".storage").append(borobudur.query_el("<div></div>"))
+            self.q(".storage").append(borobudur.query_el("<div></div>"))
 
         q_el = self.q_active_tr = borobudur.query_el(ev.currentTarget)
         q_el.addClass("pDebugEven")
         model_type_name = borobudur.query_el("td", q_el).first().html()
-        self.active_child = StorageView(self.app, self.el_query(".storage div")[0], model_type_name)
+        self.active_child = StorageView(self.app, self.q(".storage div")[0], model_type_name)
 

@@ -57,7 +57,7 @@ class View(object):
 
         self.model = model
         self.el = el
-        self.el_query = borobudur.create_el_query(el)
+        self.q = borobudur.create_el_query(el)
         self.q_el = ElQuery(el)
 
         self.child_views = []
@@ -201,7 +201,7 @@ class View(object):
 
     def deserialize(self, serialized):
         for name, id, qname, model_cid, value in serialized["child_views"]:
-            view_el = self.el_query("[data-view-id='%s']" % id)[0]
+            view_el = self.q("[data-view-id='%s']" % id)[0]
             view_type = prambanan.load_qname(qname)
             view_model = self.app.model_dumper.load(model_cid)
             view = prambanan.ctor(view_type)(self, view_el, view_model)
@@ -211,7 +211,7 @@ class View(object):
             self.child_views.append((name, view))
 
         for name, formid, qname, model_cid, value in serialized["child_forms"]:
-            form_el = self.el_query("#%s" % formid)[0]
+            form_el = self.q("#%s" % formid)[0]
             form_type = prambanan.load_qname(qname)
             form_model = self.app.model_dumper.load(model_cid)
             form = prambanan.ctor(form_type)(self.app)

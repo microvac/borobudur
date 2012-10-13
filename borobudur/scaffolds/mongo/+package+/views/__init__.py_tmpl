@@ -30,4 +30,4 @@ class SecondPage(Page):
 
     def open(self):
         self.add_view("view", SecondView, Model({"name": "Second Supratman"}))
-        self.get_view("view").el_query().css("color", "red")
+        self.get_view("view").q().css("color", "red")
