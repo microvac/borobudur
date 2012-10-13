@@ -428,10 +428,11 @@ def make_embedded_storage_view(model_type, level):
                 current = parent
 
         def create(self):
-            appstruct = self.schema.deserialize(self.request.json_body)
-            result = self.storage.insert(self.id, appstruct, self.schema)
-            serialized = self.schema.serialize(result)
-            return serialized
+            model = model_type()
+            model.set(model.parse(self.request.json_body))
+            self.set_parents(model)
+            self.storage.insert(model)
+            return model.toJSON()
 
         def read(self):
             model = model_type.with_id(model_type.id_type(self.request.matchdict["id"]))
