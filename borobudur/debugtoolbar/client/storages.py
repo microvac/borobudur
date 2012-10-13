@@ -13,7 +13,7 @@ class StorageView(View):
 
     def __init__(self, app, el, model_type_name):
         self.model_type_name = model_type_name
-        self.model_type = prambanan.load_module_attr(model_type_name)
+        self.model_type = prambanan.load_qname(model_type_name)
 
         model = Model({"model_type": self.model_type, "model_type_name": model_type_name})
         super(StorageView, self).__init__(self, el, model, False)
