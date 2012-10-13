@@ -317,7 +317,7 @@ class ModelDumper(object):
         self.models = {}
         for cid in serialized:
             is_collection, qname, attrs = serialized[cid]
-            model_type = prambanan.load_module_attr(qname)
+            model_type = prambanan.load_qname(qname)
             def _success(attrs):
                 pass
             if is_collection:
@@ -336,9 +336,9 @@ class ModelDumper(object):
             model = self.models[cid]
             is_collection = isinstance(model, Collection)
             if is_collection:
-                qname = borobudur.get_qname(model.model)
+                qname = prambanan.to_qname(model.model)
             else:
-                qname = borobudur.get_qname(model.__class__)
+                qname = prambanan.to_qname(model.__class__)
             attrs = model.toJSON()
             results[cid] = (is_collection, qname, attrs)
         return results

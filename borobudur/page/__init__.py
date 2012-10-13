@@ -88,12 +88,12 @@ class PageOpener(object):
     def init_dumped(self):
         dumped_page_types = self.dumped["page_types"]
         for dumped_page_type in dumped_page_types:
-            self.page_types.append(prambanan.load_module_attr(dumped_page_type))
+            self.page_types.append(prambanan.load_qname(dumped_page_type))
 
         dumped_pages = self.dumped["pages"]
         self.i = 0
         for dumped_page in dumped_pages:
-            page_type = prambanan.load_module_attr(dumped_page["qname"])
+            page_type = prambanan.load_qname(dumped_page["qname"])
             page = prambanan.ctor(page_type)(self.request)
             page.parent_page = self.leaf_page
             page.deserialize(dumped_page["value"])
@@ -105,7 +105,7 @@ class PageOpener(object):
 
 
     def init_new(self):
-        page_type = prambanan.load_module_attr(self.page_type_id)
+        page_type = prambanan.load_qname(self.page_type_id)
 
         page_types = []
 
@@ -197,13 +197,13 @@ class PageOpener(object):
         pages = []
         for page in self.active_pages:
             ser_page = {}
-            ser_page["qname"] = borobudur.get_qname(page.__class__)
+            ser_page["qname"] = prambanan.to_qname(page.__class__)
             ser_page["value"] = page.serialize()
             pages.append(ser_page)
 
         page_types = []
         for page_type in self.page_types:
-            page_types.append(borobudur.get_qname(page_type))
+            page_types.append(prambanan.to_qname(page_type))
 
         results["pages"] = pages
         results["page_types"] = page_types
@@ -290,7 +290,7 @@ class Page(object):
 
         for view_selector, view_id, view_qname, view_model_cid, cloned_html, view_value in serialized["views"]:
             view_el = ElQuery("[data-view-id='%s']" % view_id,self.request.document)
-            view_type = prambanan.load_module_attr(view_qname)
+            view_type = prambanan.load_qname(view_qname)
             view_model = self.app.model_dumper.load(view_model_cid)
             cloned_el = ElQuery(cloned_html)
             view = prambanan.ctor(view_type)(self, view_el[0], view_model)
@@ -312,7 +312,7 @@ class Page(object):
             div = ElQuery("<div></div>")
             div.append(cloned_el)
             model_cid = self.app.model_dumper.dump(view.model)
-            results["views"].append((view_selector, view.id, borobudur.get_qname(view.__class__), model_cid, div.html(), view.serialize()))
+            results["views"].append((view_selector, view.id, prambanan.to_qname(view.__class__), model_cid, div.html(), view.serialize()))
 
         return results
 

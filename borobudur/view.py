@@ -205,7 +205,7 @@ class View(object):
     def deserialize(self, serialized):
         for name, id, qname, model_cid, value in serialized["child_views"]:
             view_el = self.el_query("[data-view-id='%s']" % id)[0]
-            view_type = prambanan.load_module_attr(qname)
+            view_type = prambanan.load_qname(qname)
             view_model = self.app.model_dumper.load(model_cid)
             view = prambanan.ctor(view_type)(self, view_el, view_model)
             view.deserialize(value)
@@ -214,7 +214,7 @@ class View(object):
 
         for name, formid, qname, model_cid, value in serialized["child_forms"]:
             form_el = self.el_query("#%s" % formid)[0]
-            form_type = prambanan.load_module_attr(qname)
+            form_type = prambanan.load_qname(qname)
             form_model = self.app.model_dumper.load(model_cid)
             form = prambanan.ctor(form_type)(self.app)
             self._bind_form(form, name)
@@ -227,12 +227,12 @@ class View(object):
         for name, child_view in self.child_views:
             child_view.q_el.attr("data-view-id", str(child_view.id))
             model_cid = self.app.model_dumper.dump(child_view.model)
-            results["child_views"].append((name, child_view.id, borobudur.get_qname(child_view.__class__), model_cid, child_view.serialize()))
+            results["child_views"].append((name, child_view.id, prambanan.to_qname(child_view.__class__), model_cid, child_view.serialize()))
 
         results["child_forms"] = []
         for name, child_form, model in self.child_forms:
             model_cid = self.app.model_dumper.dump(child_form.model)
-            results["child_forms"].append((name, child_form.formid, borobudur.get_qname(child_form.__class__), model_cid, child_form.dump()))
+            results["child_forms"].append((name, child_form.formid, prambanan.to_qname(child_form.__class__), model_cid, child_form.dump()))
 
         return results
 

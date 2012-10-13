@@ -25,14 +25,11 @@ class DefaultRoutingPolicy(object):
             callbacks.success()
             return
 
-        impl = prambanan.load_module_attr(handler_id)
+        impl = prambanan.load_qname(handler_id)
         impl(request, callbacks)
 
     def create_state(self):
         return AppState()
-
-def get_qname(cls):
-    return "%s:%s" % (cls.__module__, cls.__name__)
 
 def dotted_subscript(container, dotted_name):
     result = container
@@ -64,15 +61,17 @@ class App(object):
     def serialize(self):
         results = {}
 
-        routing_policy = {}
-        routing_policy["qname"] = get_qname(self.routing_policy.__class__)
-        routing_policy["value"] = self.routing_policy.serialize(self)
+        routing_policy = {
+            "qname": prambanan.to_qname(self.routing_policy.__class__),
+            "value": self.routing_policy.serialize(self),
+        }
+
         results["routing_policy"] = routing_policy
 
         properties = []
         for property_name in self.property_names:
             property = getattr(self, property_name)
-            property_qname = get_qname(property.__class__)
+            property_qname = prambanan.to_qname(property.__class__)
             property_value = property.serialize()
             properties.append({
                 "name": property_name,
@@ -86,7 +85,7 @@ class App(object):
 
     def deserialize(self, serialized):
         serialized_routing_policy = serialized["routing_policy"]
-        routing_policy_type = prambanan.load_module_attr(serialized_routing_policy["qname"])
+        routing_policy_type = prambanan.load_qname(serialized_routing_policy["qname"])
         routing_policy = prambanan.ctor(routing_policy_type)()
         routing_policy.deserialize(self, serialized_routing_policy["value"])
         self.routing_policy = routing_policy
@@ -94,7 +93,7 @@ class App(object):
         serialized_properties = serialized["properties"]
         for serialized_property in serialized_properties:
             property_name = serialized_property["name"]
-            property_type = prambanan.load_module_attr(serialized_property["qname"])
+            property_type = prambanan.load_qname(serialized_property["qname"])
             property = prambanan.ctor(property_type)()
             property.deserialize(serialized_property["value"])
             self.add_property(property_name, property)

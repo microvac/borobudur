@@ -254,7 +254,7 @@ bootstrap_template = """
 
         var loaded_assets = %s;
 
-        var load = prambanan.import("prambanan").load_module_attr;
+        var load = prambanan.import("prambanan").load_qname;
 
         var app_class = prambanan.import("borobudur").App;
         var app = new app_class(app_root, null, routes, settings);
