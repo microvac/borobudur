@@ -1,5 +1,6 @@
 import prambanan
 import borobudur
+from pramjs.elquery import ElQuery
 import pramjs.underscore as underscore
 
 delegate_event_splitter = prambanan.JS("/^(\S+)\s*(.*)$/")
@@ -57,7 +58,7 @@ class View(object):
         self.model = model
         self.el = el
         self.el_query = borobudur.create_el_query(el)
-        self.q_el = borobudur.query_el(el)
+        self.q_el = ElQuery(el)
 
         self.child_views = []
         self.child_forms = []
@@ -123,7 +124,7 @@ class View(object):
         if not child_view_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
 
-        el = borobudur.query_el("<%s></%s>"% (tag, tag))[0]
+        el = ElQuery("<%s></%s>"% (tag, tag))[0]
         child_view = prambanan.ctor(child_view_type)(self, el, model)
         child_view.render()
         self.child_views.append((name, child_view))
