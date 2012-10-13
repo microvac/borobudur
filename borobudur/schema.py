@@ -1,9 +1,9 @@
 import colander
 import borobudur.form.widget as widget
-import prambanan
 from colander import (\
     null, Integer, String, Date, DateTime, Float, Decimal, Time, Boolean
     )
+from prambanan import is_js
 
 def clone_node(source, target):
     target.typ = source.typ
@@ -46,7 +46,7 @@ class ObjectId(object):
             raise colander.Invalid(node, 'input is not a valid id')
         return result
 
-if prambanan.is_js:
+if is_js:
     ObjectId = String
 
 class Currency(Integer):

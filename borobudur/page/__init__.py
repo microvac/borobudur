@@ -1,7 +1,7 @@
+from borobudur import is_server, RedirectException
 from borobudur.resource import ModelDumper
-import prambanan
-import borobudur
 from borobudur.page.loaders import Loaders
+from prambanan import JS, window, load_qname, ctor, to_qname
 from pramjs.elquery import ElQuery
 
 class StopLoadException(Exception):
@@ -40,7 +40,7 @@ class PageRoutingPolicy(object):
             setattr(request.app, "model_dumper", ModelDumper(request.app, request.app.resourcer))
             if hasattr(request.app, "dumped_model_dumper"):
                 request.app.model_dumper.deserialize(request.app.dumped_model_dumper)
-                prambanan.JS("delete request.app.dumped_model_dumper")
+                JS("delete request.app.dumped_model_dumper")
 
         request.app.opener.apply(request, handler_id, callbacks)
 
@@ -88,13 +88,13 @@ class PageOpener(object):
     def init_dumped(self):
         dumped_page_types = self.dumped["page_types"]
         for dumped_page_type in dumped_page_types:
-            self.page_types.append(prambanan.load_qname(dumped_page_type))
+            self.page_types.append(load_qname(dumped_page_type))
 
         dumped_pages = self.dumped["pages"]
         self.i = 0
         for dumped_page in dumped_pages:
-            page_type = prambanan.load_qname(dumped_page["qname"])
-            page = prambanan.ctor(page_type)(self.request)
+            page_type = load_qname(dumped_page["qname"])
+            page = ctor(page_type)(self.request)
             page.parent_page = self.leaf_page
             page.deserialize(dumped_page["value"])
             self.active_pages.append(page)
@@ -105,7 +105,7 @@ class PageOpener(object):
 
 
     def init_new(self):
-        page_type = prambanan.load_qname(self.page_type_id)
+        page_type = load_qname(self.page_type_id)
 
         page_types = []
 
@@ -140,11 +140,11 @@ class PageOpener(object):
         except Exception as e:
             if isinstance(e, StopLoadException):
                 stop_load = True
-            elif (not borobudur.is_server) and isinstance(e, borobudur.RedirectException):
+            elif (not is_server) and isinstance(e, RedirectException):
                 stop_load = True
                 def load_end():
                     self.request.app.router.navigate(e.url)
-                prambanan.window.setTimeout(load_end, 0)
+                window.setTimeout(load_end, 0)
             else:
                 raise e
 
@@ -170,7 +170,7 @@ class PageOpener(object):
 
     def next(self):
         page_type = self.page_types[self.i]
-        if borobudur.is_server and page_type.client_only:
+        if is_server and page_type.client_only:
             self.partial_finish()
         else:
             page = page_type(self.request)
@@ -197,13 +197,13 @@ class PageOpener(object):
         pages = []
         for page in self.active_pages:
             ser_page = {}
-            ser_page["qname"] = prambanan.to_qname(page.__class__)
+            ser_page["qname"] = to_qname(page.__class__)
             ser_page["value"] = page.serialize()
             pages.append(ser_page)
 
         page_types = []
         for page_type in self.page_types:
-            page_types.append(prambanan.to_qname(page_type))
+            page_types.append(to_qname(page_type))
 
         results["pages"] = pages
         results["page_types"] = page_types
@@ -290,10 +290,10 @@ class Page(object):
 
         for view_selector, view_id, view_qname, view_model_cid, cloned_html, view_value in serialized["views"]:
             view_el = ElQuery("[data-view-id='%s']" % view_id,self.request.document)
-            view_type = prambanan.load_qname(view_qname)
+            view_type = load_qname(view_qname)
             view_model = self.app.model_dumper.load(view_model_cid)
             cloned_el = ElQuery(cloned_html)
-            view = prambanan.ctor(view_type)(self, view_el[0], view_model)
+            view = ctor(view_type)(self, view_el[0], view_model)
             view.id = view_id
             view.deserialize(view_value)
             self.views.append((view_selector, view, cloned_el))
@@ -312,7 +312,7 @@ class Page(object):
             div = ElQuery("<div></div>")
             div.append(cloned_el)
             model_cid = self.app.model_dumper.dump(view.model)
-            results["views"].append((view_selector, view.id, prambanan.to_qname(view.__class__), model_cid, div.html(), view.serialize()))
+            results["views"].append((view_selector, view.id, to_qname(view.__class__), model_cid, div.html(), view.serialize()))
 
         return results
 
@@ -340,7 +340,7 @@ class Page(object):
         #clone to replace later when removed
         #pyquery buggy on cloned though, so after cloning, find q_el again
         cloned_el = q_el.clone()
-        if borobudur.is_server:
+        if is_server:
             q_el = ElQuery(selector, self.request.document)
 
         view = view_type(self, q_el[0], model)

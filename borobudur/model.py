@@ -1,10 +1,8 @@
 from bson.objectid import ObjectId
 import colander
 import pramjs.backbone as backbone
-import pramjs.underscore as underscore
 from borobudur.form.widget import Widget
 from borobudur.schema import clone_node, MappingNode
-from prambanan import get_template, JS
 
 class RefNode(colander.SchemaNode):
     pass

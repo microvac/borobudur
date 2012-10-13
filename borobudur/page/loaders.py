@@ -1,6 +1,6 @@
-import borobudur
+from borobudur import query_el, is_server
 from borobudur.model import Model
-import prambanan
+from prambanan import window
 from pramjs import underscore
 
 __author__ = 'h'
@@ -54,7 +54,7 @@ class ServiceInvoker(object):
         self.on_error = on_error
 
     def invoke(self, *args):
-        json = prambanan.window.JSON
+        json = window.JSON
         url = "/app/services/%s/%s" % (self.service_id, self.service_attr)
         settings = {
             "data": json.stringify(args),
@@ -65,14 +65,14 @@ class ServiceInvoker(object):
             "error": self.on_error,
             "url": url,
             }
-        borobudur.query_el.ajax(settings)
+        query_el.ajax(settings)
 
 class Loaders(object):
 
     def __init__(self, request):
         self.loaders = []
         self.request = request
-        if prambanan.is_js:
+        if not is_server:
             self.success = underscore.bind(self.success, self)
 
     def append(self, loader):

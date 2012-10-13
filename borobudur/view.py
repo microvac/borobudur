@@ -1,9 +1,9 @@
-import prambanan
-import borobudur
+from prambanan import ctor, load_qname, to_qname, JS, wrap_on_error
+from borobudur import is_server, create_el_query
 from pramjs.elquery import ElQuery
 import pramjs.underscore as underscore
 
-delegate_event_splitter = prambanan.JS("/^(\S+)\s*(.*)$/")
+delegate_event_splitter = JS("/^(\S+)\s*(.*)$/")
 
 def on_element(selector, event_name, prevent_default=True):
     def decorate(fn):
@@ -57,7 +57,7 @@ class View(object):
 
         self.model = model
         self.el = el
-        self.q = borobudur.create_el_query(el)
+        self.q = create_el_query(el)
         self.q_el = ElQuery(el)
 
         self.child_views = []
@@ -97,7 +97,7 @@ class View(object):
         if not form_type:
             raise KeyError("form with name '%s' doesn't registered to view" % name)
 
-        form = prambanan.ctor(form_type)(self.app)
+        form = ctor(form_type)(self.app)
         self._bind_form(form, name)
 
 
@@ -116,7 +116,7 @@ class View(object):
                     if prevent_default:
                         ev.preventDefault()
                         h(ev, form.model, form, form.el)
-                return prambanan.wrap_on_error(wrapped)
+                return wrap_on_error(wrapped)
             form.add_event_handler(event_name, make_handler(handler))
 
     def render_child(self, name, model, tag="div"):
@@ -125,7 +125,7 @@ class View(object):
             raise KeyError("form with name '%s' doesn't registered to view" % name)
 
         el = ElQuery("<%s></%s>"% (tag, tag))[0]
-        child_view = prambanan.ctor(child_view_type)(self, el, model)
+        child_view = ctor(child_view_type)(self, el, model)
         child_view.render()
         self.child_views.append((name, child_view))
         return el
@@ -134,7 +134,7 @@ class View(object):
         return self.model[child_name]
 
     def delegate_element_events(self):
-        if borobudur.is_server:
+        if is_server:
             return
 
         self.undelegate_element_events()
@@ -157,7 +157,7 @@ class View(object):
                 method = self[method]
 
             method = underscore.bind(method, self)
-            method = prambanan.wrap_on_error(method)
+            method = wrap_on_error(method)
 
             event_name += '.delegateEvents' + self.cid
 
@@ -169,13 +169,13 @@ class View(object):
                 self.q_el.delegate(selector, event_name, handler)
 
     def undelegate_element_events(self):
-        if borobudur.is_server:
+        if is_server:
             return
 
         self.q_el.unbind(".delegateEvents"+self.cid)
 
     def find_decorated_element_handlers(self):
-        if borobudur.is_server:
+        if is_server:
             return {}
 
         results = []
@@ -187,7 +187,7 @@ class View(object):
         return results
 
     def find_decorated_form_handlers(self, name):
-        if borobudur.is_server:
+        if is_server:
             return {}
 
         results = []
@@ -202,9 +202,9 @@ class View(object):
     def deserialize(self, serialized):
         for name, id, qname, model_cid, value in serialized["child_views"]:
             view_el = self.q("[data-view-id='%s']" % id)[0]
-            view_type = prambanan.load_qname(qname)
+            view_type = load_qname(qname)
             view_model = self.app.model_dumper.load(model_cid)
-            view = prambanan.ctor(view_type)(self, view_el, view_model)
+            view = ctor(view_type)(self, view_el, view_model)
 
             view.deserialize(value)
             view.id = id
@@ -212,9 +212,9 @@ class View(object):
 
         for name, formid, qname, model_cid, value in serialized["child_forms"]:
             form_el = self.q("#%s" % formid)[0]
-            form_type = prambanan.load_qname(qname)
+            form_type = load_qname(qname)
             form_model = self.app.model_dumper.load(model_cid)
-            form = prambanan.ctor(form_type)(self.app)
+            form = ctor(form_type)(self.app)
 
             self._bind_form(form, name)
             form.attach(form_el, form_model, value)
@@ -226,11 +226,11 @@ class View(object):
         for name, child_view in self.child_views:
             child_view.q_el.attr("data-view-id", str(child_view.id))
             model_cid = self.app.model_dumper.dump(child_view.model)
-            results["child_views"].append((name, child_view.id, prambanan.to_qname(child_view.__class__), model_cid, child_view.serialize()))
+            results["child_views"].append((name, child_view.id, to_qname(child_view.__class__), model_cid, child_view.serialize()))
 
         for name, child_form, model in self.child_forms:
             model_cid = self.app.model_dumper.dump(child_form.model)
-            results["child_forms"].append((name, child_form.formid, prambanan.to_qname(child_form.__class__), model_cid, child_form.dump()))
+            results["child_forms"].append((name, child_form.formid, to_qname(child_form.__class__), model_cid, child_form.dump()))
 
         return results
 
