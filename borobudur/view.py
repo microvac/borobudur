@@ -115,7 +115,7 @@ class View(object):
                 def wrapped(ev):
                     if prevent_default:
                         ev.preventDefault()
-                        h(ev, form.model, form, form.el)
+                        h(form, form.model, ev)
                 return wrap_on_error(wrapped)
             form.add_event_handler(event_name, make_handler(handler))
 

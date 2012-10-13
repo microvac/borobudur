@@ -132,6 +132,9 @@ class Form(field.Field):
     def initialize(self):
         pass
 
+    def extract(self):
+        return self.validate(self.el)
+
     def render(self, model, readonly=False):
         """ Render the field (or form) to HTML using ``appstruct`` as
         a set of default values.  ``appstruct`` is typically a
