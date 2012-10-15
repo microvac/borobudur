@@ -1,6 +1,6 @@
 from prambanan import JS
 
-def serial(method, app, models, success=None, error=None):
+def serial_save(resourcer, models, success=None, error=None):
     i = 0
     def next():
         global i
@@ -10,5 +10,5 @@ def serial(method, app, models, success=None, error=None):
         else:
             model = models[i]
             i += 1
-            JS("model[method]")(app, success=next)
+            resourcer.save(model, success=next)
     next()

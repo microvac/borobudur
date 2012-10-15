@@ -355,7 +355,7 @@ class AssetManager(object):
                 format ="<link rel='stylesheet' href='%s' />\n"
                 q_el = q_head
             urls = []
-            for url in bundle.urls(self.env):
+            for url in self.get_urls(bundle):
                 q_el.append(format % url)
                 urls.append(url)
             assets[type][name] = urls
@@ -365,7 +365,7 @@ class AssetManager(object):
         pack_urls = {}
         for name, bundle in self.packs_to_bundles(all_packs):
             pack_urls[name] = []
-            for url in bundle.urls(self.env):
+            for url in self.get_urls(bundle):
                 pack_urls[name].append(url)
 
         bootstrap = bootstrap_template % (
@@ -396,6 +396,18 @@ class AssetManager(object):
 
         for name, bundle in self.styles_to_bundles(styles):
             yield "css", name, bundle
+
+    bundle_url_cache = {}
+
+    def get_urls(self, bundle):
+        if self.is_production:
+            b_id = id(bundle)
+            if b_id not in self.bundle_url_cache:
+                self.bundle_url_cache[b_id] = list(bundle.urls(self.env))
+            return self.bundle_url_cache[b_id]
+        else:
+            return bundle.urls(self.env)
+
 
     def packs_to_bundles(self, packs):
         for pack in packs:

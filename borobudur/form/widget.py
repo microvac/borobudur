@@ -798,6 +798,7 @@ class RadioChoiceWidget(SelectWidget):
         is passed to the ``serialize`` or ``deserialize`` method.
         Default: the empty string.
     """
+    line_break = False
     template = 'radio_choice'
     readonly_template = 'readonly/radio_choice'
 

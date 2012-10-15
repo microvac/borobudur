@@ -5,6 +5,7 @@ import shutil
 from pyramid.paster import (
     setup_logging,
     bootstrap)
+from borobudur.interfaces import IAppConfigurator, IAssetCalculator
 
 
 def usage(argv):
@@ -28,15 +29,15 @@ def main(argv=sys.argv):
     config_uri = argv[1]
     setup_logging(config_uri)
     env = bootstrap(config_uri)
-    for app_name, app in env["app"].registry.getUtilitiesFor(IApp):
-        manager = app.asset_manager
+    for app_name, app_config in env["app"].registry.getUtilitiesFor(IAppConfigurator):
+        manager = app_config.asset_manager
         if argv[2] == "clean":
-            rm_all(manager.full_result_dir)
+            rm_all(os.path.join(manager.env.directory, manager.result_subdir))
             rm_all(manager.env.cache.directory)
         elif argv[2] == "build":
-            page = app.pages[0][1]
-            packs = app.asset_calculator(app_name, page)
-            for _, __, bundle in manager.get_all_bundles(packs, manager.style_assets.keys()):
+            calculator = env["app"].registry.queryUtility(IAssetCalculator, name=app_name)
+            packs = calculator.calculate_all()
+            for _, __, bundle in manager.get_all_bundles(packs, manager.styles_bundles.keys()):
                 print "generating %s" % bundle.output
                 for url in bundle.urls(manager.env):
                     print "%s generated" % url

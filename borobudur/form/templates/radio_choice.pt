@@ -14,6 +14,7 @@
             ${title}
         </label>
     </tal:def>
+        <br tal:condition="field.widget.line_break" />
     </tal:loop>
     <input type="hidden" name="__end__"/>
 </div>
