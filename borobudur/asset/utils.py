@@ -7,7 +7,7 @@ def npm_i_venv(*args):
     if os.name == "nt":
         venv_bin = os.path.join(venv, "Scripts")
     else:
-        venv_bin = os.path.join(venv, "bin")
+        venv_bin = venv
     prev_npm_prefix = None
     if "NPM_CONFIG_PREFIX" in os.environ:
         prev_npm_prefix = os.environ["NPM_CONFIG_PREFIX"]
