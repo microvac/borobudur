@@ -1,3 +1,5 @@
+import collections
+import pprint
 import borobudur
 import bson
 from borobudur import NotFoundException
@@ -14,6 +16,29 @@ import colander
 #### Serializer and deserializers ###
 # serializer should be forgiving on non existing items that make adding child schema later easier
 # deserializer should harsher, spawning errors in times
+
+class DeserializationException(Exception):
+
+    def __init__(self, message=None):
+        Exception.__init__(self, message)
+        self.most_bottom = message is not None
+        self.children = []
+
+    def add(self, pos, e):
+        self.children.append((pos, e))
+
+    def asdict(self):
+        results = {}
+        for pos, child in self.children:
+            results[pos] = child.message if child.most_bottom else child.asdict()
+        return results
+
+    def __str__(self):
+        if self.most_bottom:
+            return self.message
+        else:
+            return pprint.pformat(self.asdict())
+
 
 def null_converter(obj, schema=None, func=None):
     return obj
@@ -32,10 +57,24 @@ def sequence_deserializer(obj, schema, converter):
     if obj is None:
         obj = []
 
+    if not isinstance(obj, collections.Iterable):
+        raise DeserializationException("%s is not iterable" % repr(obj))
+
     result = []
     child_schema = schema.children[0]
-    for child_obj in obj:
-        result.append(converter(child_obj, child_schema, converter))
+
+    err = None
+    for i, child_obj in enumerate(obj):
+        try:
+            result.append(converter(child_obj, child_schema, converter))
+        except DeserializationException as e:
+            if err is None:
+                err = DeserializationException()
+            err.add(i, e)
+
+    if err is not None:
+        raise err
+
     return result
 
 def collection_deserializer(obj, schema, deserialize_child):
@@ -64,12 +103,22 @@ def mapping_deserializer(obj, schema, deserialize_child):
         obj = {}
 
     result = {}
+
+    err = None
     for child_schema in schema.children:
         if child_schema.name not in obj:
             child_obj = None
         else:
             child_obj = obj[child_schema.name]
-        result[child_schema.name] = deserialize_child(child_obj, child_schema, deserialize_child)
+        try:
+            result[child_schema.name] = deserialize_child(child_obj, child_schema, deserialize_child)
+        except DeserializationException as e:
+            if err is None:
+                err = DeserializationException()
+            err.add(child_schema.name, e)
+
+    if err is not None:
+        raise err
 
     return result
 
