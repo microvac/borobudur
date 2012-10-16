@@ -134,9 +134,6 @@ def date_deserializer(obj, schema=None, func=None):
         return None
     return date(year=obj.year, month=obj.month, day=obj.day)
 
-def object_id_serializer(obj, schema=None, func=None):
-    return obj if obj is not None else bson.ObjectId()
-
 serializers = {
     colander.String: null_converter,
     colander.Int: null_converter,
@@ -146,7 +143,7 @@ serializers = {
     #colander.Decimal:
     colander.Sequence: sequence_serializer,
     colander.Mapping: mapping_serializer,
-    ObjectId: object_id_serializer,
+    ObjectId: null_converter,
     Date: date_serializer,
     Currency: null_converter,
     CollectionRef: collection_serializer,

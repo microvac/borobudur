@@ -1,9 +1,12 @@
 import colander
+import translationstring
 import borobudur.form.widget as widget
 from colander import (\
     null, Integer, String, Date, DateTime, Float, Decimal, Time, Boolean
     )
 from prambanan import is_js
+
+_ = translationstring.TranslationStringFactory('borobudur')
 
 def clone_node(source, target):
     target.typ = source.typ
@@ -28,7 +31,7 @@ class ObjectId(object):
         if appstruct is None:
             return null
         if not isinstance(appstruct, OID):
-            raise colander.Invalid(node, 'Input is not ObjectId')
+            raise colander.Invalid(node, _('"${val}" is not ObjectId', mapping={"val": appstruct}))
         return appstruct.__str__()
 
     def deserialize(self, node, cstruct):
