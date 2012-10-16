@@ -43,6 +43,12 @@ def wrap_error(fn):
             return Response(json.dumps(err), status=404, content_type="application/json")
     return wrapped
 
+def make_id(model_type, str_id):
+    try:
+        return model_type.id_type(str_id)
+    except Exception:
+        raise NotFoundException()
+
 def make_storage_view(model_type):
 
 
@@ -62,21 +68,25 @@ def make_storage_view(model_type):
 
         @wrap_error
         def update(self):
+            id = make_id(model_type, self.request.matchdict["id"])
             model = model_type()
             model.set(model.parse(self.request.json_body))
+            if id != model.id:
+                raise borobudur.InvalidRequestException("id doesnt matches")
+
             self.storage.update(model)
             return model.toJSON()
 
         @wrap_error
         def read(self):
-            id = model_type.id_type(self.request.matchdict["id"])
+            id = make_id(model_type, self.request.matchdict["id"])
             model = model_type.with_id(id)
             self.storage.one(model)
             return model.toJSON()
 
         @wrap_error
         def delete(self):
-            id = model_type.id_type(self.request.matchdict["id"])
+            id = make_id(model_type, self.request.matchdict["id"])
             model = model_type.with_id(id)
             self.storage.delete(model)
             return True

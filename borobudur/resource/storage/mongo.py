@@ -3,7 +3,7 @@ import pprint
 import borobudur
 import bson
 from borobudur import NotFoundException
-from borobudur.resource.storage import StorageException, SearchConfig
+from borobudur.resource.storage import StorageException, SearchConfig, make_id, wrap_error
 from borobudur.model import CollectionRefNode, ModelRefNode, RefNode, Model, Collection, CollectionRef, ModelRef
 from borobudur.schema import ObjectId, MappingNode, Date, Currency, SequenceNode, DateTime
 from datetime import datetime, date
@@ -461,7 +461,7 @@ def make_embedded_storage_view(model_type, level):
             while current_id_level < level:
                 id_name = "id%d" % current_id_level
                 current_storage = current_storage.parent_storage
-                id = current_storage.model.id_type(self.request.matchdict[id_name])
+                id = make_id(current_storage.model, self.request.matchdict[id_name])
                 parents.append(current_storage.model.with_id(id))
                 current_id_level += 1
 
@@ -473,6 +473,7 @@ def make_embedded_storage_view(model_type, level):
                 current.parent = parent
                 current = parent
 
+        @wrap_error
         def create(self):
             model = model_type()
             model.set(model.parse(self.request.json_body))
@@ -480,15 +481,24 @@ def make_embedded_storage_view(model_type, level):
             self.storage.insert(model)
             return model.toJSON()
 
+        @wrap_error
         def read(self):
-            model = model_type.with_id(model_type.id_type(self.request.matchdict["id"]))
+            id = make_id(model_type, self.request.matchdict["id"])
+            model = model_type.with_id(id)
             self.set_parents(model)
             self.storage.one(model)
             return model.toJSON()
 
+        @wrap_error
         def update(self):
+            id = make_id(model_type, self.request.matchdict["id"])
+
             model = model_type()
             model.set(model.parse(self.request.json_body))
+
+            if id != model.id:
+                raise borobudur.InvalidRequestException("id doesnt matches")
+
             self.set_parents(model)
             self.storage.update(model)
             return model.toJSON()
