@@ -34,7 +34,7 @@ class ServiceLoader(BaseLoader):
             else:
                 self.resourcer.fill_col_children(self.model.model, attrs, _success)
 
-        self.resourcer.service(self.service_id, self.service_attr, fetch_success, None).invoke()
+        self.resourcer.service(self.service_id, self.service_attr, fetch_success, callbacks.error).invoke()
 
 class StorageLoader(BaseLoader):
 
@@ -74,19 +74,20 @@ class Loaders(object):
         self.request = request
         if not is_server:
             self.success = underscore.bind(self.success, self)
+            self.error = underscore.bind(self.error, self)
 
     def append(self, loader):
         self.loaders.append(loader)
 
-    def apply(self, load_flow):
+    def apply(self, opener):
         self.i = 0
         self.len = len(self.loaders)
-        self.load_flow = load_flow
+        self.opener = opener
 
         if self.i < self.len:
             self.next()
         else:
-            load_flow.success()
+            opener.success()
 
     def success(self):
         self.i += 1
@@ -94,10 +95,10 @@ class Loaders(object):
         if self.i < self.len:
             self.next()
         else:
-            self.load_flow.success()
+            self.opener.success()
 
-    def error(self):
-        pass
+    def error(self, e):
+        self.opener.error(e)
 
     def next(self):
         loader = self.loaders[self.i]

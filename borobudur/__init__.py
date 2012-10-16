@@ -146,10 +146,13 @@ class RedirectException(Exception):
         self.url = url
         super(RedirectException, self).__init__(url)
 
-class NotFoundException(Exception):
+class ResourceException(Exception):
     pass
 
-class InvalidRequestException(Exception):
+class NotFoundException(ResourceException):
+    pass
+
+class InvalidRequestException(ResourceException):
 
     def __init__(self, message):
         self.message = message

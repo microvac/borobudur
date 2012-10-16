@@ -28,8 +28,22 @@ def client_sync (method, model, resourcer, query, success=None, error=None):
         else:
             resourcer.fill_col_children(model.model, attrs, _success)
 
+    def fetch_error(xhr):
+        if xhr.status == 400 or xhr.status == 404:
+            ex = None
+            er_json = prambanan.window.JSON.parse(xhr.responseText)
+            if xhr.status == 400:
+                ex = borobudur.InvalidRequestException(er_json.message)
+            elif xhr.status == 404:
+                ex = borobudur.NotFoundException()
+            error(ex)
+        else:
+            print "error fetch"
+            print xhr
+
     options = {}
     options.success = fetch_success
+    options.error = fetch_error
 
     type = methodMap[method];
     params = {"type": type, "dataType": 'json'};
@@ -80,11 +94,14 @@ class ServiceInvoker(object):
     def server_invoke(self, *args):
         service = self.resourcer.request.resources.get_service(self.service_id)
         method = getattr(service, self.service_attr)
-        result = method(*args)
-        if hasattr(result, "toJSON"):
-            self.on_success(result.toJSON())
-        else:
-            self.on_success(result)
+        try:
+            result = method(*args)
+            if hasattr(result, "toJSON"):
+                self.on_success(result.toJSON())
+            else:
+                self.on_success(result)
+        except borobudur.ResourceException as e:
+            self.on_error(e)
 
     invoke = server_invoke if borobudur.is_server else client_invoke
 
@@ -113,30 +130,33 @@ class Resourcer(object):
         return client_sync("read", model, self, query, wrapped_success, error)
 
     def server_fetch(self, model, success=None, error=None):
-        if isinstance(model, Model):
-            model_type = model.__class__
-            storage = self.request.resources.get_storage(model_type)
-            storage.one(model)
-            attrs = model.toJSON()
-            def _success():
-                model.set(model.parse(attrs))
-                success()
-            self.fill_children(model_type, attrs, _success)
-        elif isinstance(model, Collection):
-            model_type = model.model
-            storage = self.request.resources.get_storage(model_type)
-            #todo queries
-            storage.all(model, model_type.deserialize_queries(model.query))
-            attrs = model.toJSON()
-            count = Counter(0)
-            def col_success():
-                count.i += 1
-                if count.i == len(attrs) and success:
+        try:
+            if isinstance(model, Model):
+                model_type = model.__class__
+                storage = self.request.resources.get_storage(model_type)
+                storage.one(model)
+                attrs = model.toJSON()
+                def _success():
+                    model.set(model.parse(attrs))
                     success()
-            for item_attrs in attrs:
-                self.fill_children(model.model, item_attrs, col_success)
-        else:
-            raise ValueError("unsupported model")
+                self.fill_children(model_type, attrs, _success)
+            elif isinstance(model, Collection):
+                model_type = model.model
+                storage = self.request.resources.get_storage(model_type)
+                #todo queries
+                storage.all(model, model_type.deserialize_queries(model.query))
+                attrs = model.toJSON()
+                count = Counter(0)
+                def col_success():
+                    count.i += 1
+                    if count.i == len(attrs) and success:
+                        success()
+                for item_attrs in attrs:
+                    self.fill_children(model.model, item_attrs, col_success)
+            else:
+                raise ValueError("unsupported model")
+        except borobudur.ResourceException as e:
+            error(e)
 
     fetch = server_fetch if borobudur.is_server else client_fetch
 

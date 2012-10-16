@@ -1,4 +1,4 @@
-from borobudur import is_server, RedirectException
+from borobudur import is_server, RedirectException, ResourceException
 from borobudur.resource import ModelDumper
 from borobudur.page.loaders import Loaders
 from prambanan import JS, window, load_qname, ctor, to_qname
@@ -168,6 +168,19 @@ class PageOpener(object):
         else:
             self.finish()
 
+    def error(self, e):
+        if isinstance(e, ResourceException) and self.current is not None:
+            try:
+                self.current.on_resource_exception(e)
+            except RedirectException as e:
+                if not is_server:
+                    def load_end():
+                        self.request.app.router.navigate(e.url)
+                    window.setTimeout(load_end, 0)
+                else:
+                    raise e
+        self.finish()
+
     def next(self):
         page_type = self.page_types[self.i]
         if is_server and page_type.client_only:
@@ -282,6 +295,9 @@ class Page(object):
 
     def open(self):
         pass
+
+    def on_resource_exception(self, e):
+        print e
 
     def deserialize(self, serialized):
         for name in serialized["models"]:
