@@ -1,4 +1,7 @@
 import inspect
+import json
+from pyramid.response import Response
+from borobudur import NotFoundException, InvalidRequestException
 
 class ServiceExposer(object):
 
@@ -10,10 +13,19 @@ class ServiceExposer(object):
                 args = []
                 if json_body is not None:
                     args = json_body
-                result =  getattr(service_type(request), name)(*args)
-                if hasattr(result, "toJSON"):
-                    return result.toJSON()
-                return result
+                try:
+                    result =  getattr(service_type(request), name)(*args)
+                    if hasattr(result, "toJSON"):
+                        return result.toJSON()
+                    return result
+                except NotFoundException as e:
+                    err = {}
+                    err["type"] = "Not Found"
+                    return Response(json.dumps(err), status=404, content_type="application/json")
+                except InvalidRequestException as e:
+                    err = {}
+                    err["message"] = e.message
+                    return Response(json.dumps(err), status=400, content_type="application/json")
             return view
 
         exposed_methods = []

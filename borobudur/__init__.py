@@ -149,3 +149,9 @@ class RedirectException(Exception):
 class NotFoundException(Exception):
     pass
 
+class InvalidRequestException(Exception):
+
+    def __init__(self, message):
+        self.message = message
+        super(InvalidRequestException, self).__init__(message)
+
