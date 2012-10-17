@@ -1,3 +1,4 @@
+from borobudur.resource.channel import socketio_service
 from borobudur.resource.storage.mongo import MongoStorage, EmbeddedMongoStorage
 
 def expose(*exposers):
@@ -53,6 +54,10 @@ def add_resources(config, name, resource_types, root):
     r_map[name] = (storage_type_map, service_id_map, resource_types, root)
     for resource_type in resource_types:
         try_expose(resource_type, config, root, factory)
+
+    channel_name = "%s/channels" % name
+    config.add_route(channel_name, "socket.io/*remaining")
+    config.add_view(socketio_service, route_name=channel_name)
 
 def get_resources(request):
     storage_type_map, service_id_map, resource_types, resource_root = r_map[request.context.resources_name]

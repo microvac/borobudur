@@ -194,6 +194,19 @@ def merge_document(source, target):
             target[key] = value
     return target
 
+def get_diff(source, target):
+    diff = []
+    if target is None:
+        return source.keys()
+    for key, value in source.items():
+        #todo TypeError: can't compare offset-naive and offset-aware datetimes
+        try:
+            if key not in target or target[key] != value:
+                diff.append(key)
+        except TypeError:
+            continue
+    return diff
+
 class MongoStorageException(StorageException):
     pass
 
@@ -241,6 +254,7 @@ class MongoStorage(BaseStorage):
     db_name = None
     collection_name = None
     model = None
+    publisher = None
 
     def __init__(self, request):
         self.request = request
@@ -274,12 +288,31 @@ class MongoStorage(BaseStorage):
         if not previous:
             raise NotFoundException()
 
+        diff = get_diff(serialized, previous)
         serialized = merge_document(serialized, previous)
 
         self.collection.update(query_doc, serialized)
 
         deserialized = mapping_deserializer(serialized, model.schema, self.deserialize)
         model.set(deserialized)
+
+        self.publish(diff, model)
+
+    def publish(self, diff, model):
+        if self.publisher is None:
+            return
+
+        import json
+        results = {}
+        for attr in diff:
+            if attr in model.schema:
+                results[attr] = model.schema[attr].serialize(model[attr])
+
+        if not len(results.keys()):
+            return
+
+        channel = "%s/%s" % (self.model.model_url , model.id)
+        self.publisher.publish(channel, json.dumps(results))
 
     def delete(self, model):
         query_doc = {model.id_attribute: model.id}

@@ -97,6 +97,7 @@ class PageOpener(object):
             page = ctor(page_type)(self.request)
             page.parent_page = self.leaf_page
             page.deserialize(dumped_page["value"])
+            page.client_init()
             self.active_pages.append(page)
             self.leaf_page = page
             self.i += 1
@@ -137,6 +138,8 @@ class PageOpener(object):
         stop_load = False
         try:
             page.open()
+            if not is_server:
+                page.client_init()
         except Exception as e:
             if isinstance(e, StopLoadException):
                 stop_load = True
@@ -294,6 +297,9 @@ class Page(object):
         return False
 
     def open(self):
+        pass
+
+    def client_init(self):
         pass
 
     def on_resource_exception(self, e):

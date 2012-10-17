@@ -2,6 +2,7 @@ import borobudur
 from borobudur.model import Model, Collection, ModelRefNode, CollectionRefNode
 import prambanan
 from pramjs import underscore
+import pramjs.socketio as socketio
 
 __author__ = 'h'
 
@@ -112,6 +113,7 @@ class Resourcer(object):
         self.resources_name = resources_name
         self.resources_root = resources_root
         self.model_caches = {}
+        self.model_subscriptions = {}
 
     def client_fetch(self, model, success=None, error=None):
         def wrapped_success(resp, status, xhr):
@@ -286,8 +288,50 @@ class Resourcer(object):
         if len(attrs) == 0 and success:
             success()
 
+    def subscribe(self, model):
+        url = model.single_url()
+
+        if url not in self.model_subscriptions:
+            self.model_subscriptions[url] = [[], 0, model.__class__]
+
+        models, count, typ = self.model_subscriptions[url]
+
+        models.append(model)
+        self.model_subscriptions[1] = count + 1
+
+        if count == 0:
+            self.io.emit("subscribe", url)
+
+    def unsubscribe(self, model):
+        url = model.single_url()
+        if url in self.model_subscriptions:
+            models, count, typ = self.model_subscriptions[url]
+
+            for i, m in enumerate(models):
+                if m == model:
+                    models[i] = None
+                    count -= 1
+
+            self.model_subscriptions[1] = count
+            if count <= 0:
+                self.io.emit("unsubscribe", url)
+
     def on_new_request(self):
         self.model_caches = {}
+
+    def on_model(self, url, data):
+        models, count, typ = self.model_subscriptions[url]
+        def on_success():
+            for model in models:
+                if model is not None:
+                    model.set(model.parse(data))
+        self.fill_children(typ, data, on_success)
+
+    def on_socket_connect(self):
+        for key in self.model_subscriptions:
+            models, count, typ = self.model_subscriptions[key]
+            if count > 0:
+                self.io.emit("subscribe", key)
 
     def serialize(self):
         results = {}
@@ -298,6 +342,9 @@ class Resourcer(object):
     def deserialize(self, serialized):
         self.resources_root = serialized["resources_root"]
         self.model_caches = serialized["model_caches"]
+        self.io = socketio.connect("/model", underscore.bind(self.on_socket_connect, self))
+        self.io.on('model', underscore.bind(self.on_model, self))
+
 
 class ResourcerProperty(object):
 

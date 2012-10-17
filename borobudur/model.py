@@ -30,7 +30,7 @@ class Model(backbone.Model):
         result = cls(attrs, parent)
         return result
 
-    def url(self, resource_root):
+    def single_url(self):
         id = None if self.isNew() else self.id
         current = self.parent
         while current is not None:
@@ -39,11 +39,14 @@ class Model(backbone.Model):
             else:
                 id = current.id
             current = current.parent
-
-        result = "%s/storages/%s" % (resource_root, self.model_url)
         if id is not None:
-            result = "%s/%s" % (result, id)
+            result = "%s/%s" % (self.model_url, id)
+        else:
+            result = self.model_url
         return result
+
+    def url(self, resource_root):
+        return "%s/storages/%s" % (resource_root, self.single_url())
 
     def set(self, attrs, silent=False):
         copy = {}
