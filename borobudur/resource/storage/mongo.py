@@ -311,7 +311,7 @@ class MongoStorage(BaseStorage):
         if not len(results.keys()):
             return
 
-        channel = "%s/%s" % (self.model.model_url , model.id)
+        channel = "/model/%s/%s" % (self.model.model_url , model.id)
         self.publisher.publish(channel, json.dumps(results))
 
     def delete(self, model):

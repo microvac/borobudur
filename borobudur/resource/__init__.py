@@ -300,7 +300,7 @@ class Resourcer(object):
         self.model_subscriptions[1] = count + 1
 
         if count == 0:
-            self.io.emit("subscribe", url)
+            self.socket.emit("subscribe_model", url)
 
     def unsubscribe(self, model):
         url = model.single_url()
@@ -314,12 +314,12 @@ class Resourcer(object):
 
             self.model_subscriptions[1] = count
             if count <= 0:
-                self.io.emit("unsubscribe", url)
+                self.socket.emit("unsubscribe_model", url)
 
     def on_new_request(self):
         self.model_caches = {}
 
-    def on_model(self, url, data):
+    def on_model_change(self, url, data):
         models, count, typ = self.model_subscriptions[url]
         def on_success():
             for model in models:
@@ -327,11 +327,15 @@ class Resourcer(object):
                     model.set(model.parse(data))
         self.fill_children(typ, data, on_success)
 
-    def on_socket_connect(self):
+    def on_socket_connected(self):
+        print "connected"
         for key in self.model_subscriptions:
             models, count, typ = self.model_subscriptions[key]
             if count > 0:
-                self.io.emit("subscribe", key)
+                self.socket.emit("subscribe_model", key)
+
+    def on_socket_disconnected(self):
+        print "disconnect"
 
     def serialize(self):
         results = {}
@@ -342,8 +346,10 @@ class Resourcer(object):
     def deserialize(self, serialized):
         self.resources_root = serialized["resources_root"]
         self.model_caches = serialized["model_caches"]
-        self.io = socketio.connect("/model", underscore.bind(self.on_socket_connect, self))
-        self.io.on('model', underscore.bind(self.on_model, self))
+        self.socket = socketio.connect("/model")
+        self.socket.on('model_change', underscore.bind(self.on_model_change, self))
+        self.socket.on('connect', underscore.bind(self.on_socket_connected, self))
+        self.socket.on('disconnect', underscore.bind(self.on_socket_disconnected, self))
 
 
 class ResourcerProperty(object):

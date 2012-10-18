@@ -1,3 +1,4 @@
+import gevent
 from pyramid.response import Response
 
 __author__ = 'h'
@@ -16,6 +17,7 @@ class ModelNamespace(BaseNamespace):
 
     def initialize(self):
         r = redis.StrictRedis()
+        self.collection_subscriptions = {}
         self.pubsub = r.pubsub()
         self.spawn(self.listener)
 
@@ -23,17 +25,20 @@ class ModelNamespace(BaseNamespace):
         self.pubsub.subscribe("dummy")
         for m in self.pubsub.listen():
             if m['type'] == 'message':
-                data = loads(m['data'])
-                self.emit("model", m["channel"], data)
+                if m["channel"].startswith("/model/"):
+                    data = loads(m['data'])
+                    url = m["channel"][7:]
+                    self.emit("model_change", url, data)
 
-    def on_subscribe(self, url):
-        self.pubsub.subscribe(url)
+    def on_subscribe_model(self, url):
+        channel = "/model/%s" % url
+        self.pubsub.subscribe(channel)
         print "subscribed to %s" % url
 
-    def on_unsubscribe(self, url):
-        self.pubsub.unsubscribe(url)
+    def on_unsubscribe_model(self, url):
+        channel = "/model/%s" % url
+        self.pubsub.unsubscribe(channel)
         print "unsubscribed from %s" % url
-
 
 def socketio_service(request):
     retval = socketio_manage(request.environ,
@@ -41,6 +46,5 @@ def socketio_service(request):
             '/model': ModelNamespace,
             }, request=request
     )
-    print "writing response?"
 
     return Response("", status=200)
