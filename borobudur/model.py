@@ -1,5 +1,6 @@
 from bson.objectid import ObjectId
 import colander
+from borobudur import is_server
 import pramjs.backbone as backbone
 from borobudur.form.widget import Widget
 from borobudur.schema import clone_node, MappingNode
@@ -15,6 +16,7 @@ class Model(backbone.Model):
     id_type = ObjectId
 
     schema = MappingNode()
+    query_schema = MappingNode()
     model_url = None
 
     def __init__(self, attributes=None, parent=None):
@@ -29,6 +31,15 @@ class Model(backbone.Model):
         attrs[cls.id_attribute] = id
         result = cls(attrs, parent)
         return result
+
+    @classmethod
+    def with_serialized_id(cls, str_id, parent=None):
+        #todo
+        if not is_server and cls.id_type == ObjectId:
+            id = str_id
+        else:
+            id = cls.id_type(str_id)
+        return cls.with_id(id, parent)
 
     def single_url(self):
         id = None if self.isNew() else self.id
@@ -84,16 +95,11 @@ class Model(backbone.Model):
         overrides with deep toJSON
         ie. if a child is a borobudur.Model, convert that thing to JSON too
         """
-        schema = self.schema
-
-        if schema is not None:
-            result = {}
-            for child in schema.children:
-                value = self.get(child.name, None)
-                result[child.name]=child.serialize(value)
-            return result
-        else:
-            return super(Model, self).toJSON()
+        result = {}
+        for child in self.schema.children:
+            value = self.get(child.name, None)
+            result[child.name]=child.serialize(value)
+        return result
 
     def parse(self, response):
         results = {}
@@ -106,14 +112,23 @@ class Model(backbone.Model):
                 results[key] = child
         return results
 
+    @classmethod
+    def serialize_queries(cls, queries):
+        result = {}
+        for child in cls.query_schema.children:
+            if child.name in queries:
+                value = queries[child.name]
+                result[child.name]=child.serialize(value)
+        return result
 
-    @staticmethod
-    def serialize_queries(queries):
-        return {}
-
-    @staticmethod
-    def deserialize_queries(params):
-        return {}
+    @classmethod
+    def deserialize_queries(cls, params):
+        result = {}
+        for child in cls.query_schema.children:
+            if child.name in params:
+                value = params[child.name]
+                result[child.name]=child.deserialize(value)
+        return result
 
     def __getitem__(self, name):
         return self.get(name)

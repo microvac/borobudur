@@ -128,7 +128,7 @@ class Resourcer(object):
                 success(model, resp);
         query = None
         if isinstance(model, Collection):
-            query = model.query
+            query = model.model.serialize_queries(model.query)
         return client_sync("read", model, self, query, wrapped_success, error)
 
     def server_fetch(self, model, success=None, error=None):
@@ -146,7 +146,7 @@ class Resourcer(object):
                 model_type = model.model
                 storage = self.request.resources.get_storage(model_type)
                 #todo queries
-                storage.all(model, model_type.deserialize_queries(model.query))
+                storage.all(model, model.query)
                 attrs = model.toJSON()
                 count = Counter(0)
                 def col_success():
