@@ -1,6 +1,6 @@
 from __future__ import with_statement
 from pyramid.renderers import render_to_response
-from borobudur.interfaces import IBootstrapSubscriber, IAppConfigurator
+from borobudur.interfaces import IBootstrapSubscriber, IAppConfigurator, IAssetCalculator
 from pyramid_debugtoolbar.panels import DebugPanel
 
 _ = lambda x: x
@@ -45,10 +45,10 @@ def asset_list_view(request):
 
     app_name = request.matchdict["app_name"]
     app_config = request.registry.getUtility(IAppConfigurator, name=app_name)
-    subscribers = app_config.get_bootstrap_subscribers(request)
-    calculate = app_config.asset_calculator
+    subscribers = app_config.get_bootstrap_subscribers(request.registry)
+    calculator = request.registry.queryUtility(IAssetCalculator, name=app_name)
 
-    packs = list(calculate(app_name, subscribers, page_type_id))
+    packs = list(calculator.calculate_one(page_type_id))
     styles = ["bootstrap"]
 
     results = {
@@ -68,12 +68,11 @@ def asset_changed_view(request):
 
     app_name = request.matchdict["app_name"]
     app_config = request.registry.getUtility(IAppConfigurator, name=app_name)
-    subscribers = app_config.get_bootstrap_subscribers(request)
-    calculate = app_config.asset_calculator
+    calculator = request.registry.queryUtility(IAssetCalculator, name=app_name)
 
     import time
 
-    packs = list(calculate(app_name, subscribers, page_type_id))
+    packs = list(calculator.calculate_one(page_type_id))
     styles = ["bootstrap"]
 
     results = {"js": [], "css": []}

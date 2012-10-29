@@ -1,6 +1,7 @@
 import collections
 import pprint
 import borobudur
+import json
 import bson
 from borobudur import NotFoundException
 from borobudur.resource.storage import StorageException, SearchConfig, make_id, wrap_error
@@ -279,6 +280,7 @@ class MongoStorage(BaseStorage):
         self.collection.insert(serialized)
         deserialized = mapping_deserializer(serialized, model.schema, self.deserialize)
         model.set(deserialized)
+        self.publish_insert(model)
 
     def update(self, model):
         serialized = model_serializer(model, model.schema, self.serialize)
@@ -296,13 +298,32 @@ class MongoStorage(BaseStorage):
         deserialized = mapping_deserializer(serialized, model.schema, self.deserialize)
         model.set(deserialized)
 
-        self.publish(diff, model)
+        self.publish_changes(diff, model)
 
-    def publish(self, diff, model):
+    def get_model_pattern(self, model):
+        schema = model.query_schema
+
+        result = model.model_url
+        for child in sorted(schema.children, key = lambda s: s._order):
+            child_pattern = child.serialize(model[child.name])
+            result = "%s/%s" % (result, child_pattern)
+
+        return result
+
+    def publish_insert(self, model):
+        if self.publisher is None or not model.is_patternable:
+            return
+
+        value = json.dumps(model.toJSON())
+        pattern = self.get_model_pattern(model)
+        channel = "/collection/%s" % pattern
+        result = self.publisher.publish(channel, value)
+        print "publish add to %s" % result
+
+    def publish_changes(self, diff, model):
         if self.publisher is None:
             return
 
-        import json
         results = {}
         for attr in diff:
             if attr in model.schema:
@@ -312,7 +333,8 @@ class MongoStorage(BaseStorage):
             return
 
         channel = "/model/%s/%s" % (self.model.model_url , model.id)
-        self.publisher.publish(channel, json.dumps(results))
+        result = self.publisher.publish(channel, json.dumps(results))
+        print "publish change to %s" % result
 
     def delete(self, model):
         query_doc = {model.id_attribute: model.id}

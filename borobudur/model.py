@@ -19,6 +19,8 @@ class Model(backbone.Model):
     query_schema = MappingNode()
     model_url = None
 
+    is_patternable = False
+
     def __init__(self, attributes=None, parent=None):
         self.parent = parent
         self.idAttribute = self.id_attribute
@@ -241,7 +243,10 @@ class ModelRef(object):
 
         if isinstance(cstruct, dict):
             result = self.target()
-            result.set(result.parse(cstruct))
+            if self.is_ref:
+                result.set(result.parse(cstruct))
+            else:
+                result.set(result.schema.deserialize(cstruct))
             return result
         else:
             id = self.target.id_type(cstruct)
@@ -249,6 +254,8 @@ class ModelRef(object):
 
 class ModelRefNode(RefNode):
     def __init__(self, target, nullable=False, is_ref=True, **kwargs):
+        if nullable:
+            kwargs.__setitem__("missing", None)
         super(ModelRefNode, self).__init__(ModelRef(target, nullable, is_ref), **kwargs)
 
         if self.widget is None:

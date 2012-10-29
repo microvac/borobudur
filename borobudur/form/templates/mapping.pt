@@ -2,17 +2,20 @@
 
     <input type="hidden" name="__start__" value="${field.name}:mapping"/>
 
-    <legend tal:condition="field.title">${field.title}</legend>
+    <div class="group-header" tal:condition="field.title">
+        <div class="title">
+            ${field.title}
+        </div>
+        <div class="description" tal:condition="field.description">
+            ${field.description}
+        </div>
+    </div>
 
     <div class="clearfix alert-message error" tal:condition="field.errormsg()">
         <p>
             There was a problem with this section
         </p>
         <p>${field.errormsg()}</p>
-    </div>
-
-    <div tal:condition="field.description">
-        ${field.description}
     </div>
 
     <div

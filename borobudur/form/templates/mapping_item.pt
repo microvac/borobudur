@@ -1,5 +1,5 @@
 <div tal:define="category field.widget.category; hidden field.widget.hidden"
-     class="${'control-group' if not hidden else ''} ${field.error and 'error' or ''}"
+     class="${'control-group' if not hidden and category != 'structural' else 'control-non-group'} ${field.error and 'error' or ''}"
      id="item-${field.oid}"
      title="${field.description}"
      i18n:domain="deform">
@@ -37,7 +37,7 @@
             </span>
         </span>
 
-        <span class="help-block" tal:condition="field.description">
+        <span class="help-block" tal:condition="category != 'structural' and field.description">
             ${field.description}
         </span>
     </div>

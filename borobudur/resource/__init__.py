@@ -112,8 +112,11 @@ class Resourcer(object):
         self.request = request
         self.resources_name = resources_name
         self.resources_root = resources_root
+
         self.model_caches = {}
+
         self.model_subscriptions = {}
+        self.collection_subscriptions = {}
 
     def client_fetch(self, model, success=None, error=None):
         def wrapped_success(resp, status, xhr):
@@ -146,7 +149,7 @@ class Resourcer(object):
                 model_type = model.model
                 storage = self.request.resources.get_storage(model_type)
                 #todo queries
-                storage.all(model, model.query)
+                storage.all(model, model.model.deserialize_queries(model.model.serialize_queries(model.query)))
                 attrs = model.toJSON()
                 count = Counter(0)
                 def col_success():
@@ -288,7 +291,7 @@ class Resourcer(object):
         if len(attrs) == 0 and success:
             success()
 
-    def subscribe(self, model):
+    def subscribe_model(self, model):
         url = model.single_url()
 
         if url not in self.model_subscriptions:
@@ -302,7 +305,50 @@ class Resourcer(object):
         if count == 0:
             self.socket.emit("subscribe_model", url)
 
-    def unsubscribe(self, model):
+    def get_collection_pattern(self, collection):
+        schema = collection.model.query_schema
+        query = collection.query
+
+        result = collection.model.model_url
+        for child in sorted(schema.children, key = lambda s: s._order):
+            child_pattern = "*"
+            if child.name in query:
+                child_pattern = child.serialize(query[child.name])
+            result = "%s/%s" % (result, child_pattern)
+
+        return result
+
+
+    def subscribe_collection(self, collection):
+        pattern = self.get_collection_pattern(collection)
+
+        if pattern not in self.collection_subscriptions:
+            self.collection_subscriptions[pattern] = [[], 0, collection.model]
+
+        collections, count, typ = self.collection_subscriptions[pattern]
+
+        collections.append(collection)
+        self.collection_subscriptions[1] = count + 1
+
+        if count == 0:
+            self.socket.emit("subscribe_collection", pattern)
+
+    def unsubscribe_collection(self, collection):
+        pattern = self.get_collection_pattern(collection)
+
+        if pattern in self.collection_subscriptions:
+            collections, count, typ = self.collection_subscriptions[pattern]
+
+            for i, c in enumerate(collections):
+                if c == collection:
+                    collections[i] = None
+                    count -= 1
+
+            self.collection_subscriptions[1] = count
+            if count <= 0:
+                self.socket.emit("unsubscribe_collection", pattern)
+
+    def unsubscribe_model(self, model):
         url = model.single_url()
         if url in self.model_subscriptions:
             models, count, typ = self.model_subscriptions[url]
@@ -320,11 +366,28 @@ class Resourcer(object):
         self.model_caches = {}
 
     def on_model_change(self, url, data):
+        print "got change %s %s" % (url, data)
+
         models, count, typ = self.model_subscriptions[url]
         def on_success():
             for model in models:
                 if model is not None:
                     model.set(model.parse(data))
+        self.fill_children(typ, data, on_success)
+
+    def on_collection_add(self, pattern, data):
+        print "got add %s %s" % (pattern, data)
+
+        collections, count, typ = self.collection_subscriptions[pattern]
+        def on_success():
+            for collection in collections:
+                model = prambanan.ctor(collection.model)()
+                model.set(model.parse(data))
+                if collection.prevent_duplicate:
+                    if collection.get(model.id):
+                        continue
+                if collection is not None:
+                    collection.add(model)
         self.fill_children(typ, data, on_success)
 
     def on_socket_connected(self):
@@ -333,6 +396,10 @@ class Resourcer(object):
             models, count, typ = self.model_subscriptions[key]
             if count > 0:
                 self.socket.emit("subscribe_model", key)
+        for key in self.collection_subscriptions:
+            collections, count, typ = self.collection_subscriptions[key]
+            if count > 0:
+                self.socket.emit("subscribe_collection", key)
 
     def on_socket_disconnected(self):
         print "disconnect"
@@ -348,6 +415,7 @@ class Resourcer(object):
         self.model_caches = serialized["model_caches"]
         self.socket = socketio.connect("/model")
         self.socket.on('model_change', underscore.bind(self.on_model_change, self))
+        self.socket.on('collection_add', underscore.bind(self.on_collection_add, self))
         self.socket.on('connect', underscore.bind(self.on_socket_connected, self))
         self.socket.on('disconnect', underscore.bind(self.on_socket_disconnected, self))
 

@@ -24,11 +24,17 @@ class ModelNamespace(BaseNamespace):
     def listener(self):
         self.pubsub.subscribe("dummy")
         for m in self.pubsub.listen():
-            if m['type'] == 'message':
+            if m['type'] == 'message' or m["type"] == 'pmessage':
+                print "got %s %s" % (m["channel"], m["data"])
                 if m["channel"].startswith("/model/"):
                     data = loads(m['data'])
                     url = m["channel"][7:]
                     self.emit("model_change", url, data)
+                elif m["channel"].startswith("/collection/"):
+                    data = loads(m['data'])
+                    pattern = m["pattern"][12:]
+                    self.emit("collection_add", pattern, data)
+                    print "emitting"
 
     def on_subscribe_model(self, url):
         channel = "/model/%s" % url
@@ -39,6 +45,16 @@ class ModelNamespace(BaseNamespace):
         channel = "/model/%s" % url
         self.pubsub.unsubscribe(channel)
         print "unsubscribed from %s" % url
+
+    def on_subscribe_collection(self, pattern):
+        channel = "/collection/%s" % pattern
+        self.pubsub.psubscribe(channel)
+        print "subscribed to %s" % pattern
+
+    def on_unsubscribe_collection(self, pattern):
+        channel = "/collection/%s" % pattern
+        self.pubsub.punsubscribe(channel)
+        print "unsubscribed for %s" % pattern
 
 def socketio_service(request):
     retval = socketio_manage(request.environ,
