@@ -158,6 +158,8 @@ class Resourcer(object):
                         success()
                 for item_attrs in attrs:
                     self.fill_children(model.model, item_attrs, col_success)
+                if len(attrs) == 0:
+                    success();
             else:
                 raise ValueError("unsupported model")
         except borobudur.ResourceException as e:
