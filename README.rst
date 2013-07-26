@@ -5,7 +5,7 @@ and focus on sharing server's and client's code. It uses:
 
     * `pyramid <http://www.pylonsproject.org/>`_ Python web application framework
     * `backbone.js <http://www.backbonejs.org/>`_ Javascript client MVC framework
-    * `prambanan <http://docs.microvac.co.id/prambanan/>`_ Python to javascript compiler
+    * `prambanan <https://github.com/microvac/prambanan>`_ Python to javascript compiler
 
 Starting new borobudur project
 ------------------------------
